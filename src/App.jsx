@@ -6,6 +6,7 @@ import DonutChart from './components/DonutChart';
 import SimpleBar from './components/SimpleBar';
 import { SelectFilter, PeriodSelector } from './components/FilterComponents';
 import BienRow from './components/BienRow';
+import { supabase } from './supabaseClient';
 
 const STYLES = {
     input: "block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 py-2.5 px-3.5 text-zinc-900 shadow-2xs placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
@@ -215,7 +216,6 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
-  const [serverIP, setServerIP] = useState(() => localStorage.getItem('server_ip') || 'localhost');
   const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
   
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
@@ -265,7 +265,6 @@ export default function App() {
   
   const [fc10FormNombre, setFc10FormNombre] = useState(''); const [fc10FormDoc, setFc10FormDoc] = useState(''); const [fc10FormCargo, setFc10FormCargo] = useState(''); const [devLugar, setDevLugar] = useState(''); const [devFecha, setDevFecha] = useState(''); const [devReceptor, setDevReceptor] = useState(''); const [devCargo, setDevCargo] = useState(''); const [fc10FormOrg, setFc10FormOrg] = useState({ unidad: '', unidadCod: '', reparticion: '', reparticionCod: '', dependenciaOrg: '', dependenciaCod: '', area: '', areaCod: '' });
   const fileInputRef = useRef(null); const bienFormRef = useRef(null); 
-  const API_URL = '/api';
 
   const datosMemorizados = useMemo(() => { 
     const uMap = new Map(); const rMap = new Map(); const dMap = new Map(); const aMap = new Map();
@@ -278,57 +277,43 @@ export default function App() {
   const todasDependencias = DEPENDENCIAS_UNP;
   const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
 
-  const getToken = () => localStorage.getItem('auth_token');
-  
   const handleLogout = useCallback(() => { 
       setIsAuthenticated(false); setCurrentUser(null); 
       localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
 
-  const fetchAuth = useCallback(async (url, options = {}) => {
-      const token = getToken();
-      const headers = { 'Content-Type': 'application/json', ...options.headers };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      
-      const res = await fetch(url, { ...options, headers });
-      if (res.status === 401 || res.status === 403) {
-          handleLogout();
-          addToast("No autorizado. Sesión finalizada.", "error");
-          throw new Error("No autorizado");
-      }
-      return res;
-  }, [handleLogout]);
-
   const fetchData = useCallback(async () => {
     try {
-      const [reqBienes, reqFc10, reqFc11, reqFc04, reqEstructuras, reqAuditoria] = await Promise.all([ 
-          fetchAuth(`${API_URL}/bens`).catch(()=>({ok:false})), 
-          fetchAuth(`${API_URL}/fc10`).catch(()=>({ok:false})), 
-          fetchAuth(`${API_URL}/fc11`).catch(()=>({ok:false})), 
-          fetchAuth(`${API_URL}/fc04`).catch(()=>({ok:false})), 
-          fetchAuth(`${API_URL}/estructuras`).catch(()=>({ok:false})),
-          fetchAuth(`${API_URL}/auditoria`).catch(()=>({ok:false}))
+      const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria] = await Promise.all([ 
+          supabase.from('bienes').select('*'),
+          supabase.from('fc10').select('*'),
+          supabase.from('fc11').select('*'),
+          supabase.from('fc04').select('*'),
+          supabase.from('estructuras').select('*'),
+          supabase.from('auditoria').select('*')
       ]);
-      if (reqBienes.ok) setBienes(await reqBienes.json());
-      if (reqFc10.ok) { const data = await reqFc10.json(); setFc10List(data.filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04')); }
-      if (reqFc11.ok) setFc11List(await reqFc11.json());
-      if (reqFc04.ok) setFc04List(await reqFc04.json());
-      if (reqEstructuras.ok) setEstructurasDB(await reqEstructuras.json());
-      if (reqAuditoria.ok) setNotificaciones(await reqAuditoria.json());
 
-      if (isAdmin) {
-          const reqUsuarios = await fetchAuth(`${API_URL}/usuarios`).catch(()=>({ok:false}));
-          if (reqUsuarios.ok) setUsuariosList(await reqUsuarios.json());
+      if (resBienes.data) setBienes(resBienes.data);
+      if (resFc10.data) setFc10List(resFc10.data.filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
+      if (resFc11.data) setFc11List(resFc11.data);
+      if (resFc04.data) setFc04List(resFc04.data);
+      if (resEstructuras.data) setEstructurasDB(resEstructuras.data);
+      if (resAuditoria.data) setNotificaciones(resAuditoria.data);
+
+      if (currentUser?.role === 'admin') {
+          const resUsuarios = await supabase.from('usuarios').select('*');
+          if (resUsuarios.data) setUsuariosList(resUsuarios.data);
       }
 
-      setDbError(!reqBienes.ok && !reqFc10.ok);
+      setDbError(false);
     } catch (error) { 
-        console.error("Fetch abortado o sesión expirada"); 
+        console.error("Error al obtener datos de Supabase", error);
+        setDbError(true);
     } finally { 
         setIsLoading(false); 
     }
-  }, [API_URL, fetchAuth, isAdmin]);
+  }, [currentUser]);
 
   useEffect(() => { 
       if(isAuthenticated) {
@@ -343,35 +328,32 @@ export default function App() {
   const handleLogin = async (e) => { 
     e.preventDefault(); 
     try {
-        const res = await fetch(`${API_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: loginUser, password: loginPass })
-        });
-        const data = await res.json();
-        
-        if (res.ok) { 
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('is_logged_in', 'true'); 
-            localStorage.setItem('current_user', JSON.stringify(data.user)); 
-            
-            setLoginError(false); 
-            setCurrentUser(data.user); 
-            setIsAuthenticated(true); 
-            
-            addToast(`Bienvenido, ${data.user.nombre}`, "success"); 
-        } else { 
-            setLoginError(true); 
-            addToast(data.error || "Credenciales incorrectas", "error"); 
+        const { data: usuario, error } = await supabase
+            .from('usuarios')
+            .select('*')
+            .eq('username', loginUser)
+            .single();
+
+        if (error || !usuario || usuario.password !== loginPass) {
+            setLoginError(true);
+            addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
+            return;
         }
+
+        localStorage.setItem('is_logged_in', 'true'); 
+        localStorage.setItem('current_user', JSON.stringify(usuario)); 
+        
+        setLoginError(false); 
+        setCurrentUser(usuario); 
+        setIsAuthenticated(true); 
+        
+        addToast(`Bienvenido, ${usuario.nombre}`, "success"); 
     } catch (error) {
         setLoginError(true);
-        addToast("Error al conectar con el servidor", "error");
+        addToast("Error al conectar con la base de datos", "error");
     }
   };
   
-  const handleCambiarIP = () => { const nuevaIP = prompt("Ingresa la IP del servidor backend:", serverIP); if (nuevaIP !== null) { localStorage.setItem('server_ip', nuevaIP.trim()); setServerIP(nuevaIP.trim()); addToast("Configuración de red actualizada", "success"); } };
-  const handleOrgNameChange = (e, fieldName, codeFieldName) => { const val = e.target.value.toUpperCase(); setFc10FormOrg(prev => ({ ...prev, [fieldName]: val })); const match = fc10List.find(f => String(f[fieldName]).toUpperCase() === val) || estructurasDB.find(e => e.nombre === val); if (match && match[codeFieldName]) { setFc10FormOrg(prev => ({ ...prev, [codeFieldName]: match[codeFieldName] })); } else if (match && match.codigo) { setFc10FormOrg(prev => ({ ...prev, [codeFieldName]: match.codigo })); } };
   const handleLogoUpload = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const maxSize = 300; let width = img.width; let height = img.height; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const newLogo = canvas.toDataURL('image/png'); localStorage.setItem('logoOficial', newLogo); setAppLogo(newLogo); addToast("Logo oficial actualizado", "success"); }; img.src = event.target.result; }; reader.readAsDataURL(file); e.target.value = null; };
 
   const funcionariosConDatos = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { const nombreSeguro = String(fc.funcionarioNombre).trim(); if(!map.has(normalizeStr(nombreSeguro))) { map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); } } }); return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }, [fc10List]);
@@ -776,7 +758,10 @@ export default function App() {
   const toggleQR = async (bien) => { 
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
     setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
-    try { await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) }); addToast(`Estado QR actualizado`, "success"); } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
+    try { 
+        await supabase.from('bienes').update({ hasQR: updatedBien.hasQR }).eq('id', updatedBien.id);
+        addToast(`Estado QR actualizado`, "success"); 
+    } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
   };
   
   const handleDownloadTemplateCSV = () => {
@@ -829,7 +814,14 @@ export default function App() {
             newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: String(row[0]||'').replace(/"/g, ''), subcuenta: String(row[1]||'').replace(/"/g, ''), analitico1: String(row[2]||'').replace(/"/g, ''), analitico2: String(row[3]||'').replace(/"/g, ''), descripcion: String(row[4]||'').replace(/"/g, ''), fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), rotulo: rotuloCSV, valorUnitario: String(row[7]||'').replace(/"/g, ''), vidaUtil: String(row[8]||'').replace(/"/g, ''), funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' });
           }
         }
-        if (newBienes.length > 0) { try { await fetchAuth(`${API_URL}/bens/bulk`, { method: 'POST', body: JSON.stringify(newBienes) }); await fetchData(); setActiveTab('inventario'); addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); } catch (error) { addToast("Error al subir a la BD.", "error"); } } else { addToast("No se detectaron bienes válidos.", "warning"); }
+        if (newBienes.length > 0) { 
+            try { 
+                await supabase.from('bienes').insert(newBienes);
+                await fetchData(); 
+                setActiveTab('inventario'); 
+                addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); 
+            } catch (error) { addToast("Error al subir a la BD.", "error"); } 
+        } else { addToast("No se detectaron bienes válidos.", "warning"); }
         setIsProcessing({ active: false, text: '' });
       }; reader.readAsArrayBuffer(file); e.target.value = null;
     }, 100);
@@ -841,17 +833,21 @@ export default function App() {
     const userData = Object.fromEntries(f.entries());
     
     try {
-        const method = usuarioEditing ? 'PUT' : 'POST';
-        const url = usuarioEditing ? `${API_URL}/usuarios/${usuarioEditing.username}` : `${API_URL}/usuarios`;
+        let res;
+        if (usuarioEditing) {
+            const updateData = { nombre: userData.nombre, cargo: userData.cargo };
+            if (userData.password) updateData.password = userData.password;
+            res = await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
+        } else {
+            res = await supabase.from('usuarios').insert([userData]);
+        }
         
-        const res = await fetchAuth(url, { method, body: JSON.stringify(userData) });
-        if (res.ok) {
+        if (!res.error) {
             addToast(usuarioEditing ? "Usuario actualizado" : "Usuario creado", "success");
             setIsUsuarioModalOpen(false);
             fetchData();
         } else {
-            const err = await res.json();
-            addToast(err.error || "Error al procesar la solicitud", "error");
+            addToast(res.error.message || "Error al procesar la solicitud", "error");
         }
     } catch (error) {
         addToast("Error de conexión.", "error");
@@ -871,8 +867,14 @@ export default function App() {
     const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
     
     try { 
-        const res = await fetchAuth(bienEditing ? `${API_URL}/bens/${bienData.id}` : `${API_URL}/bens`, { method: bienEditing ? 'PUT' : 'POST', body: JSON.stringify(bienData) }); 
-        if (res.ok) {
+        let res;
+        if (bienEditing) {
+            res = await supabase.from('bienes').update(bienData).eq('id', bienData.id);
+        } else {
+            res = await supabase.from('bienes').insert([bienData]);
+        }
+
+        if (!res.error) {
             setBienes(prev => bienEditing ? prev.map(b => b.id === bienData.id ? bienData : b) : [bienData, ...prev]); 
             fetchData();
             
@@ -899,9 +901,21 @@ export default function App() {
     const updatedBien = { ...fc11TargetBien, dependencia: fc11Data.dependenciaDestinataria, estadoConservacion: fc11Data.estadoConservacion, hasFC10: false, funcionario: esMovimientoInterno ? fc11TargetBien.funcionario : '', ubicacion: esMovimientoInterno ? fc11TargetBien.ubicacion : '' };
     
     try {
-      await fetchAuth(fc11Editing ? `${API_URL}/fc11/${fc11Data.id}` : `${API_URL}/fc11`, { method: fc11Editing ? 'PUT' : 'POST', body: JSON.stringify(fc11Data) });
-      const openFc10 = fc10List.find(fc => fc.bienId === fc11TargetBien.id && !fc.devolucionFecha); if (openFc10) { const closedFc10 = { ...openFc10, devolucionFecha: new Date().toISOString().split('T')[0], devolucionLugar: "Traslado FC-11", devolucionReceptor: "Sistema" }; await fetchAuth(`${API_URL}/fc10/${closedFc10.id}`, { method: 'PUT', body: JSON.stringify(closedFc10) }); setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); }
-      await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
+      if (fc11Editing) {
+          await supabase.from('fc11').update(fc11Data).eq('id', fc11Data.id);
+      } else {
+          await supabase.from('fc11').insert([fc11Data]);
+      }
+
+      const openFc10 = fc10List.find(fc => fc.bienId === fc11TargetBien.id && !fc.devolucionFecha); 
+      if (openFc10) { 
+          const closedFc10 = { ...openFc10, devolucionFecha: new Date().toISOString().split('T')[0], devolucionLugar: "Traslado FC-11", devolucionReceptor: "Sistema" }; 
+          await supabase.from('fc10').update(closedFc10).eq('id', closedFc10.id);
+          setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); 
+      }
+
+      await supabase.from('bienes').update(updatedBien).eq('id', updatedBien.id);
+      
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
       if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
       fetchData();
@@ -911,7 +925,12 @@ export default function App() {
   const saveFC04 = async (e) => {
     e.preventDefault(); const f = new FormData(e.target); const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
     try {
-      await fetchAuth(fc04Editing ? `${API_URL}/fc04/${fc04Data.id}` : `${API_URL}/fc04`, { method: fc04Editing ? 'PUT' : 'POST', body: JSON.stringify(fc04Data) });
+      if (fc04Editing) {
+          await supabase.from('fc04').update(fc04Data).eq('id', fc04Data.id);
+      } else {
+          await supabase.from('fc04').insert([fc04Data]);
+      }
+
       if (!fc04SinMovimiento && fc04Items.length > 0) {
           const isBaja = fc04Data.origenMovimiento === 'B'; const newBienes = []; const updatedBienes = [];
           for (const item of fc04Items) {
@@ -919,8 +938,16 @@ export default function App() {
               if (isBaja) { if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); } 
               else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); }
           }
-          if (newBienes.length > 0) { await fetchAuth(`${API_URL}/bens/bulk`, { method: 'POST', body: JSON.stringify(newBienes) }); setBienes(prev => [...newBienes, ...prev]); addToast(`${newBienes.length} bienes inyectados.`, "success"); }
-          if (updatedBienes.length > 0) { for (const b of updatedBienes) await fetchAuth(`${API_URL}/bens/${b.id}`, { method: 'PUT', body: JSON.stringify(b) }); setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); addToast(`${updatedBienes.length} bajas registradas.`, "success"); }
+          if (newBienes.length > 0) { 
+              await supabase.from('bienes').insert(newBienes);
+              setBienes(prev => [...newBienes, ...prev]); 
+              addToast(`${newBienes.length} bienes inyectados.`, "success"); 
+          }
+          if (updatedBienes.length > 0) { 
+              for (const b of updatedBienes) await supabase.from('bienes').update(b).eq('id', b.id);
+              setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
+              addToast(`${updatedBienes.length} bajas registradas.`, "success"); 
+          }
       }
       if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
       fetchData();
@@ -931,12 +958,24 @@ export default function App() {
   const saveFC10 = async (e) => {
     e.preventDefault(); const formData = new FormData(e.target); const orgDataToSave = { unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod') }; localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; const isDevuelto = !!fcData.devolucionFecha; const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
     try { 
-        await fetchAuth(fc10Editing ? `${API_URL}/fc10/${fcData.id}` : `${API_URL}/fc10`, { method: fc10Editing ? 'PUT' : 'POST', body: JSON.stringify(fcData) }); 
-        await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) }); 
+        if (fc10Editing) {
+            await supabase.from('fc10').update(fcData).eq('id', fcData.id);
+        } else {
+            await supabase.from('fc10').insert([fcData]);
+        }
+
+        await supabase.from('bienes').update(updatedBien).eq('id', updatedBien.id);
+
         const checkAndAddStructure = async (name, code, tipo) => { 
             if (name && code) { 
-                try { const nameUpper = name.toUpperCase(); const exists = estructurasDB.find(item => item.nombre.toUpperCase() === nameUpper && item.tipoEstructura === tipo); 
-                    if (!exists) { const newStruct = { id: generateId(), nombre: nameUpper, codigo: code, tipoRegistro: 'ESTRUCTURA', tipoEstructura: tipo }; setEstructurasDB(prev => [...prev, newStruct]); await fetchAuth(`${API_URL}/estructuras`, { method: 'POST', body: JSON.stringify(newStruct) }); } 
+                try { 
+                    const nameUpper = name.toUpperCase(); 
+                    const exists = estructurasDB.find(item => item.nombre.toUpperCase() === nameUpper && item.tipoEstructura === tipo); 
+                    if (!exists) { 
+                        const newStruct = { id: generateId(), nombre: nameUpper, codigo: code, tipoRegistro: 'ESTRUCTURA', tipoEstructura: tipo }; 
+                        setEstructurasDB(prev => [...prev, newStruct]); 
+                        await supabase.from('estructuras').insert([newStruct]); 
+                    } 
                 } catch(err) {}
             } 
         }; 
@@ -952,24 +991,24 @@ export default function App() {
     const { type, id, username, item } = itemToDelete;
     
     try { 
-        let res = { ok: false };
+        let res = { error: null };
         
         if (type === 'requestBaja') {
             const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
-            res = await fetchAuth(`${API_URL}/bens/${id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
-            if (res.ok) {
+            res = await supabase.from('bienes').update(updatedBien).eq('id', id);
+            if (!res.error) {
                 setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
                 addToast("Solicitud de baja enviada a revisión.", "warning");
             }
         }
         else {
-            if (type === 'bien') res = await fetchAuth(`${API_URL}/bens/${id}`, { method: 'DELETE' });
-            else if (type === 'fc10') res = await fetchAuth(`${API_URL}/fc10/${id}`, { method: 'DELETE' });
-            else if (type === 'fc11') res = await fetchAuth(`${API_URL}/fc11/${id}`, { method: 'DELETE' });
-            else if (type === 'fc04') res = await fetchAuth(`${API_URL}/fc04/${id}`, { method: 'DELETE' });
-            else if (type === 'usuario') res = await fetchAuth(`${API_URL}/usuarios/${username}`, { method: 'DELETE' });
+            if (type === 'bien') res = await supabase.from('bienes').delete().eq('id', id);
+            else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
+            else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
+            else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
+            else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
 
-            if (res.ok || res.status === 200) {
+            if (!res.error) {
                 if (type === 'bien') setBienes(prev => prev.filter(b => b.id !== id)); 
                 else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
@@ -977,8 +1016,7 @@ export default function App() {
                 else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
                 addToast("Registro eliminado permanentemente", "success"); 
             } else {
-                const err = await res.json();
-                addToast(err.error || "No se pudo completar en el servidor.", "error");
+                addToast(res.error.message || "No se pudo completar en el servidor.", "error");
             }
         }
         fetchData();
@@ -1001,9 +1039,9 @@ export default function App() {
               estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
           };
 
-          const res = await fetchAuth(`${API_URL}/bens/${bien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
+          const res = await supabase.from('bienes').update(updatedBien).eq('id', bien.id);
           
-          if (res.ok) {
+          if (!res.error) {
               setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
               
               if (bien.bajaSolicitadaPor) {
@@ -1020,7 +1058,7 @@ export default function App() {
                       bienId: bien.id,
                       accion: accion
                   };
-                  await fetchAuth(`${API_URL}/auditoria`, { method: 'POST', body: JSON.stringify(notif) });
+                  await supabase.from('auditoria').insert([notif]);
                   setNotificaciones(prev => [notif, ...prev]);
               }
               
@@ -1038,7 +1076,9 @@ export default function App() {
       if(notif.leido) return;
       const updated = {...notif, leido: true};
       setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
-      try { await fetchAuth(`${API_URL}/auditoria/${notif.id}`, { method: 'PUT', body: JSON.stringify(updated)}); } catch(e) {}
+      try { 
+          await supabase.from('auditoria').update({ leido: true }).eq('id', notif.id);
+      } catch(e) {}
   };
 
   const openResolucionModal = (bien, accion) => {
@@ -1118,7 +1158,6 @@ export default function App() {
         
         <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-zinc-50 dark:bg-darkbg-main relative">
             <div className="absolute top-6 right-6 flex gap-2">
-                <button onClick={handleCambiarIP} className="text-zinc-400 hover:text-brand-primary dark:hover:text-brand-accent transition-colors cursor-pointer text-xl p-2" title="Configurar Red"><i className="fa-solid fa-network-wired"></i></button>
                 <button onClick={() => setDarkMode(!darkMode)} className="text-zinc-400 hover:text-brand-primary dark:hover:text-brand-accent transition-colors cursor-pointer text-xl p-2" title="Alternar Tema"><i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'}`}></i></button>
             </div>
             
@@ -1220,8 +1259,7 @@ export default function App() {
           {dbError && (
             <div className="flex items-center justify-center gap-x-6 bg-red-50 px-6 py-2.5 sm:px-3.5 border-b border-red-200 dark:bg-red-900/30 dark:border-red-900/50 shadow-sm z-50">
               <p className="text-sm leading-6 text-red-700 dark:text-red-400 font-medium">
-                <i className="fa-solid fa-wifi mr-2"></i> Operando en Modo Local (Sin Conexión)
-                <button onClick={handleCambiarIP} className="ml-3 font-bold hover:underline cursor-pointer">Reconectar &rarr;</button>
+                <i className="fa-solid fa-wifi mr-2"></i> Error de sincronización con Supabase. Verifique su conexión.
               </p>
             </div>
           )}
@@ -1261,10 +1299,6 @@ export default function App() {
                         <i className={`fa-solid text-base ${darkMode ? 'fa-sun text-yellow-500' : 'fa-moon'}`}></i>
                     </button>
                     
-                    <button onClick={handleCambiarIP} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer shadow-xs" title="Configuración de Red">
-                        <i className="fa-solid fa-network-wired text-base"></i>
-                    </button>
-
                     <div className="relative flex items-center">
                         {isNotifOpen && <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>}
                         <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer z-50 shadow-xs" title="Notificaciones">
@@ -1544,18 +1578,12 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-
-                    
                   </div>
                 )}
 
                 {activeTab === 'inventario' && (
                     <div className="animate-fade-in flex flex-col h-full space-y-6">
-                      
-                      {/* TARJETA MAESTRA UNIFICADA (Título, Acciones y Herramientas en un solo bloque limpio) */}
                       <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-6">
-                        
-                        {/* FILA SUPERIOR: Título y Botón Principal */}
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
                           <div className="flex items-center gap-3">
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -1574,7 +1602,6 @@ export default function App() {
                           </button>
                         </div>
 
-                        {/* FILA INFERIOR DE LA TARJETA: Herramientas Operativas y Reportes Organizados */}
                         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mr-1">Datos:</span>
@@ -1599,14 +1626,10 @@ export default function App() {
                             </button>
                           </div>
                         </div>
-
                       </div>
 
-                      {/* SECCIÓN DE BÚSQUEDA Y FILTROS OPTIMIZADA */}
                       <div className={`${STYLES.card} p-5 space-y-4`}>
                         <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
-                          
-                          {/* BUSCADOR PRINCIPAL */}
                           <div className="w-full xl:w-96 shrink-0 relative">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
                             <input 
@@ -1623,7 +1646,6 @@ export default function App() {
                             )}
                           </div>
 
-                          {/* FILTROS PRINCIPALES SIMÉTRICOS EN LÍNEA */}
                           <div className="w-full flex items-center gap-2.5 overflow-x-auto custom-scrollbar pb-1 xl:pb-0 justify-start xl:justify-end">
                             <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
                             <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
@@ -1650,7 +1672,6 @@ export default function App() {
                         )}
                       </div>
 
-                      {/* TABLA PRINCIPAL DE BIENES */}
                       <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
                           <div className="flex-1 overflow-auto custom-scrollbar relative">
                             <table className="min-w-full text-left">
