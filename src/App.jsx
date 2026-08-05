@@ -218,6 +218,8 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
   const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
   
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
 
@@ -283,7 +285,6 @@ export default function App() {
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
 
-  // Función para descargar TODAS las filas superando el límite de 1000 de Supabase por paginación
   const fetchAllRows = async (tableName) => {
     let allData = [];
     let rangeSize = 1000;
@@ -345,7 +346,6 @@ export default function App() {
       const parsedUsuarios = parseDirect(resUsuarios.data);
       setUsuariosList(parsedUsuarios);
 
-      // Sincronizar permisos de admin si el usuario actual es administrador
       if (currentUser) {
           const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
           if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin')) {
@@ -1272,16 +1272,23 @@ export default function App() {
         </div>
       )}
 
-      <aside className="flex w-72 flex-col bg-white dark:bg-darkbg-card border-r border-zinc-200 dark:border-darkbg-border shrink-0 z-30 transition-all duration-300">
-        <div className="flex h-16 shrink-0 items-center px-6">
+      {isSidebarOpen && (
+          <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-zinc-900/60 backdrop-blur-xs z-40 lg:hidden animate-fade-in"></div>
+      )}
+
+      <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white dark:bg-darkbg-card border-r border-zinc-200 dark:border-darkbg-border shrink-0 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
+        <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-darkbg-border/50 lg:border-none">
           <div className="flex items-center gap-3 w-full">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-200 bg-white shadow-sm overflow-hidden dark:bg-darkbg-main dark:border-darkbg-border">
                 {appLogo ? <img src={appLogo} alt="Logo" className="w-full h-full object-contain" /> : <i className="fa-solid fa-landmark text-brand-primary text-sm"></i>}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
                 <h1 className="text-base font-medium tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>
             </div>
           </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-zinc-400 hover:text-zinc-700 dark:hover:text-white p-2 cursor-pointer">
+              <i className="fa-solid fa-xmark text-lg"></i>
+          </button>
         </div>
         
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
@@ -1297,7 +1304,11 @@ export default function App() {
               ] : []),
               { id: 'ayuda', label: 'Centro de Ayuda', icon: 'fa-circle-question' }
            ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`group flex w-full items-center gap-x-3 rounded-md px-4 py-3 text-sm font-medium transition-all cursor-pointer ${activeTab === tab.id ? 'bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-darkbg-hover dark:hover:text-white'}`}>
+              <button 
+                  key={tab.id} 
+                  onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} 
+                  className={`group flex w-full items-center gap-x-3 rounded-md px-4 py-3 text-sm font-medium transition-all cursor-pointer ${activeTab === tab.id ? 'bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-darkbg-hover dark:hover:text-white'}`}
+              >
                   <i className={`fa-solid ${tab.icon} flex w-5 shrink-0 justify-center text-base ${activeTab === tab.id ? 'text-brand-primary dark:text-brand-accent' : 'text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-300'}`}></i> 
                   {tab.label}
                   {tab.id === 'aprobaciones' && solicitudesBaja.length > 0 && (
@@ -1319,16 +1330,24 @@ export default function App() {
             </div>
           )}
 
-          <header className="sticky top-0 z-20 flex h-20 shrink-0 items-center justify-between bg-white/80 dark:bg-darkbg-card/80 px-6 sm:px-8 border-b border-zinc-200/80 dark:border-darkbg-border/80 backdrop-blur-md shadow-xs transition-all">
+          <header className="sticky top-0 z-20 flex h-20 shrink-0 items-center justify-between bg-white/80 dark:bg-darkbg-card/80 px-4 sm:px-8 border-b border-zinc-200/80 dark:border-darkbg-border/80 backdrop-blur-md shadow-xs transition-all">
              <div className="flex items-center gap-x-3">
-                <span className="flex h-3 w-3 rounded-full bg-brand-primary animate-pulse"></span>
-                <h1 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white capitalize">
+                <button 
+                    onClick={() => setIsSidebarOpen(true)} 
+                    className="lg:hidden flex h-10 w-10 items-center justify-center rounded-xl text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer"
+                    title="Abrir Menú"
+                >
+                    <i className="fa-solid fa-bars text-lg"></i>
+                </button>
+
+                <span className="hidden sm:flex h-3 w-3 rounded-full bg-brand-primary animate-pulse"></span>
+                <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white capitalize truncate max-w-[180px] sm:max-w-none">
                    {activeTab === 'dashboard' ? 'Panel Principal' : activeTab === 'inventario' ? 'Directorio Patrimonial' : activeTab === 'usuarios' ? 'Directorio de Usuarios' : activeTab.replace('fc', 'Registro FC-')}
                 </h1>
              </div>
 
              <div className="flex items-center gap-x-4">
-                <div className="flex items-center gap-2 bg-zinc-100/70 dark:bg-darkbg-main/70 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border/60">
+                <div className="hidden sm:flex items-center gap-2 bg-zinc-100/70 dark:bg-darkbg-main/70 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border/60">
                     <div className="relative flex items-center rounded-xl bg-white dark:bg-darkbg-card shadow-xs px-3 py-1.5 transition-all hover:shadow-sm">
                       <i className="fa-regular fa-file-pdf text-brand-primary text-sm mr-2"></i>
                       <select className="appearance-none bg-transparent pr-6 text-xs font-bold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer" value={pdfPaperSize} onChange={(e) => setPdfPaperSize(e.target.value)}>
@@ -1340,7 +1359,7 @@ export default function App() {
 
                     <div className="relative flex items-center rounded-xl bg-white dark:bg-darkbg-card shadow-xs px-3 py-1.5 transition-all hover:shadow-sm">
                       <i className="fa-solid fa-building-columns text-brand-primary text-sm mr-2"></i>
-                      <select className="appearance-none bg-transparent pr-6 text-xs font-bold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer max-w-[180px] sm:max-w-[240px] truncate" value={dependenciaActual} onChange={(e) => { setDependenciaActual(e.target.value); clearAllFilters(); }}>
+                      <select className="appearance-none bg-transparent pr-6 text-xs font-bold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer max-w-[140px] sm:max-w-[200px] truncate" value={dependenciaActual} onChange={(e) => { setDependenciaActual(e.target.value); clearAllFilters(); }}>
                         {todasDependencias.map(dep => <option key={dep} value={dep} className="dark:bg-darkbg-card">{dep}</option>)}
                       </select>
                       <i className="fa-solid fa-chevron-down absolute right-2 text-[9px] text-zinc-400 pointer-events-none"></i>
@@ -1398,7 +1417,7 @@ export default function App() {
                         <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white font-black text-xs shadow-xs">
                             {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                         </div>
-                        <div className="flex flex-col text-left">
+                        <div className="hidden sm:flex flex-col text-left">
                             <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
                             <span className="text-[10px] font-extrabold uppercase text-brand-primary dark:text-brand-accent tracking-wider">
                                 {isAdmin ? 'Admin' : 'Personal'}
@@ -1414,10 +1433,10 @@ export default function App() {
           </header>
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 h-full flex flex-col">
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
                 
                 {activeTab === 'aprobaciones' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shadow-2xs">
@@ -1481,7 +1500,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'usuarios' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -1637,8 +1656,8 @@ export default function App() {
                 )}
 
                 {activeTab === 'inventario' && (
-                    <div className="animate-fade-in flex flex-col h-full space-y-6">
-                      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-6">
+                    <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-6 shrink-0">
                         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
                           <div className="flex items-center gap-3">
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -1683,7 +1702,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className={`${STYLES.card} p-5 space-y-4`}>
+                      <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
                         <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
                           <div className="w-full xl:w-96 shrink-0 relative">
                             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
@@ -1727,8 +1746,8 @@ export default function App() {
                         )}
                       </div>
 
-                      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
-                          <div className="flex-1 overflow-auto custom-scrollbar relative">
+                      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
+                          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                             <table className="min-w-full text-left">
                               <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
                                 <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
@@ -1751,7 +1770,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'fc04' && (
-                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -1829,7 +1848,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'fc10' && (
-                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -1908,7 +1927,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'fc11' && (
-                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -2610,7 +2629,7 @@ export default function App() {
               )}
             </div>
             <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
+              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar cabecera</button>
               <button onClick={confirmDeleteAction} className={`flex-1 py-4 text-sm font-black transition-colors focus:outline-none cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/20' : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'}`}>
                   {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Sí, eliminar'}
               </button>
