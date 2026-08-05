@@ -286,7 +286,7 @@ export default function App() {
    const fetchData = useCallback(async () => {
     try {
       const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
-          supabase.from('bienes').select('*'),
+          supabase.from('bens').select('*'),
           supabase.from('fc10').select('*'),
           supabase.from('fc11').select('*'),
           supabase.from('fc04').select('*'),
@@ -769,7 +769,7 @@ export default function App() {
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
     setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
     try { 
-        await supabase.from('bienes').update({ hasQR: updatedBien.hasQR }).eq('id', updatedBien.id);
+        await supabase.from('bens').update({ hasQR: updatedBien.hasQR }).eq('id', updatedBien.id);
         addToast(`Estado QR actualizado`, "success"); 
     } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
   };
@@ -826,7 +826,7 @@ export default function App() {
         }
         if (newBienes.length > 0) { 
             try { 
-                await supabase.from('bienes').insert(newBienes);
+                await supabase.from('bens').insert(newBienes);
                 await fetchData(); 
                 setActiveTab('inventario'); 
                 addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); 
@@ -880,9 +880,9 @@ export default function App() {
         let res;
         const payload = { id: bienData.id, data: bienData };
         if (bienEditing) {
-            res = await supabase.from('bienes').update(payload).eq('id', bienData.id);
+            res = await supabase.from('bens').update(payload).eq('id', bienData.id);
         } else {
-            res = await supabase.from('bienes').insert([payload]);
+            res = await supabase.from('bens').insert([payload]);
         }
 
         if (!res.error) {
@@ -925,7 +925,7 @@ export default function App() {
           setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); 
       }
 
-      await supabase.from('bienes').update(updatedBien).eq('id', updatedBien.id);
+      await supabase.from('bens').update(updatedBien).eq('id', updatedBien.id);
       
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
       if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
@@ -950,12 +950,12 @@ export default function App() {
               else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); }
           }
           if (newBienes.length > 0) { 
-              await supabase.from('bienes').insert(newBienes);
+              await supabase.from('bens').insert(newBienes);
               setBienes(prev => [...newBienes, ...prev]); 
               addToast(`${newBienes.length} bienes inyectados.`, "success"); 
           }
           if (updatedBienes.length > 0) { 
-              for (const b of updatedBienes) await supabase.from('bienes').update(b).eq('id', b.id);
+              for (const b of updatedBienes) await supabase.from('bens').update(b).eq('id', b.id);
               setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
               addToast(`${updatedBienes.length} bajas registradas.`, "success"); 
           }
@@ -975,7 +975,7 @@ export default function App() {
             await supabase.from('fc10').insert([fcData]);
         }
 
-        await supabase.from('bienes').update(updatedBien).eq('id', updatedBien.id);
+        await supabase.from('bens').update(updatedBien).eq('id', updatedBien.id);
 
         const checkAndAddStructure = async (name, code, tipo) => { 
             if (name && code) { 
@@ -1006,14 +1006,14 @@ export default function App() {
         
         if (type === 'requestBaja') {
             const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
-            res = await supabase.from('bienes').update(updatedBien).eq('id', id);
+            res = await supabase.from('bens').update(updatedBien).eq('id', id);
             if (!res.error) {
                 setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
                 addToast("Solicitud de baja enviada a revisión.", "warning");
             }
         }
         else {
-            if (type === 'bien') res = await supabase.from('bienes').delete().eq('id', id);
+            if (type === 'bien') res = await supabase.from('bens').delete().eq('id', id);
             else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
             else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
             else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
@@ -1050,7 +1050,7 @@ export default function App() {
               estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
           };
 
-          const res = await supabase.from('bienes').update(updatedBien).eq('id', bien.id);
+          const res = await supabase.from('bens').update(updatedBien).eq('id', bien.id);
           
           if (!res.error) {
               setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
