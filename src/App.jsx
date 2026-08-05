@@ -295,48 +295,35 @@ export default function App() {
           supabase.from('usuarios').select('*')
       ]);
 
-      const parseRows = (res) => {
+      // Si Supabase devuelve las filas directamente sin envolverlas en 'data' o si extraemos el objeto
+      const parseDirect = (res) => {
           if (!res.data) return [];
           return res.data.map(item => {
-              let inner = item.data;
-              if (typeof inner === 'string') {
-                  try { inner = JSON.parse(inner); } catch (e) { inner = {}; }
+              if (item.data) {
+                  // Si 'data' es texto plano o un objeto, lo fusionamos al nivel principal
+                  let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+                  return { id: item.id, ...parsed };
               }
-              // Extraemos todo el contenido de 'data' y forzamos el id correcto de la fila
-              return {
-                  ...(typeof inner === 'object' && inner !== null ? inner : {}),
-                  id: item.id
-              };
+              return item;
           });
       };
 
-      setBienes(parseRows(resBienes));
-      setFc10List(parseRows(resFc10).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
-      setFc11List(parseRows(resFc11));
-      setFc04List(parseRows(resFc04));
-      setEstructurasDB(parseRows(resEstructuras));
-      setNotificaciones(parseRows(resAuditoria));
-      
-      const parsedUsuarios = parseRows(resUsuarios);
-      setUsuariosList(parsedUsuarios);
-
-      if (currentUser) {
-          const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
-          if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin') && currentUser.role !== 'admin') {
-              const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
-              setCurrentUser(updatedSessionUser);
-              localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
-          }
-      }
+      setBienes(parseDirect(resBienes));
+      setFc10List(parseDirect(resFc10));
+      setFc11List(parseDirect(resFc11));
+      setFc04List(parseDirect(resFc04));
+      setEstructurasDB(parseDirect(resEstructuras));
+      setNotificaciones(parseDirect(resAuditoria));
+      setUsuariosList(parseDirect(resUsuarios));
 
       setDbError(false);
     } catch (error) { 
-        console.error("Error al obtener datos de Supabase", error);
+        console.error("Error crítico de datos:", error);
         setDbError(true);
     } finally { 
         setIsLoading(false); 
     }
-  }, [currentUser]);
+  }, []);
 
   useEffect(() => { 
       if(isAuthenticated) {
