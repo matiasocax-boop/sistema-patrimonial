@@ -219,6 +219,7 @@ export default function App() {
   const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
@@ -798,7 +799,7 @@ export default function App() {
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes en el Reporte: ${bienesToPrint.length}`, 14, finalY); finalY += 8;
         doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("Estado de Conservación:", 14, finalY); doc.setFont("helvetica", "normal"); doc.text("MB: Muy bueno, B: Bueno, R: Regular, M: Malo, I: Inutilizable, DB: De Baja", 52, finalY); finalY += 15;
         if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
-        doc.setFont("helvetica", "bold"); doc.setTextColor(100, 100, 100); doc.text("Información de Emisión:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text("Documento oficial generado por el Sistema Integrado de Gestión Patrimonial UNP.", 14, finalY); finalY += 4; doc.text(`Elaborado por: ${currentUser?.nombre || 'Usuario del Sistema'} (${currentUser?.cargo || 'Funcionario'}).`, 14, finalY);
+        doc.setFont("helvetica", "bold"); doc.setTextColor(100, 100, 100); doc.text("Información de Emisión:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text("Documento oficial generado por el Sistema Integrado de Gestión Patrimonial UNP.", 14, finalY); finalY += 4; doc.text(`Elaborado por: ${currentUser?.nombre || 'Usuario'} (${currentUser?.cargo || 'Funcionario'}).`, 14, finalY);
         doc.setTextColor(0, 0, 0); doc.text("Lugar y Fecha: " + fc03Config.lugar + ", " + todayStr.split('-').reverse().join('-'), pageWidth - 14, finalY, { align: 'right' });
         
         const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
@@ -1169,6 +1170,40 @@ export default function App() {
   const handleRemoveFC04Item = (id) => setFc04Items(prev => prev.filter(i => i.id !== id));
   const handleFC04ItemChange = (id, field, value) => setFc04Items(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
 
+  const handleScanSuccess = (decodedText) => {
+      setIsScannerOpen(false);
+      addToast(`¡Código detectado: ${decodedText}!`, "success");
+      setSearchInput(decodedText);
+      setActiveTab('inventario');
+  };
+
+  useEffect(() => {
+      if (isScannerOpen) {
+          setTimeout(() => {
+              if (window.Html5Qrcode) {
+                  const html5QrCode = new window.Html5Qrcode("reader");
+                  window.html5QrCode = html5QrCode;
+                  
+                  html5QrCode.start(
+                      { facingMode: "environment" },
+                      { fps: 10, qrbox: { width: 250, height: 250 } },
+                      (decodedText) => {
+                          html5QrCode.stop().then(() => {
+                              handleScanSuccess(decodedText);
+                          }).catch(() => {
+                              handleScanSuccess(decodedText);
+                          });
+                      },
+                      (errorMessage) => {}
+                  ).catch(err => {
+                      addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error");
+                      setIsScannerOpen(false);
+                  });
+              }
+          }, 300);
+      }
+  }, [isScannerOpen]);
+
   const misNotificaciones = useMemo(() => {
       return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
   }, [notificaciones, currentUser]);
@@ -1347,6 +1382,14 @@ export default function App() {
              </div>
 
              <div className="flex items-center gap-x-4">
+                <button 
+                    onClick={() => setIsScannerOpen(true)} 
+                    className="inline-flex items-center gap-1.5 bg-brand-primary text-white hover:bg-brand-hover px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    title="Escanear QR con Cámara"
+                >
+                    <i className="fa-solid fa-camera"></i> <span className="hidden md:inline">Escanear QR</span>
+                </button>
+
                 <div className="hidden sm:flex items-center gap-2 bg-zinc-100/70 dark:bg-darkbg-main/70 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border/60">
                     <div className="relative flex items-center rounded-xl bg-white dark:bg-darkbg-card shadow-xs px-3 py-1.5 transition-all hover:shadow-sm">
                       <i className="fa-regular fa-file-pdf text-brand-primary text-sm mr-2"></i>
@@ -2049,6 +2092,48 @@ export default function App() {
           </main>
       </div>
 
+      {isScannerOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-md !p-0 overflow-hidden"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <i className="fa-solid fa-camera text-brand-primary"></i> Escanear Código QR
+              </h2>
+              <button 
+                onClick={() => {
+                    setIsScannerOpen(false);
+                    if (window.html5QrCode && window.html5QrCode.isScanning) {
+                        window.html5QrCode.stop().catch(() => {});
+                    }
+                }} 
+                className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            
+            <div className="p-6 bg-black flex flex-col items-center justify-center relative">
+                <div id="reader" className="w-full rounded-2xl overflow-hidden"></div>
+                <p className="text-xs text-zinc-400 mt-4 text-center">Enfoque el código QR de la etiqueta patrimonial dentro del recuadro.</p>
+            </div>
+
+            <div className={STYLES.modalFooter}>
+                <button 
+                    onClick={() => {
+                        setIsScannerOpen(false);
+                        if (window.html5QrCode && window.html5QrCode.isScanning) {
+                            window.html5QrCode.stop().catch(() => {});
+                        }
+                    }} 
+                    className={STYLES.btnSecondary}
+                >
+                    Cancelar
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isQRModalOpen && (
         <div className={STYLES.modalOverlay}>
           <div className={STYLES.modalContent + " max-w-md"}>
@@ -2629,7 +2714,7 @@ export default function App() {
               )}
             </div>
             <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar cabecera</button>
+              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
               <button onClick={confirmDeleteAction} className={`flex-1 py-4 text-sm font-black transition-colors focus:outline-none cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/20' : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'}`}>
                   {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Sí, eliminar'}
               </button>
