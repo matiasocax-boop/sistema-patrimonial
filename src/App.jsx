@@ -1172,8 +1172,17 @@ export default function App() {
 
   const handleScanSuccess = (decodedText) => {
       setIsScannerOpen(false);
-      addToast(`¡Código detectado: ${decodedText}!`, "success");
-      setSearchInput(decodedText);
+      
+      let codigoLimpio = decodedText;
+      
+      // Si el QR tiene el formato de la etiqueta, extraemos solo el rótulo
+      if (decodedText.includes('CÓDIGO:')) {
+          const partes = decodedText.split('CTA:')[0];
+          codigoLimpio = partes.replace('CÓDIGO:', '').trim();
+      }
+
+      addToast(`Bien escaneado: ${codigoLimpio}`, "success");
+      setSearchInput(codigoLimpio);
       setActiveTab('inventario');
   };
 
