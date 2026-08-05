@@ -294,17 +294,16 @@ export default function App() {
           supabase.from('auditoria').select('*')
       ]);
 
-      // Extraemos la propiedad .data de cada registro de Supabase
-      if (resBienes.data) setBienes(resBienes.data.map(item => ({ id: item.id, ...item.data })));
-      if (resFc10.data) setFc10List(resFc10.data.map(item => ({ id: item.id, ...item.data })).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
-      if (resFc11.data) setFc11List(resFc11.data.map(item => ({ id: item.id, ...item.data })));
-      if (resFc04.data) setFc04List(resFc04.data.map(item => ({ id: item.id, ...item.data })));
-      if (resEstructuras.data) setEstructurasDB(resEstructuras.data.map(item => ({ id: item.id, ...item.data })));
-      if (resAuditoria.data) setNotificaciones(resAuditoria.data.map(item => ({ id: item.id, ...item.data })));
+      if (resBienes.data) setBienes(resBienes.data.map(item => ({ id: item.id, ...(item.data || item) })));
+      if (resFc10.data) setFc10List(resFc10.data.map(item => ({ id: item.id, ...(item.data || item) })).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
+      if (resFc11.data) setFc11List(resFc11.data.map(item => ({ id: item.id, ...(item.data || item) })));
+      if (resFc04.data) setFc04List(resFc04.data.map(item => ({ id: item.id, ...(item.data || item) })));
+      if (resEstructuras.data) setEstructurasDB(resEstructuras.data.map(item => ({ id: item.id, ...(item.data || item) })));
+      if (resAuditoria.data) setNotificaciones(resAuditoria.data.map(item => ({ id: item.id, ...(item.data || item) })));
 
       if (currentUser?.role === 'admin') {
           const resUsuarios = await supabase.from('usuarios').select('*');
-          if (resUsuarios.data) setUsuariosList(resUsuarios.data.map(item => ({ ...item, ...item.data })));
+          if (resUsuarios.data) setUsuariosList(resUsuarios.data.map(item => ({ ...item, ...(item.data || {}) })));
       }
 
       setDbError(false);
@@ -855,7 +854,7 @@ export default function App() {
     }
   };
 
-  const saveBien = async (e, keepOpen = false) => {
+   const saveBien = async (e, keepOpen = false) => {
     if(e) e.preventDefault(); 
     const form = bienFormRef.current;
     if (!form || !form.reportValidity()) return;
@@ -869,10 +868,11 @@ export default function App() {
     
     try { 
         let res;
+        const payload = { id: bienData.id, data: bienData };
         if (bienEditing) {
-            res = await supabase.from('bienes').update(bienData).eq('id', bienData.id);
+            res = await supabase.from('bienes').update(payload).eq('id', bienData.id);
         } else {
-            res = await supabase.from('bienes').insert([bienData]);
+            res = await supabase.from('bienes').insert([payload]);
         }
 
         if (!res.error) {
