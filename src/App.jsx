@@ -209,7 +209,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
   
-  const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
+  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.cargo === 'admin', [currentUser]);
   
   const [loginUser, setLoginUser] = useState(''); 
   const [loginPass, setLoginPass] = useState(''); 
@@ -283,24 +283,51 @@ export default function App() {
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
 
-   const fetchData = useCallback(async () => {
+  // Función para descargar TODAS las filas superando el límite de 1000 de Supabase por paginación
+  const fetchAllRows = async (tableName) => {
+    let allData = [];
+    let rangeSize = 1000;
+    let from = 0;
+    let to = rangeSize - 1;
+    let keepFetching = true;
+
+    while (keepFetching) {
+      const { data, error } = await supabase
+        .from(tableName)
+        .select('*')
+        .range(from, to);
+
+      if (error || !data || data.length === 0) {
+        keepFetching = false;
+      } else {
+        allData = [...allData, ...data];
+        if (data.length < rangeSize) {
+          keepFetching = false;
+        } else {
+          from += rangeSize;
+          to += rangeSize;
+        }
+      }
+    }
+    return { data: allData };
+  };
+
+  const fetchData = useCallback(async () => {
     try {
       const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
-          supabase.from('bens').select('*'),
-          supabase.from('fc10').select('*'),
-          supabase.from('fc11').select('*'),
-          supabase.from('fc04').select('*'),
-          supabase.from('estructuras').select('*'),
-          supabase.from('auditoria').select('*'),
-          supabase.from('usuarios').select('*')
+          fetchAllRows('bens'),
+          fetchAllRows('fc10'),
+          fetchAllRows('fc11'),
+          fetchAllRows('fc04'),
+          fetchAllRows('estructuras'),
+          fetchAllRows('auditoria'),
+          fetchAllRows('usuarios')
       ]);
 
-      // Si Supabase devuelve las filas directamente sin envolverlas en 'data' o si extraemos el objeto
-      const parseDirect = (res) => {
-          if (!res.data) return [];
-          return res.data.map(item => {
+      const parseDirect = (resData) => {
+          if (!resData) return [];
+          return resData.map(item => {
               if (item.data) {
-                  // Si 'data' es texto plano o un objeto, lo fusionamos al nivel principal
                   let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
                   return { id: item.id, ...parsed };
               }
@@ -308,13 +335,25 @@ export default function App() {
           });
       };
 
-      setBienes(parseDirect(resBienes));
-      setFc10List(parseDirect(resFc10));
-      setFc11List(parseDirect(resFc11));
-      setFc04List(parseDirect(resFc04));
-      setEstructurasDB(parseDirect(resEstructuras));
-      setNotificaciones(parseDirect(resAuditoria));
-      setUsuariosList(parseDirect(resUsuarios));
+      setBienes(parseDirect(resBienes.data));
+      setFc10List(parseDirect(resFc10.data));
+      setFc11List(parseDirect(resFc11.data));
+      setFc04List(parseDirect(resFc04.data));
+      setEstructurasDB(parseDirect(resEstructuras.data));
+      setNotificaciones(parseDirect(resAuditoria.data));
+      
+      const parsedUsuarios = parseDirect(resUsuarios.data);
+      setUsuariosList(parsedUsuarios);
+
+      // Sincronizar permisos de admin si el usuario actual es administrador
+      if (currentUser) {
+          const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
+          if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin')) {
+              const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
+              setCurrentUser(updatedSessionUser);
+              localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
+          }
+      }
 
       setDbError(false);
     } catch (error) { 
@@ -323,7 +362,7 @@ export default function App() {
     } finally { 
         setIsLoading(false); 
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => { 
       if(isAuthenticated) {
@@ -350,11 +389,16 @@ export default function App() {
             return;
         }
 
+        const userSession = {
+            ...usuario,
+            role: usuario.cargo === 'admin' ? 'admin' : 'user'
+        };
+
         localStorage.setItem('is_logged_in', 'true'); 
-        localStorage.setItem('current_user', JSON.stringify(usuario)); 
+        localStorage.setItem('current_user', JSON.stringify(userSession)); 
         
         setLoginError(false); 
-        setCurrentUser(usuario); 
+        setCurrentUser(userSession); 
         setIsAuthenticated(true); 
         
         addToast(`Bienvenido, ${usuario.nombre}`, "success"); 
@@ -776,8 +820,8 @@ export default function App() {
   
   const handleDownloadTemplateCSV = () => {
       const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida Útil (Años)\n" +
-                         "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
-                         ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
+                          "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
+                          ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Masiva_Bienes.csv");
       addToast("Plantilla Excel (CSV) base descargada", "success");
@@ -1357,7 +1401,7 @@ export default function App() {
                         <div className="flex flex-col text-left">
                             <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
                             <span className="text-[10px] font-extrabold uppercase text-brand-primary dark:text-brand-accent tracking-wider">
-                                {currentUser?.role === 'admin' ? 'Admin' : 'Personal'}
+                                {isAdmin ? 'Admin' : 'Personal'}
                             </span>
                         </div>
                     </div>
@@ -1470,11 +1514,11 @@ export default function App() {
                                     <td className="py-4 pl-6 pr-4 align-middle">
                                         <div className="flex items-center gap-3">
                                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-black text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-2xs">
-                                            {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
+                                              {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
                                           </div>
                                           <div>
-                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm leading-snug">{u.nombre}</div>
-                                            <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">@{u.username}</div>
+                                              <div className="font-extrabold text-zinc-900 dark:text-white text-sm leading-snug">{u.nombre}</div>
+                                              <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">@{u.username}</div>
                                           </div>
                                         </div>
                                     </td>
@@ -1487,11 +1531,11 @@ export default function App() {
                                     <td className="relative py-4 pl-4 pr-6 align-middle text-right">
                                         <div className="flex items-center justify-end gap-1.5">
                                           <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light/80 dark:hover:bg-brand-primary/20 border border-transparent hover:border-brand-primary/20 transition-all cursor-pointer shadow-2xs" title="Editar cuenta">
-                                            <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                              <i className="fa-solid fa-pen-to-square text-xs"></i>
                                           </button>
                                           {u.username !== currentUser.username && (
                                               <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 transition-all cursor-pointer shadow-2xs" title="Eliminar cuenta">
-                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                                  <i className="fa-solid fa-trash-can text-xs"></i>
                                               </button>
                                           )}
                                         </div>
@@ -1576,7 +1620,7 @@ export default function App() {
                               {timeStats.adqByYear.length === 0 ? <p className="text-sm text-zinc-400 text-center py-4 italic">Datos insuficientes.</p> : timeStats.adqByYear.map((item, idx) => {
                                   const colors = ["bg-brand-primary", "bg-zinc-500", "bg-zinc-400", "bg-zinc-300"];
                                   return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
-                                })}
+                              })}
                             </div>
                           </div>
                           <div className="flex-1 flex flex-col">
@@ -1602,7 +1646,7 @@ export default function App() {
                             </div>
                             <div>
                               <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
-                                 Directorio Patrimonial
+                                  Directorio Patrimonial
                               </h2>
                               <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos</p>
                             </div>
