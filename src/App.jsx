@@ -283,27 +283,46 @@ export default function App() {
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
 
-  const fetchData = useCallback(async () => {
+   const fetchData = useCallback(async () => {
     try {
-      const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria] = await Promise.all([ 
+      const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
           supabase.from('bienes').select('*'),
           supabase.from('fc10').select('*'),
           supabase.from('fc11').select('*'),
           supabase.from('fc04').select('*'),
           supabase.from('estructuras').select('*'),
-          supabase.from('auditoria').select('*')
+          supabase.from('auditoria').select('*'),
+          supabase.from('usuarios').select('*')
       ]);
 
-      if (resBienes.data) setBienes(resBienes.data.map(item => ({ id: item.id, ...(item.data || item) })));
-      if (resFc10.data) setFc10List(resFc10.data.map(item => ({ id: item.id, ...(item.data || item) })).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
-      if (resFc11.data) setFc11List(resFc11.data.map(item => ({ id: item.id, ...(item.data || item) })));
-      if (resFc04.data) setFc04List(resFc04.data.map(item => ({ id: item.id, ...(item.data || item) })));
-      if (resEstructuras.data) setEstructurasDB(resEstructuras.data.map(item => ({ id: item.id, ...(item.data || item) })));
-      if (resAuditoria.data) setNotificaciones(resAuditoria.data.map(item => ({ id: item.id, ...(item.data || item) })));
+      const parseRows = (res) => {
+          if (!res.data) return [];
+          return res.data.map(item => {
+              if (item.data && typeof item.data === 'object') {
+                  return { id: item.id, ...item.data };
+              }
+              return item;
+          });
+      };
 
-      if (currentUser?.role === 'admin') {
-          const resUsuarios = await supabase.from('usuarios').select('*');
-          if (resUsuarios.data) setUsuariosList(resUsuarios.data.map(item => ({ ...item, ...(item.data || {}) })));
+      setBienes(parseRows(resBienes));
+      setFc10List(parseRows(resFc10).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
+      setFc11List(parseRows(resFc11));
+      setFc04List(parseRows(resFc04));
+      setEstructurasDB(parseRows(resEstructuras));
+      setNotificaciones(parseRows(resAuditoria));
+      
+      const parsedUsuarios = parseRows(resUsuarios);
+      setUsuariosList(parsedUsuarios);
+
+      // Si el usuario actual es admin pero estaba en modo personal, actualizamos sus permisos automáticamente si existe en la BD
+      if (currentUser) {
+          const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
+          if (freshUser && freshUser.cargo === 'admin' && currentUser.role !== 'admin') {
+              const updatedSessionUser = { ...freshUser, role: 'admin' };
+              setCurrentUser(updatedSessionUser);
+              localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
+          }
       }
 
       setDbError(false);
