@@ -294,16 +294,17 @@ export default function App() {
           supabase.from('auditoria').select('*')
       ]);
 
-      if (resBienes.data) setBienes(resBienes.data);
-      if (resFc10.data) setFc10List(resFc10.data.filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
-      if (resFc11.data) setFc11List(resFc11.data);
-      if (resFc04.data) setFc04List(resFc04.data);
-      if (resEstructuras.data) setEstructurasDB(resEstructuras.data);
-      if (resAuditoria.data) setNotificaciones(resAuditoria.data);
+      // Extraemos la propiedad .data de cada registro de Supabase
+      if (resBienes.data) setBienes(resBienes.data.map(item => ({ id: item.id, ...item.data })));
+      if (resFc10.data) setFc10List(resFc10.data.map(item => ({ id: item.id, ...item.data })).filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04'));
+      if (resFc11.data) setFc11List(resFc11.data.map(item => ({ id: item.id, ...item.data })));
+      if (resFc04.data) setFc04List(resFc04.data.map(item => ({ id: item.id, ...item.data })));
+      if (resEstructuras.data) setEstructurasDB(resEstructuras.data.map(item => ({ id: item.id, ...item.data })));
+      if (resAuditoria.data) setNotificaciones(resAuditoria.data.map(item => ({ id: item.id, ...item.data })));
 
       if (currentUser?.role === 'admin') {
           const resUsuarios = await supabase.from('usuarios').select('*');
-          if (resUsuarios.data) setUsuariosList(resUsuarios.data);
+          if (resUsuarios.data) setUsuariosList(resUsuarios.data.map(item => ({ ...item, ...item.data })));
       }
 
       setDbError(false);
