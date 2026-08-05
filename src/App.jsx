@@ -1,0 +1,2548 @@
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import StatCard from './components/StatCard';
+import FaqItem from './components/FaqItem';
+import WorkflowStep from './components/WorkflowStep';
+import DonutChart from './components/DonutChart';
+import SimpleBar from './components/SimpleBar';
+import { SelectFilter, PeriodSelector } from './components/FilterComponents';
+import BienRow from './components/BienRow';
+
+const STYLES = {
+    input: "block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 py-2.5 px-3.5 text-zinc-900 shadow-2xs placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
+    label: "block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5",
+    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-xs hover:shadow-md disabled:opacity-50",
+    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary dark:hover:border-brand-primary dark:hover:text-brand-accent focus:outline-none transition-all active:scale-95 cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50",
+    card: "bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs overflow-hidden transition-shadow duration-300",
+    modalOverlay: "fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
+    modalContent: "bg-white dark:bg-darkbg-card rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col border border-zinc-200/80 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
+    modalHeader: "flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
+    modalBody: "p-6 sm:p-8 overflow-y-auto space-y-6 bg-zinc-50/50 dark:bg-darkbg-main/50 custom-scrollbar",
+    modalFooter: "flex justify-end gap-3 px-6 py-5 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
+    sectionTitle: "text-xs font-black tracking-wider text-brand-primary dark:text-brand-accent uppercase mb-4"
+};
+
+const DEPENDENCIAS_UNP = ["Rectorado", "Facultad de Ciencias Aplicadas", "Facultad de Humanidades y Ciencias de la Educación", "Facultad de Ciencias Contables, Administrativas y Económicas", "Facultad de Derecho, Ciencias Políticas y Sociales", "Facultad de Ciencias Agropecuarias y Desarrollo Rural", "Facultad de Ciencias Biomédicas", "Facultad de Ciencias, Tecnologías y Artes"];
+const ESTADOS_CONSERVACION = ["Muy bueno", "Bueno", "Regular", "Malo", "Inutilizable", "De Baja"];
+const MOTIVOS_FC11 = ["Traspaso", "Préstamo", "Inservible", "Faltante"];
+const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "Baja" }, { id: "T", nombre: "Traspaso" }, { id: "C/D", nombre: "Compra o Donación" }];
+
+const formatCurrency = (value) => { if (!value) return "0"; const number = parseInt(value.toString().replace(/\D/g, ''), 10); return isNaN(number) ? "0" : new Intl.NumberFormat('es-PY').format(number); };
+const formatCI = (value) => { if (!value) return ""; return value.toString().replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
+const generateId = () => { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); };
+
+const parseDateInfo = (dateStr) => { if (!dateStr) return { year: null, month: null }; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if (p.length === 3) { if (p[0].length === 4) return { year: p[0], month: p[1].padStart(2, '0') }; if (p[2].length === 4) return { year: p[2], month: p[1].padStart(2, '0') }; } return { year: null, month: null }; };
+const formatDateText = (dateStr) => { if(!dateStr) return ''; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if(p.length === 3) { if(p[0].length === 4) return `${p[2]}-${p[1]}-${p[0]}`; if(p[2].length === 4) return `${p[0]}-${p[1]}-${p[2]}`; } return str; };
+const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
+const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
+const decodeText = (buffer) => {
+    let text = new TextDecoder('utf-8').decode(buffer);
+    if (text.includes('')) {
+        text = new TextDecoder('iso-8859-1').decode(buffer);
+    }
+    return text;
+};
+
+const generateSimpleQR = async (bien) => { 
+    const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
+    const qrText = `CÓDIGO: ${bien.rotulo||''}\nCTA: ${cuentaCompleta}\nDESC: ${bien.descripcion||''}\nADQ: ${bien.fechaAdquisicion||''}\nVALOR: Gs. ${formatCurrency(bien.valorUnitario)}`;
+    try {
+        if (window.QRCode) {
+            return await window.QRCode.toDataURL(qrText, { width: 1024, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#000000', light: '#ffffff' } });
+        }
+        return '';
+    } catch (err) { console.error("Error generando QR", err); return ''; }
+};
+
+const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
+    return new Promise(async (resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 732;
+        canvas.height = 1181;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 4;
+
+        const headerHeight = 220;
+        ctx.fillStyle = '#f8f9fa';
+        ctx.fillRect(0, 0, canvas.width, headerHeight);
+
+        ctx.beginPath();
+        ctx.moveTo(0, headerHeight);
+        ctx.lineTo(canvas.width, headerHeight);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#cccccc';
+        ctx.stroke();
+
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        
+        let textX = canvas.width / 2;
+        let textSpace = canvas.width;
+        const logoSize = 130;
+        const logoPadding = 40;
+
+        if (appLogoStr) {
+            textX = (canvas.width + logoSize + logoPadding) / 2;
+            textSpace = canvas.width - logoSize - logoPadding * 2;
+        }
+
+        ctx.font = 'bold 36px Arial';
+        ctx.fillText('UNIVERSIDAD NACIONAL', textX, 70, textSpace);
+        ctx.font = '900 44px Arial';
+        ctx.fillText('DE PILAR', textX, 120, textSpace);
+
+        ctx.fillStyle = '#cc0000';
+        ctx.font = 'bold 24px Arial';
+        ctx.fillText('DPTO. DE BIENES PATRIMONIALES', textX, 175, textSpace);
+        
+        ctx.fillStyle = '#000000';
+        ctx.textAlign = 'center';
+        
+        const rotuloText = bien.rotulo || 'S/R';
+        let codigoFontSize = 72;
+        if (rotuloText.length > 12) codigoFontSize = 60;
+        if (rotuloText.length > 16) codigoFontSize = 50;
+
+        ctx.font = `900 ${codigoFontSize}px Arial`;
+        ctx.fillText(rotuloText, canvas.width / 2, headerHeight + 80, canvas.width - 60);
+
+        ctx.font = 'bold 24px Arial';
+        ctx.fillStyle = '#555555';
+        ctx.fillText('CÓDIGO PATRIMONIAL', canvas.width / 2, headerHeight + 25);
+
+        const qrDataUrl = await generateSimpleQR(bien);
+        const qrImg = new Image();
+        qrImg.crossOrigin = "Anonymous";
+        qrImg.onload = () => {
+            const qrSize = 560;
+            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 5;
+            ctx.drawImage(qrImg, (canvas.width - qrSize) / 2, headerHeight + 140, qrSize, qrSize);
+            
+            ctx.shadowColor = 'transparent';
+
+            const footerY = canvas.height - 240;
+            const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
+            
+            ctx.fillStyle = '#f0f2f5';
+            ctx.beginPath();
+            ctx.roundRect((canvas.width - 400) / 2, footerY - 10, 400, 60, 10);
+            ctx.fill();
+
+            ctx.fillStyle = '#333333';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, canvas.width / 2, footerY + 20);
+
+            ctx.beginPath();
+            ctx.moveTo(40, footerY + 80);
+            ctx.lineTo(canvas.width - 40, footerY + 80);
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.stroke();
+
+            ctx.fillStyle = '#cc0000';
+            ctx.font = '900 36px Arial';
+            ctx.fillText('PROPIEDAD DE LA UNP', canvas.width / 2, footerY + 130);
+
+            ctx.fillStyle = '#000000';
+            ctx.font = 'bold 26px Arial';
+            ctx.fillText('Bienes del Estado Paraguayo', canvas.width / 2, footerY + 180);
+            
+            ctx.font = 'italic 18px Arial';
+            ctx.fillStyle = '#888888';
+            const today = new Date().toLocaleDateString('es-PY');
+            ctx.fillText(`Emitido: ${today}`, canvas.width / 2, footerY + 220);
+
+            if (appLogoStr) {
+                const logoImg = new Image();
+                logoImg.crossOrigin = "Anonymous";
+                logoImg.onload = () => {
+                    ctx.drawImage(logoImg, logoPadding, (headerHeight - logoSize) / 2, logoSize, logoSize); 
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                logoImg.onerror = () => resolve(canvas.toDataURL('image/png'));
+                logoImg.src = appLogoStr;
+            } else {
+                resolve(canvas.toDataURL('image/png'));
+            }
+        };
+        qrImg.src = qrDataUrl;
+    });
+};
+
+const getPlaceholderLogo = () => { const canvas = document.createElement('canvas'); canvas.width = 200; canvas.height = 200; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,200,200); ctx.fillStyle = '#121212'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('LOGO', 100, 115); ctx.lineWidth = 4; ctx.strokeRect(0,0,200,200); return canvas.toDataURL('image/png'); };
+
+function SkeletonLoader() { 
+    return (
+        <div className="animate-pulse space-y-6 p-6 w-full"> 
+            {[1, 2, 3, 4, 5].map(i => ( 
+                <div key={i} className="flex gap-4 items-center border-b border-zinc-100 dark:border-darkbg-border pb-4"> 
+                    <div className="h-4 bg-zinc-200 dark:bg-darkbg-border rounded w-1/4"></div> 
+                    <div className="h-4 bg-zinc-200 dark:bg-darkbg-border rounded w-1/4"></div> 
+                    <div className="h-8 bg-zinc-200 dark:bg-darkbg-border rounded-md w-24 ml-auto"></div> 
+                </div> 
+            ))} 
+        </div> 
+    );
+}
+
+export default function App() {
+  const [toasts, setToasts] = useState([]);
+  const addToast = (message, type = 'success') => { 
+      const id = Date.now() + Math.random().toString(36).substr(2, 9);
+      setToasts(prev => [...prev, { id, message, type }]); 
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500); 
+  };
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
+  const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
+  const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
+  
+  const isAdmin = useMemo(() => currentUser?.role === 'admin', [currentUser]);
+  
+  const [loginUser, setLoginUser] = useState(''); 
+  const [loginPass, setLoginPass] = useState(''); 
+  const [loginError, setLoginError] = useState(false);
+  
+  const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
+  const [serverIP, setServerIP] = useState(() => localStorage.getItem('server_ip') || 'localhost');
+  const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
+  
+  useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
+  useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
+
+  const [isLoading, setIsLoading] = useState(true); 
+  const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
+  const [activeTab, setActiveTab] = useState('dashboard'); 
+  const [dependenciaActual, setDependenciaActual] = useState(DEPENDENCIAS_UNP[0]);
+  
+  const [bienes, setBienes] = useState([]); 
+  const [fc10List, setFc10List] = useState([]); 
+  const [fc11List, setFc11List] = useState([]); 
+  const [fc04List, setFc04List] = useState([]);
+  const [usuariosList, setUsuariosList] = useState([]); 
+
+  const [estructurasDB, setEstructurasDB] = useState([]);
+  const [searchInput, setSearchInput] = useState(''); const [searchTerm, setSearchTerm] = useState(''); 
+  const [filtroFuncionario, setFiltroFuncionario] = useState(''); const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
+  const [filtroAnio, setFiltroAnio] = useState(''); const [filtroMes, setFiltroMes] = useState(''); 
+  const [filtroQR, setFiltroQR] = useState('ALL'); const [filtroFC10, setFiltroFC10] = useState('ALL'); const [filtroEstado, setFiltroEstado] = useState('ALL');
+  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
+
+  useEffect(() => { const timer = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 300); return () => clearTimeout(timer); }, [searchInput]);
+  const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 50;
+  const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); const [fc10Month, setFc10Month] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  
+  const [isBienModalOpen, setIsBienModalOpen] = useState(false); const [bienEditing, setBienEditing] = useState(null);
+  const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false); const [fc10TargetBien, setFc10TargetBien] = useState(null); const [fc10Editing, setFc10Editing] = useState(null);
+  const [isFC11ModalOpen, setIsFC11ModalOpen] = useState(false); const [fc11TargetBien, setFc11TargetBien] = useState(null); const [fc11Editing, setFc11Editing] = useState(null); const [fc11FormNumber, setFc11FormNumber] = useState('');
+  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); const [fc04Editing, setFc04Editing] = useState(null); const [fc04Items, setFc04Items] = useState([]); const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
+  const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false); const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+  
+  const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
+  const [usuarioEditing, setUsuarioEditing] = useState(null); 
+
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [qrTargetBien, setQrTargetBien] = useState(null);
+  const [isBulkQR, setIsBulkQR] = useState(false);
+
+  const [resolucionBaja, setResolucionBaja] = useState(null);
+  const [motivoResolucion, setMotivoResolucion] = useState('');
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  const [itemToDelete, setItemToDelete] = useState(null); const [dbError, setDbError] = useState(false);
+  
+  const [fc10FormNombre, setFc10FormNombre] = useState(''); const [fc10FormDoc, setFc10FormDoc] = useState(''); const [fc10FormCargo, setFc10FormCargo] = useState(''); const [devLugar, setDevLugar] = useState(''); const [devFecha, setDevFecha] = useState(''); const [devReceptor, setDevReceptor] = useState(''); const [devCargo, setDevCargo] = useState(''); const [fc10FormOrg, setFc10FormOrg] = useState({ unidad: '', unidadCod: '', reparticion: '', reparticionCod: '', dependenciaOrg: '', dependenciaCod: '', area: '', areaCod: '' });
+  const fileInputRef = useRef(null); const bienFormRef = useRef(null); 
+  const API_URL = '/api';
+
+  const datosMemorizados = useMemo(() => { 
+    const uMap = new Map(); const rMap = new Map(); const dMap = new Map(); const aMap = new Map();
+    const addToMap = (map, val) => { if (!val) return; const cleanVal = String(val).trim(); if (cleanVal === '') return; const key = normalizeStr(cleanVal); if (!map.has(key)) map.set(key, cleanVal.toUpperCase()); };
+    fc10List.forEach(f => { addToMap(uMap, f.unidad); addToMap(rMap, f.reparticion); addToMap(dMap, f.dependenciaOrg); addToMap(aMap, f.area); });
+    estructurasDB.forEach(e => { if(e.nombre) { if(e.tipoEstructura === 'unidad') addToMap(uMap, e.nombre); if(e.tipoEstructura === 'reparticion') addToMap(rMap, e.nombre); if(e.tipoEstructura === 'dependencia') addToMap(dMap, e.nombre); if(e.tipoEstructura === 'area') addToMap(aMap, e.nombre); } });
+    return { unidades: Array.from(uMap.values()).sort(), reparticiones: Array.from(rMap.values()).sort(), dependencias: Array.from(dMap.values()).sort(), areas: Array.from(aMap.values()).sort() }; 
+  }, [fc10List, estructurasDB]);
+
+  const todasDependencias = DEPENDENCIAS_UNP;
+  const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
+
+  const getToken = () => localStorage.getItem('auth_token');
+  
+  const handleLogout = useCallback(() => { 
+      setIsAuthenticated(false); setCurrentUser(null); 
+      localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
+      setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
+  }, []);
+
+  const fetchAuth = useCallback(async (url, options = {}) => {
+      const token = getToken();
+      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401 || res.status === 403) {
+          handleLogout();
+          addToast("No autorizado. Sesión finalizada.", "error");
+          throw new Error("No autorizado");
+      }
+      return res;
+  }, [handleLogout]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [reqBienes, reqFc10, reqFc11, reqFc04, reqEstructuras, reqAuditoria] = await Promise.all([ 
+          fetchAuth(`${API_URL}/bens`).catch(()=>({ok:false})), 
+          fetchAuth(`${API_URL}/fc10`).catch(()=>({ok:false})), 
+          fetchAuth(`${API_URL}/fc11`).catch(()=>({ok:false})), 
+          fetchAuth(`${API_URL}/fc04`).catch(()=>({ok:false})), 
+          fetchAuth(`${API_URL}/estructuras`).catch(()=>({ok:false})),
+          fetchAuth(`${API_URL}/auditoria`).catch(()=>({ok:false}))
+      ]);
+      if (reqBienes.ok) setBienes(await reqBienes.json());
+      if (reqFc10.ok) { const data = await reqFc10.json(); setFc10List(data.filter(item => item.tipoRegistro !== 'FC11' && item.tipoRegistro !== 'ESTRUCTURA' && item.tipoRegistro !== 'FC04')); }
+      if (reqFc11.ok) setFc11List(await reqFc11.json());
+      if (reqFc04.ok) setFc04List(await reqFc04.json());
+      if (reqEstructuras.ok) setEstructurasDB(await reqEstructuras.json());
+      if (reqAuditoria.ok) setNotificaciones(await reqAuditoria.json());
+
+      if (isAdmin) {
+          const reqUsuarios = await fetchAuth(`${API_URL}/usuarios`).catch(()=>({ok:false}));
+          if (reqUsuarios.ok) setUsuariosList(await reqUsuarios.json());
+      }
+
+      setDbError(!reqBienes.ok && !reqFc10.ok);
+    } catch (error) { 
+        console.error("Fetch abortado o sesión expirada"); 
+    } finally { 
+        setIsLoading(false); 
+    }
+  }, [API_URL, fetchAuth, isAdmin]);
+
+  useEffect(() => { 
+      if(isAuthenticated) {
+          fetchData(); 
+          const sincronizacion = setInterval(() => { fetchData(); }, 15000); 
+          return () => clearInterval(sincronizacion); 
+      }
+  }, [isAuthenticated, fetchData]); 
+  
+  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
+  
+  const handleLogin = async (e) => { 
+    e.preventDefault(); 
+    try {
+        const res = await fetch(`${API_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: loginUser, password: loginPass })
+        });
+        const data = await res.json();
+        
+        if (res.ok) { 
+            localStorage.setItem('auth_token', data.token);
+            localStorage.setItem('is_logged_in', 'true'); 
+            localStorage.setItem('current_user', JSON.stringify(data.user)); 
+            
+            setLoginError(false); 
+            setCurrentUser(data.user); 
+            setIsAuthenticated(true); 
+            
+            addToast(`Bienvenido, ${data.user.nombre}`, "success"); 
+        } else { 
+            setLoginError(true); 
+            addToast(data.error || "Credenciales incorrectas", "error"); 
+        }
+    } catch (error) {
+        setLoginError(true);
+        addToast("Error al conectar con el servidor", "error");
+    }
+  };
+  
+  const handleCambiarIP = () => { const nuevaIP = prompt("Ingresa la IP del servidor backend:", serverIP); if (nuevaIP !== null) { localStorage.setItem('server_ip', nuevaIP.trim()); setServerIP(nuevaIP.trim()); addToast("Configuración de red actualizada", "success"); } };
+  const handleOrgNameChange = (e, fieldName, codeFieldName) => { const val = e.target.value.toUpperCase(); setFc10FormOrg(prev => ({ ...prev, [fieldName]: val })); const match = fc10List.find(f => String(f[fieldName]).toUpperCase() === val) || estructurasDB.find(e => e.nombre === val); if (match && match[codeFieldName]) { setFc10FormOrg(prev => ({ ...prev, [codeFieldName]: match[codeFieldName] })); } else if (match && match.codigo) { setFc10FormOrg(prev => ({ ...prev, [codeFieldName]: match.codigo })); } };
+  const handleLogoUpload = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const maxSize = 300; let width = img.width; let height = img.height; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const newLogo = canvas.toDataURL('image/png'); localStorage.setItem('logoOficial', newLogo); setAppLogo(newLogo); addToast("Logo oficial actualizado", "success"); }; img.src = event.target.result; }; reader.readAsDataURL(file); e.target.value = null; };
+
+  const funcionariosConDatos = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { const nombreSeguro = String(fc.funcionarioNombre).trim(); if(!map.has(normalizeStr(nombreSeguro))) { map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); } } }); return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }, [fc10List]);
+  const funcionariosUnicos = useMemo(() => { const funcMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && String(b.funcionario).trim() !== "").forEach(b => { const val = String(b.funcionario).trim(); const key = normalizeStr(val); if(!funcMap.has(key)) funcMap.set(key, val); }); return Array.from(funcMap.values()).sort(); }, [bienes, dependenciaActual]);
+  const ubicacionesUnicas = useMemo(() => { const ubiMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.ubicacion && String(b.ubicacion).trim() !== "").forEach(b => { const val = String(b.ubicacion).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); fc10List.filter(fc => fc.dependencia === dependenciaActual && fc.entregadoLugar).forEach(fc => { const val = String(fc.entregadoLugar).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); return Array.from(ubiMap.values()).sort(); }, [bienes, fc10List, dependenciaActual]);
+  const aniosUnicos = useMemo(() => { const years = bienes.filter(b => b.dependencia === dependenciaActual && b.fechaAdquisicion).map(b => parseDateInfo(b.fechaAdquisicion).year).filter(y => y && !isNaN(parseInt(y))); return [...new Set(years)].sort((a, b) => b - a); }, [bienes, dependenciaActual]);
+  
+  const stats = useMemo(() => { const depBienes = bienes.filter(b => b.dependencia === dependenciaActual && b.estadoConservacion !== 'De Baja'); const totalItems = depBienes.length; const totalValue = depBienes.reduce((acc, curr) => acc + (parseInt(curr.valorUnitario) || 0), 0); const withFc10 = depBienes.filter(b => b.hasFC10).length; const withQR = depBienes.filter(b => b.hasQR).length; const estados = { bueno: depBienes.filter(b => b.estadoConservacion === 'Bueno' || b.estadoConservacion === 'Muy bueno').length, regular: depBienes.filter(b => b.estadoConservacion === 'Regular').length, malo: depBienes.filter(b => b.estadoConservacion === 'Malo' || b.estadoConservacion === 'Inutilizable').length }; const percFC10 = totalItems === 0 ? 0 : (withFc10 / totalItems) * 100; const percQR = totalItems === 0 ? 0 : (withQR / totalItems) * 100; const cuentasCounts = {}; depBienes.forEach(b => { if (b.cuenta) cuentasCounts[b.cuenta] = (cuentasCounts[b.cuenta] || 0) + 1; }); const topCuentas = Object.entries(cuentasCounts).sort((a, b) => b[1] - a[1]).slice(0, 3); return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas }; }, [bienes, dependenciaActual]);
+  const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
+  
+  const filteredBienes = useMemo(() => { 
+    let filtered = bienes.filter(b => b.dependencia === dependenciaActual); 
+    if (filtroFuncionario) filtered = filtered.filter(b => String(b.funcionario||'').trim() === filtroFuncionario); 
+    if (filtroUbicacion) filtered = filtered.filter(b => String(b.ubicacion||'').trim() === filtroUbicacion); 
+    if (filtroAnio) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).year === filtroAnio); 
+    if (filtroMes) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).month === filtroMes);
+    if (filtroEstado !== 'ALL') filtered = filtered.filter(b => b.estadoConservacion === filtroEstado); 
+    if (filtroQR === 'YES') filtered = filtered.filter(b => b.hasQR === true); 
+    if (filtroQR === 'NO') filtered = filtered.filter(b => b.hasQR !== true); 
+    if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
+    if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
+    if (searchTerm) { const term = String(searchTerm).toLowerCase(); filtered = filtered.filter(b => String(b.rotulo || '').toLowerCase().includes(term) || String(b.descripcion || '').toLowerCase().includes(term) || String(b.cuenta || '').toLowerCase().includes(term) || String(b.ubicacion || '').toLowerCase().includes(term) || String(b.funcionario || '').toLowerCase().includes(term) ); } 
+    filtered.sort((a, b) => { const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; const numA = getSuffixNum(a.rotulo); const numB = getSuffixNum(b.rotulo); if (numA !== numB) return numA - numB; return String(a.rotulo || '').localeCompare(String(b.rotulo || '')); }); 
+    return filtered; 
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroEstado, filtroQR, filtroFC10, searchTerm]);
+  
+  const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
+  const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
+  
+  const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
+  const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
+  const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
+  
+  const solicitudesBaja = useMemo(() => {
+      return bienes.filter(b => b.solicitudBaja === true && b.dependencia === dependenciaActual);
+  }, [bienes, dependenciaActual]);
+
+  const handleDownloadLabelPNG = async (bien) => {
+      setIsProcessing({ active: true, text: 'Generando Etiqueta...' });
+      setTimeout(async () => {
+          try {
+              const dataUrl = await generateProfessionalLabelPNG(bien, appLogo);
+              if (dataUrl && window.saveAs) {
+                  const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+                  window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`);
+                  addToast("Etiqueta descargada con éxito", "success");
+              }
+          } catch (e) {
+              addToast("Error al generar la etiqueta", "error");
+          } finally {
+              setIsProcessing({ active: false, text: '' });
+              setIsQRModalOpen(false);
+          }
+      }, 100);
+  };
+
+  const handleDownloadSimpleQR = async (bien) => {
+      setIsProcessing({ active: true, text: 'Procesando imagen QR...' });
+      try {
+          const dataUrl = await generateSimpleQR(bien);
+          if(dataUrl && window.saveAs) {
+              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+              window.saveAs(dataUrl, `QR_${cleanRotulo}.png`);
+              addToast("Código QR simple descargado", "success");
+          }
+      } catch (e) {
+          addToast("Error al descargar el QR", "error");
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+          setIsQRModalOpen(false);
+      }
+  };
+
+  const handleBulkLabelPNGZip = async () => {
+      if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
+      setIsProcessing({ active: true, text: 'Generando Lote de Etiquetas...' });
+      setTimeout(async () => {
+          try {
+              const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
+              const zip = new window.JSZip(); 
+              const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
+              
+              for (let i = 0; i < filteredBienes.length; i++) { 
+                  const bien = filteredBienes[i]; 
+                  const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); 
+                  if(dataUrl) { 
+                      const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); 
+                      folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); 
+                  }
+              }
+              const content = await zip.generateAsync({type:"blob"}); 
+              if(window.saveAs) window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); 
+              addToast("Archivo ZIP de etiquetas generado", "success");
+          } catch (error) { 
+              addToast("Hubo un error al generar el archivo ZIP.", "error"); 
+          } finally { 
+              setIsProcessing({ active: false, text: '' }); 
+              setIsQRModalOpen(false);
+          }
+      }, 100);
+  };
+
+  const handleBulkSimpleQRZip = async () => {
+      if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
+      setIsProcessing({ active: true, text: 'Comprimiendo ZIP de QRs simples...' });
+      
+      setTimeout(async () => {
+          try {
+              const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
+              const zip = new window.JSZip(); 
+              const folder = zip.folder(`QRs_Simples_${cleanDepName}`);
+              
+              for (let i = 0; i < filteredBienes.length; i++) { 
+                  const bien = filteredBienes[i]; 
+                  const dataUrl = await generateSimpleQR(bien); 
+                  if(dataUrl) { 
+                      const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); 
+                      folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); 
+                  }
+              }
+              const content = await zip.generateAsync({type:"blob"}); 
+              if(window.saveAs) window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); 
+              addToast("Archivo ZIP generado con éxito", "success");
+          } catch (error) { 
+              addToast("Hubo un error al generar el archivo ZIP.", "error"); 
+          } finally { 
+              setIsProcessing({ active: false, text: '' }); 
+              setIsQRModalOpen(false);
+          }
+      }, 100);
+  };
+
+  const handleGenerateFC04PDF = (fc) => {
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
+    setIsProcessing({ active: true, text: 'Generando PDF FC-04...' });
+    setTimeout(() => {
+      try {
+        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
+        const logoImg = appLogo || getPlaceholderLogo(); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
+        let finalY = 62;
+        if (fc.sinMovimiento) { doc.setFontSize(16); doc.setTextColor(100, 100, 100); doc.text("NO SE REGISTRA MOVIMIENTO ESTE MES", pageWidth / 2, finalY + 30, { align: 'center' }); finalY += 60; } 
+        else { 
+            const tableRows = fc.bienesSnapshot.map(b => [b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', b.rotulo || '-', b.descripcion || '-', formatCurrency(b.valorUnitario), formatDateText(b.fechaAdquisicion) || '-', b.vidaUtil || '-']); 
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "Analítico 1", "Analítico 2", "Rótulo / Código", "Descripción del Bien", "Valor Unitario (Gs.)", "Fecha Adquisición", "Vida Útil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
+        }
+        if (!fc.sinMovimiento && fc.bienesSnapshot?.length > 0) { doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 0, 0); doc.text(`Cantidad Total de Bienes: ${fc.bienesSnapshot.length}`, 14, finalY); finalY += 10; }
+        if (finalY > pageHeight - 45) { doc.addPage(); finalY = 40; }
+        let firmasY = finalY + 25; doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(pageWidth / 4 - 30, firmasY, pageWidth / 4 + 30, firmasY); doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.text("Director Administrativo", pageWidth / 4, firmasY + 5, { align: 'center' }); doc.line(pageWidth * 0.75 - 30, firmasY, pageWidth * 0.75 + 30, firmasY); doc.text("Jefe de Bienes Patrimoniales", pageWidth * 0.75, firmasY + 5, { align: 'center' });
+        const cleanDepName = fc.dependencia.replace(/\s+/g, '_'); doc.save(`FC04_${cleanDepName}_${fc.mes}-${fc.anio}.pdf`); addToast("Reporte PDF FC-04 generado", "success");
+      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
+    }, 100);
+  };
+
+  const handleGenerateFC11PDF = (fcsData) => {
+    const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
+    if (fcs.length === 0) return addToast("No hay datos para generar FC-11", "warning");
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
+    setIsProcessing({ active: true, text: 'Generando PDF FC-11...' });
+    const todayStr = new Date().toISOString().split('T')[0];
+    setTimeout(() => {
+      try {
+        const fc = fcs[0]; const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
+        const logoImg = appLogo || getPlaceholderLogo(); const dateParts = (fc.fecha || '').split('-'); let formattedDate = ''; if(dateParts.length === 3) { const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]; formattedDate = `Pilar, ${dateParts[2]} de ${months[parseInt(dateParts[1])-1]} de ${dateParts[0]}`; }
+        const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
+        for(let i = 0; i < 3; i++) {
+            if(i > 0) doc.addPage();
+            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
+            doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`Nº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
+            let finalY = 54; doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [`Dependencia Remitente: ${fc.dependenciaRemitente || ''} ${fc.areaRemitente ? '- ' + fc.areaRemitente : ''}`.trim()], [`Dependencia Destinataria: ${fc.dependenciaDestinataria || ''} ${fc.areaDestinataria ? '- ' + fc.areaDestinataria : ''}`.trim()] ], styles: { fontSize: 10, cellPadding: 4, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fontStyle: 'bold', fillColor: [248, 249, 250] } }); finalY = doc.lastAutoTable.finalY + 6;
+            const tableRows = fcs.map(item => { const b = item.bienSnapshot || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (item.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO' ]; });
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 32 }, 1: { halign: 'center', cellWidth: 26 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 12 } } }); finalY = doc.lastAutoTable.finalY + 8;
+            doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes Trasladados: ${fcs.length}`, 14, finalY); finalY += 10;
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.setFont("helvetica", "bold"); doc.text("Motivo o circunstancia del movimiento:", 14, finalY); finalY += 8; const motivos = ["Traspaso", "Préstamo", "Inservible", "Faltante"]; let startX = 20; doc.setFont("helvetica", "normal");
+            motivos.forEach((m) => { doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.rect(startX, finalY - 3, 4, 4); if (fc.motivo === m) { doc.setFont("helvetica", "bold"); doc.text("X", startX + 0.9, finalY + 0.4); doc.setFont("helvetica", "normal"); } doc.text(m, startX + 6, finalY + 0.4); startX += 40; }); finalY += 10;
+            if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
+            doc.setFont("helvetica", "bold"); doc.text("Observaciones:", 14, finalY); finalY += 6; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' });
+            if (finalY > pageHeight - 65) { doc.addPage(); finalY = 30;} else { finalY += 35; }
+            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(14, finalY, 70, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Jefe de Dependencia Remitente", 42, finalY + 5, { align: 'center' }); doc.line(78, finalY, 138, finalY); doc.text("Jefe de Dependencia Destinataria", 108, finalY + 5, { align: 'center' }); doc.line(146, finalY, 202, finalY); doc.text("Jefe Dpto. Bienes Patrimoniales", 174, finalY + 5, { align: 'center' });
+            let pieY = pageHeight - 15; doc.setFont("helvetica", "normal"); doc.text("Distribución: Original para el Departamento de Bienes Patrimoniales, Copias para dependencia remitente y destinataria.", 14, pieY);
+        }
+        const cleanFormNum = (fc.numeroFormulario || 'S-N').replace(/[^a-zA-Z0-9]/g, '-'); doc.save(`FC11_Traslado_${cleanFormNum}_${todayStr}.pdf`); addToast("Reporte FC-11 generado", "success");
+      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
+    }, 100);
+  };
+
+  const buildFC10PDFDoc = (fcs, bienesAListar) => {
+        const fc = fcs[0]; 
+        const { jsPDF } = window.jspdf; 
+        const doc = new jsPDF('p', 'mm', pdfPaperSize); 
+        const pageWidth = doc.internal.pageSize.width; 
+        const pageHeight = doc.internal.pageSize.height;
+        const logoImg = appLogo || getPlaceholderLogo(); 
+        const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]; 
+        const todayStr = new Date().toISOString().split('T')[0];
+        const fechaDocumento = fc.entregadoFecha || fc.fechaGeneracion || todayStr; 
+        let gYear = "2024", gMonth = "01";
+        if (fechaDocumento && fechaDocumento.includes('-')) {
+            const parts = fechaDocumento.split('-');
+            gYear = parts[0];
+            gMonth = parts[1];
+        }
+        const copias = ['ORIGINAL', 'DUPLICADO'];
+        for(let i = 0; i < 2; i++) {
+            if(i > 0) doc.addPage();
+            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE RESPONSABILIDAD INDIVIDUAL FC-10", pageWidth / 2, 38, { align: 'center' });
+            doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
+            doc.setFontSize(10); doc.text(`PERIODO DE ELABORACIÓN: ${monthNames[parseInt(gMonth)-1] || ''} ${gYear}`, pageWidth / 2, 45, { align: 'center' });
+            let finalY = 52;
+            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '1. DATOS DE LA DEPENDENCIA ORGANIZACIONAL', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }, { content: 'CÓDIGO', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] } }], [`Institución (Entidad): UNIVERSIDAD NACIONAL DE PILAR`, `28`], [`Unidad Jerárquica: ${fc.unidad || ''}`, `${fc.unidadCod || ''}`], [`Repartición Administrativa: ${fc.reparticion || ''}`, `${fc.reparticionCod || ''}`], [`Dependencia Específica: ${fc.dependenciaOrg || ''}`, `${fc.dependenciaCod || ''}`], [`Área o Departamento: ${fc.area || ''}`, `${fc.areaCod || ''}`] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '2. DATOS DEL FUNCIONARIO RESPONSABLE', colSpan: 2, styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }], ["Nombre y Apellido:", fc.funcionarioNombre || ''], ["Cédula de Identidad N°:", formatCI(fc.funcionarioDoc || '')], ["Cargo que desempeña:", fc.funcionarioCargo || ''] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 0: { cellWidth: 65, fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
+            const tableRows = fcs.map((fcItem, idx) => { const b = bienesAListar[idx] || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (fcItem.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO', formatCurrency(fcItem.valorTotal || b.valorUnitario) ]; });
+            const totalGral = fcs.reduce((acc, fcItem, idx) => { const v = String(fcItem.valorTotal || bienesAListar[idx]?.valorUnitario || 0).replace(/\D/g, ''); return acc + (parseInt(v, 10) || 0); }, 0); tableRows.push([{content: `TOTAL GENERAL (${fcs.length} bienes)`, colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatCurrency(totalGral), styles: {fontStyle: 'bold', halign: 'right'}}]);
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR", "Valor Unitario (Gs.)"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 30 }, 1: { halign: 'center', cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 22 }, 5: { halign: 'center', cellWidth: 9 }, 6: { halign: 'right', fontStyle: 'bold', cellWidth: 28 } } }); finalY = doc.lastAutoTable.finalY + 4;
+            if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
+            doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.text("Observaciones:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' }); finalY += 6;
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, head: [["TIPO DE MOVIMIENTO", "LUGAR", "FECHA", "RECEPTOR (Solo si es devolución)"]], body: [ ["ENTREGA", fc.entregadoLugar || '-', formatDateText(fc.entregadoFecha) || '-', ''], ["DEVOLUCIÓN", fc.devolucionLugar || '', formatDateText(fc.devolucionFecha) || '', fc.devolucionReceptor ? `${fc.devolucionReceptor} - ${fc.devolucionCargoReceptor}` : ''] ], styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, halign: 'center' }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] }, columnStyles: { 0: { fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 8;
+            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
+            doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.text("Con la firma del presente documento, el funcionario asume la total responsabilidad por la tenencia, uso y debida conservación del bien patrimonial detallado. Asimismo, se obliga a informar al Departamento de Bienes Patrimoniales sobre su renuncia, traslado o desvinculación del cargo, así como reportar inmediatamente cualquier daño, pérdida o hurto del bien asignado para su gestión, en estricto cumplimiento del Manual de Normas y Procedimientos para la Administración, Uso, Custodia, Clasificación y Contabilización de los Bienes del Estado del Ministerio de Economía y Finanzas.", 14, finalY, { maxWidth: pageWidth - 28, align: 'justify', lineHeightFactor: 1.5 });
+            if (finalY > pageHeight - 60) { doc.addPage(); finalY = 30; } else { finalY += 35; }
+            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(20, finalY, 90, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Firma del Funcionario Responsable", 55, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text(`Aclaración: ${fc.funcionarioNombre || ''}`, 20, finalY + 10); doc.text(`C.I.: ${formatCI(fc.funcionarioDoc || '')}`, 20, finalY + 15);
+            doc.line(120, finalY, 190, finalY); doc.setFont("helvetica", "bold"); doc.text("Visto Bueno (Jefe Inmediato)", 155, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text("Aclaración:", 120, finalY + 10);
+        }
+        return { doc, fechaDocumento, fc };
+  };
+
+  const handleGenerateFC10PDF = (fcsData, bienesData) => {
+    const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
+    const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
+    if (fcs.length === 0) return addToast("No hay datos para generar FC-10", "warning");
+
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
+    setIsProcessing({ active: true, text: 'Generando PDF FC-10...' });
+    
+    setTimeout(() => {
+      try {
+        const { doc, fechaDocumento, fc } = buildFC10PDFDoc(fcs, bienesAListar);
+        const cleanFunc = (fc.funcionarioNombre || 'SR').replace(/\s+/g, '_'); 
+        doc.save(`FC10_Asignacion_${cleanFunc}_${fechaDocumento}.pdf`); 
+        addToast("Reporte PDF FC-10 generado", "success");
+      } catch(e) { 
+        console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); 
+      } finally { 
+        setIsProcessing({ active: false, text: '' }); 
+      }
+    }, 100);
+  };
+
+  const handleExportFC10CSV = () => {
+    const fcsAnuales = fc10List.filter(fc => {
+        if (fc.dependencia !== dependenciaActual) return false;
+        const genDate = fc.entregadoFecha || fc.fechaGeneracion || '';
+        const devDate = fc.devolucionFecha || '';
+        const [gYear] = genDate.split('-');
+        let matchDev = false;
+        if (devDate) {
+            const [dYear] = devDate.split('-');
+            matchDev = (dYear === fc10Year);
+        }
+        return (gYear === fc10Year) || matchDev;
+    }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime());
+
+    if (fcsAnuales.length === 0) return addToast(`No hay datos FC-10 para el año ${fc10Year}`, "warning");
+    
+    setIsProcessing({ active: true, text: 'Generando Excel...' });
+    setTimeout(() => {
+      let csvContent = "\uFEFF"; 
+      csvContent += "Fecha Asignacion;Dependencia;Unidad;Reparticion;Area;Funcionario;C.I.;Cargo;Rotulo;Descripcion;Cuenta Contable;Estado Fisico;Valor (Gs.);Fecha Devolucion;Observaciones\n";
+      
+      fcsAnuales.forEach(fc => {
+          const b = bienes.find(bien => bien.id === fc.bienId) || {};
+          const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-');
+          const row = [
+              formatDateText(fc.entregadoFecha || fc.fechaGeneracion),
+              fc.dependencia, fc.unidad || '-', fc.reparticion || '-', fc.area || '-',
+              fc.funcionarioNombre, formatCI(fc.funcionarioDoc), fc.funcionarioCargo,
+              b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`, cuentaFull || '-',
+              fc.estadoConservacion, (fc.valorTotal || b.valorUnitario || 0),
+              fc.devolucionFecha ? formatDateText(fc.devolucionFecha) : 'Vigente',
+              `"${(fc.observaciones || '').replace(/"/g, '""')}"`
+          ];
+          csvContent += row.join(';') + "\n";
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      if (window.saveAs) window.saveAs(blob, `Reporte_FC10_${dependenciaActual.replace(/\s+/g, '_')}_${fc10Year}.csv`);
+      setIsProcessing({ active: false, text: '' });
+      addToast(`Reporte Excel FC-10 (${fc10Year}) descargado`, "success");
+    }, 100);
+  };
+
+  const handleExportFC11CSV = () => {
+    const fcsAnuales11 = fc11List.filter(fc => {
+        const rem = fc.dependenciaRemitente || fc.remitente || '';
+        const dest = fc.dependenciaDestinataria || fc.destinatario || '';
+        if (rem !== dependenciaActual && dest !== dependenciaActual) return false;
+        const [year] = String(fc.fecha || '').split('-');
+        return year === fc10Year;
+    }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+    if (fcsAnuales11.length === 0) return addToast(`No hay datos FC-11 para el año ${fc10Year}`, "warning");
+    
+    setIsProcessing({ active: true, text: 'Generando Excel...' });
+    setTimeout(() => {
+      let csvContent = "\uFEFF";
+      csvContent += "N Formulario;Fecha;Dep. Remitente;Area Remitente;Dep. Destinataria;Area Destinataria;Rotulo Bien;Descripcion Bien;Estado Fisico;Motivo;Observaciones\n";
+      
+      fcsAnuales11.forEach(fc => {
+          const b = fc.bienSnapshot || {};
+          const row = [
+              fc.numeroFormulario, formatDateText(fc.fecha),
+              fc.dependenciaRemitente || fc.remitente, fc.areaRemitente || '-',
+              fc.dependenciaDestinataria || fc.destinatario, fc.areaDestinataria || '-',
+              b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
+              fc.estadoConservacion || b.estadoConservacion, fc.motivo,
+              `"${(fc.observaciones || '').replace(/"/g, '""')}"`
+          ];
+          csvContent += row.join(';') + "\n";
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      if (window.saveAs) window.saveAs(blob, `Reporte_FC11_${dependenciaActual.replace(/\s+/g, '_')}_${fc10Year}.csv`);
+      setIsProcessing({ active: false, text: '' });
+      addToast(`Reporte Excel FC-11 (${fc10Year}) descargado`, "success");
+    }, 100);
+  };
+
+  const openFC03Modal = () => {
+      setFc03Config({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+      setIsFC03ModalOpen(true);
+  };
+
+  const executeGenerateFC03 = () => {
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
+    let bienesToPrint = filteredBienes;
+
+    if (fc03Config.tipoFiltro === 'ubicacion' && fc03Config.filtroValor) {
+        bienesToPrint = bienesToPrint.filter(b => normalizeStr(b.ubicacion) === normalizeStr(fc03Config.filtroValor));
+    } else if (fc03Config.tipoFiltro === 'funcionario' && fc03Config.filtroValor) {
+        bienesToPrint = bienesToPrint.filter(b => normalizeStr(b.funcionario) === normalizeStr(fc03Config.filtroValor));
+    }
+
+    if (bienesToPrint.length === 0) return addToast("No se encontraron bienes para los filtros aplicados.", "warning");
+    setIsProcessing({ active: true, text: 'Generando Inventario FC-03...' }); const todayStr = new Date().toISOString().split('T')[0];
+    
+    setTimeout(() => {
+      try {
+        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
+        const logoImg = appLogo || getPlaceholderLogo(); 
+        
+        const tableRows = bienesToPrint.map(b => [
+            b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', 
+            b.rotulo || '-', b.descripcion || '-', 
+            b.dependencia || '-', b.ubicacion || '-', b.funcionario || 'Sin Asignar',
+            formatDateText(b.fechaAdquisicion) || '-', formatCurrency(b.valorUnitario), getEstadoAbbr(b.estadoConservacion)
+        ]);
+        
+        doc.autoTable({ 
+            startY: 55, margin: { top: 55, bottom: 30, left: 10, right: 10 }, theme: 'grid', 
+            head: [["Cta.", "Sub.", "An.1", "An.2", "Rótulo", "Descripción", "Dependencia", "Ubicación", "Funcionario Asignado", "Adquisición", "Valor (Gs.)", "Est."]], 
+            body: tableRows, rowPageBreak: 'avoid',
+            styles: { fontSize: 7, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, 
+            headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, 
+            alternateRowStyles: { fillColor: [250, 252, 253] },
+            columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center', fontStyle: 'bold' }, 9: { halign: 'center' }, 10: { halign: 'right' }, 11: { halign: 'center', fontStyle: 'bold' } },
+            didDrawPage: function(data) {
+                doc.addImage(logoImg, 'PNG', 14, 10, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 16, { align: 'center' }); 
+                doc.setFontSize(11); doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.text("Hoja N°: " + doc.internal.getCurrentPageInfo().pageNumber, pageWidth - 14, 16, { align: 'right' });
+                
+                doc.setFont("helvetica", "bold"); doc.text("Entidad:", 14, 38); doc.setFont("helvetica", "normal"); doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 30, 38);
+                doc.setFont("helvetica", "bold"); doc.text("Dependencia:", 180, 38); doc.setFont("helvetica", "normal"); doc.text(dependenciaActual.toUpperCase(), 208, 38);
+                
+                let filtroText = "INVENTARIO GENERAL DE LA DEPENDENCIA";
+                if(fc03Config.tipoFiltro === 'ubicacion') filtroText = `UBICACIÓN: ${fc03Config.filtroValor.toUpperCase()}`;
+                if(fc03Config.tipoFiltro === 'funcionario') filtroText = `RESPONSABLE: ${fc03Config.filtroValor.toUpperCase()}`;
+                
+                doc.setFont("helvetica", "bold"); doc.text("Filtro de Inventario:", 14, 44); doc.setFont("helvetica", "normal"); doc.text(filtroText, 48, 44);
+            }
+        });
+        
+        let finalY = doc.lastAutoTable.finalY + 10; if (finalY > pageHeight - 55) { doc.addPage(); finalY = 20; }
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes en el Reporte: ${bienesToPrint.length}`, 14, finalY); finalY += 8;
+        doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("Estado de Conservación:", 14, finalY); doc.setFont("helvetica", "normal"); doc.text("MB: Muy bueno, B: Bueno, R: Regular, M: Malo, I: Inutilizable, DB: De Baja", 52, finalY); finalY += 15;
+        if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
+        doc.setFont("helvetica", "bold"); doc.setTextColor(100, 100, 100); doc.text("Información de Emisión:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text("Documento oficial generado por el Sistema Integrado de Gestión Patrimonial UNP.", 14, finalY); finalY += 4; doc.text(`Elaborado por: ${currentUser?.nombre || 'Usuario del Sistema'} (${currentUser?.cargo || 'Funcionario'}).`, 14, finalY);
+        doc.setTextColor(0, 0, 0); doc.text("Lugar y Fecha: " + fc03Config.lugar + ", " + todayStr.split('-').reverse().join('-'), pageWidth - 14, finalY, { align: 'right' });
+        
+        const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
+        const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
+        doc.save(`FC03_${cleanDepName}_${descFiltro}_${todayStr}.pdf`); 
+        addToast("Reporte Inventario generado", "success");
+      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsFC03ModalOpen(false); }
+    }, 100);
+  };
+
+  const toggleQR = async (bien) => { 
+    const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
+    setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
+    try { await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) }); addToast(`Estado QR actualizado`, "success"); } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
+  };
+  
+  const handleDownloadTemplateCSV = () => {
+      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida Útil (Años)\n" +
+                         "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
+                         ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Masiva_Bienes.csv");
+      addToast("Plantilla Excel (CSV) base descargada", "success");
+  };
+
+  const handleExportInventarioCSV = () => {
+      if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
+      setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
+      setTimeout(() => {
+          let csvContent = "\uFEFFCuenta;Subcuenta;Analitico 1;Analitico 2;Rotulo;Descripcion;Dependencia;Ubicacion;Funcionario;Fecha Adquisicion;Valor Unitario (Gs.);Estado Conservacion;Vida Util;Tiene FC10;Tiene QR\n";
+          filteredBienes.forEach(b => {
+              const row = [
+                  b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-',
+                  b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
+                  b.dependencia || '-', b.ubicacion || '-', b.funcionario || '-',
+                  formatDateText(b.fechaAdquisicion) || '-', b.valorUnitario || '0',
+                  b.estadoConservacion || '-', b.vidaUtil || '-',
+                  b.hasFC10 ? 'SI' : 'NO', b.hasQR ? 'SI' : 'NO'
+              ];
+              csvContent += row.join(';') + "\n";
+          });
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          if (window.saveAs) window.saveAs(blob, `Reporte_Inventario_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+          setIsProcessing({ active: false, text: '' });
+          addToast("Reporte Excel descargado exitosamente", "success");
+      }, 100);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0]; if (!file) return; setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const buffer = event.target.result;
+        const text = decodeText(buffer);
+        const lines = text.split(/\r?\n/); if (lines.length < 2) { addToast("El archivo CSV está vacío o mal formateado.", "warning"); setIsProcessing({active:false, text:''}); return; }
+        const delimiter = lines[0].includes(';') ? ';' : ','; const newBienes = []; let duplicatesSkipped = 0;
+        for (let i = 1; i < lines.length; i++) {
+          const line = String(lines[i]).trim(); if (!line) continue; const row = []; let inQuotes = false; let val = "";
+          for (let char of line) { if (char === '"') inQuotes = !inQuotes; else if (char === delimiter && !inQuotes) { row.push(val); val = ""; } else val += char; } row.push(val);
+          if (row.length >= 8) {
+            const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase()); const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
+            if (isDuplicateDB || isDuplicateCSV) { duplicatesSkipped++; continue; }
+            newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: String(row[0]||'').replace(/"/g, ''), subcuenta: String(row[1]||'').replace(/"/g, ''), analitico1: String(row[2]||'').replace(/"/g, ''), analitico2: String(row[3]||'').replace(/"/g, ''), descripcion: String(row[4]||'').replace(/"/g, ''), fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), rotulo: rotuloCSV, valorUnitario: String(row[7]||'').replace(/"/g, ''), vidaUtil: String(row[8]||'').replace(/"/g, ''), funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' });
+          }
+        }
+        if (newBienes.length > 0) { try { await fetchAuth(`${API_URL}/bens/bulk`, { method: 'POST', body: JSON.stringify(newBienes) }); await fetchData(); setActiveTab('inventario'); addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); } catch (error) { addToast("Error al subir a la BD.", "error"); } } else { addToast("No se detectaron bienes válidos.", "warning"); }
+        setIsProcessing({ active: false, text: '' });
+      }; reader.readAsArrayBuffer(file); e.target.value = null;
+    }, 100);
+  };
+
+  const saveUsuario = async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const userData = Object.fromEntries(f.entries());
+    
+    try {
+        const method = usuarioEditing ? 'PUT' : 'POST';
+        const url = usuarioEditing ? `${API_URL}/usuarios/${usuarioEditing.username}` : `${API_URL}/usuarios`;
+        
+        const res = await fetchAuth(url, { method, body: JSON.stringify(userData) });
+        if (res.ok) {
+            addToast(usuarioEditing ? "Usuario actualizado" : "Usuario creado", "success");
+            setIsUsuarioModalOpen(false);
+            fetchData();
+        } else {
+            const err = await res.json();
+            addToast(err.error || "Error al procesar la solicitud", "error");
+        }
+    } catch (error) {
+        addToast("Error de conexión.", "error");
+    }
+  };
+
+  const saveBien = async (e, keepOpen = false) => {
+    if(e) e.preventDefault(); 
+    const form = bienFormRef.current;
+    if (!form || !form.reportValidity()) return;
+
+    const formData = new FormData(form); 
+    const rotuloInput = formData.get('rotulo').trim(); 
+    const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && (!bienEditing || b.id !== bienEditing.id)); 
+    if (isDuplicate) { addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); return; }
+    
+    const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
+    
+    try { 
+        const res = await fetchAuth(bienEditing ? `${API_URL}/bens/${bienData.id}` : `${API_URL}/bens`, { method: bienEditing ? 'PUT' : 'POST', body: JSON.stringify(bienData) }); 
+        if (res.ok) {
+            setBienes(prev => bienEditing ? prev.map(b => b.id === bienData.id ? bienData : b) : [bienData, ...prev]); 
+            fetchData();
+            
+            if (keepOpen) {
+                addToast(`"${rotuloInput}" guardado. Puedes añadir el siguiente.`, "success");
+                form.elements['rotulo'].value = '';
+                form.elements['descripcion'].value = '';
+                if(form.elements['hasQR']) form.elements['hasQR'].checked = false;
+                form.elements['rotulo'].focus();
+                setBienEditing(null);
+            } else {
+                setIsBienModalOpen(false); 
+                addToast(bienEditing ? "Registro actualizado exitosamente" : "Bien guardado exitosamente", "success"); 
+            }
+        } else {
+            addToast("Error al guardar en el servidor.", "error");
+        }
+    } catch (e) { addToast("Error al guardar.", "error"); }
+  };
+
+  const saveFC11 = async (e) => {
+    e.preventDefault(); const f = new FormData(e.target); const fc11Data = { id: fc11Editing ? fc11Editing.id : generateId(), numeroFormulario: f.get('numeroFormulario'), fecha: f.get('fecha'), dependenciaRemitente: dependenciaActual, areaRemitente: f.get('areaRemitente'), dependenciaDestinataria: f.get('dependenciaDestinataria'), areaDestinataria: f.get('areaDestinataria'), motivo: f.get('motivo'), estadoConservacion: f.get('estadoConservacion'), observaciones: f.get('observaciones'), bienId: fc11TargetBien.id, bienSnapshot: fc11TargetBien, tipoRegistro: 'FC11' }; 
+    const esMovimientoInterno = fc11Data.dependenciaRemitente === fc11Data.dependenciaDestinataria; 
+    const updatedBien = { ...fc11TargetBien, dependencia: fc11Data.dependenciaDestinataria, estadoConservacion: fc11Data.estadoConservacion, hasFC10: false, funcionario: esMovimientoInterno ? fc11TargetBien.funcionario : '', ubicacion: esMovimientoInterno ? fc11TargetBien.ubicacion : '' };
+    
+    try {
+      await fetchAuth(fc11Editing ? `${API_URL}/fc11/${fc11Data.id}` : `${API_URL}/fc11`, { method: fc11Editing ? 'PUT' : 'POST', body: JSON.stringify(fc11Data) });
+      const openFc10 = fc10List.find(fc => fc.bienId === fc11TargetBien.id && !fc.devolucionFecha); if (openFc10) { const closedFc10 = { ...openFc10, devolucionFecha: new Date().toISOString().split('T')[0], devolucionLugar: "Traslado FC-11", devolucionReceptor: "Sistema" }; await fetchAuth(`${API_URL}/fc10/${closedFc10.id}`, { method: 'PUT', body: JSON.stringify(closedFc10) }); setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); }
+      await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
+      if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
+      if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
+      fetchData();
+    } catch (error) { addToast("Error al registrar FC-11.", "error"); }
+  };
+
+  const saveFC04 = async (e) => {
+    e.preventDefault(); const f = new FormData(e.target); const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
+    try {
+      await fetchAuth(fc04Editing ? `${API_URL}/fc04/${fc04Data.id}` : `${API_URL}/fc04`, { method: fc04Editing ? 'PUT' : 'POST', body: JSON.stringify(fc04Data) });
+      if (!fc04SinMovimiento && fc04Items.length > 0) {
+          const isBaja = fc04Data.origenMovimiento === 'B'; const newBienes = []; const updatedBienes = [];
+          for (const item of fc04Items) {
+              const existingBien = bienes.find(b => b.rotulo.toLowerCase() === item.rotulo.toLowerCase() && b.dependencia === dependenciaActual);
+              if (isBaja) { if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); } 
+              else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); }
+          }
+          if (newBienes.length > 0) { await fetchAuth(`${API_URL}/bens/bulk`, { method: 'POST', body: JSON.stringify(newBienes) }); setBienes(prev => [...newBienes, ...prev]); addToast(`${newBienes.length} bienes inyectados.`, "success"); }
+          if (updatedBienes.length > 0) { for (const b of updatedBienes) await fetchAuth(`${API_URL}/bens/${b.id}`, { method: 'PUT', body: JSON.stringify(b) }); setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); addToast(`${updatedBienes.length} bajas registradas.`, "success"); }
+      }
+      if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
+      fetchData();
+      addToast("Expediente FC-04 guardado", "success");
+    } catch (error) { addToast("Error guardando FC-04.", "error"); }
+  };
+
+  const saveFC10 = async (e) => {
+    e.preventDefault(); const formData = new FormData(e.target); const orgDataToSave = { unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod') }; localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; const isDevuelto = !!fcData.devolucionFecha; const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
+    try { 
+        await fetchAuth(fc10Editing ? `${API_URL}/fc10/${fcData.id}` : `${API_URL}/fc10`, { method: fc10Editing ? 'PUT' : 'POST', body: JSON.stringify(fcData) }); 
+        await fetchAuth(`${API_URL}/bens/${updatedBien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) }); 
+        const checkAndAddStructure = async (name, code, tipo) => { 
+            if (name && code) { 
+                try { const nameUpper = name.toUpperCase(); const exists = estructurasDB.find(item => item.nombre.toUpperCase() === nameUpper && item.tipoEstructura === tipo); 
+                    if (!exists) { const newStruct = { id: generateId(), nombre: nameUpper, codigo: code, tipoRegistro: 'ESTRUCTURA', tipoEstructura: tipo }; setEstructurasDB(prev => [...prev, newStruct]); await fetchAuth(`${API_URL}/estructuras`, { method: 'POST', body: JSON.stringify(newStruct) }); } 
+                } catch(err) {}
+            } 
+        }; 
+        await checkAndAddStructure(orgDataToSave.unidad, orgDataToSave.unidadCod, 'unidad'); await checkAndAddStructure(orgDataToSave.reparticion, orgDataToSave.reparticionCod, 'reparticion'); await checkAndAddStructure(orgDataToSave.dependenciaOrg, orgDataToSave.dependenciaCod, 'dependencia'); await checkAndAddStructure(orgDataToSave.area, orgDataToSave.areaCod, 'area'); 
+        setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); setIsFC10ModalOpen(false); 
+        fetchData();
+        addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
+    } catch (error) { addToast("Error al guardar.", "error"); }
+  };
+
+  const confirmDeleteAction = async () => {
+    if (!itemToDelete) return; 
+    const { type, id, username, item } = itemToDelete;
+    
+    try { 
+        let res = { ok: false };
+        
+        if (type === 'requestBaja') {
+            const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
+            res = await fetchAuth(`${API_URL}/bens/${id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
+            if (res.ok) {
+                setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
+                addToast("Solicitud de baja enviada a revisión.", "warning");
+            }
+        }
+        else {
+            if (type === 'bien') res = await fetchAuth(`${API_URL}/bens/${id}`, { method: 'DELETE' });
+            else if (type === 'fc10') res = await fetchAuth(`${API_URL}/fc10/${id}`, { method: 'DELETE' });
+            else if (type === 'fc11') res = await fetchAuth(`${API_URL}/fc11/${id}`, { method: 'DELETE' });
+            else if (type === 'fc04') res = await fetchAuth(`${API_URL}/fc04/${id}`, { method: 'DELETE' });
+            else if (type === 'usuario') res = await fetchAuth(`${API_URL}/usuarios/${username}`, { method: 'DELETE' });
+
+            if (res.ok || res.status === 200) {
+                if (type === 'bien') setBienes(prev => prev.filter(b => b.id !== id)); 
+                else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
+                else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
+                else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id)); 
+                else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
+                addToast("Registro eliminado permanentemente", "success"); 
+            } else {
+                const err = await res.json();
+                addToast(err.error || "No se pudo completar en el servidor.", "error");
+            }
+        }
+        fetchData();
+    } catch (e) { 
+        addToast("Error de red al procesar la solicitud.", "error");
+    } finally {
+        setItemToDelete(null); 
+    }
+  };
+  
+  const submitResolucionBaja = async (e) => {
+      e.preventDefault();
+      const { bien, accion } = resolucionBaja;
+      setIsProcessing({ active: true, text: 'Procesando resolución...' });
+
+      try {
+          const updatedBien = { 
+              ...bien, 
+              solicitudBaja: false, 
+              estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
+          };
+
+          const res = await fetchAuth(`${API_URL}/bens/${bien.id}`, { method: 'PUT', body: JSON.stringify(updatedBien) });
+          
+          if (res.ok) {
+              setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
+              
+              if (bien.bajaSolicitadaPor) {
+                  const notif = {
+                      id: generateId(),
+                      tipoRegistro: 'NOTIFICACION',
+                      usuarioDestino: bien.bajaSolicitadaPor,
+                      titulo: accion === 'aprobar' ? 'Solicitud de Baja Aprobada' : 'Solicitud de Baja Rechazada',
+                      mensaje: accion === 'aprobar' 
+                          ? `La solicitud de baja para el bien "${bien.rotulo}" fue aprobada. ${motivoResolucion ? 'Observaciones: ' + motivoResolucion : ''}`
+                          : `Se rechaza la eliminación del bien "${bien.rotulo}". Motivo: ${motivoResolucion}`,
+                      leido: false,
+                      fecha: new Date().toISOString(),
+                      bienId: bien.id,
+                      accion: accion
+                  };
+                  await fetchAuth(`${API_URL}/auditoria`, { method: 'POST', body: JSON.stringify(notif) });
+                  setNotificaciones(prev => [notif, ...prev]);
+              }
+              
+              addToast(accion === 'aprobar' ? "Baja aprobada exitosamente." : "Solicitud rechazada.", "success");
+          }
+      } catch (e) { 
+          addToast("Error al procesar la resolución.", "error"); 
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+          setResolucionBaja(null);
+      }
+  };
+
+  const markAsRead = async (notif) => {
+      if(notif.leido) return;
+      const updated = {...notif, leido: true};
+      setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
+      try { await fetchAuth(`${API_URL}/auditoria/${notif.id}`, { method: 'PUT', body: JSON.stringify(updated)}); } catch(e) {}
+  };
+
+  const openResolucionModal = (bien, accion) => {
+      setResolucionBaja({ bien, accion });
+      setMotivoResolucion('');
+  };
+
+  const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setFc10FormNombre(fc ? fc.funcionarioNombre : bien.funcionario || ''); setIsFC10ModalOpen(true); };
+  const openFC11Modal = (bien, fc = null) => { setFc11TargetBien(bien); setFc11Editing(fc); setFc11FormNumber(fc ? fc.numeroFormulario : ''); setIsFC11ModalOpen(true); };
+  const openFC04Modal = (fc = null) => { setFc04Editing(fc); if (fc) { setFc04Items(fc.bienesSnapshot || []); setFc04SinMovimiento(fc.sinMovimiento); } else { setFc04Items([]); setFc04SinMovimiento(false); } setIsFC04ModalOpen(true); };
+  
+  const handleRowAction = (action, item, extraData) => { 
+      switch(action) { 
+          case 'toggleQR': toggleQR(item); break; 
+          case 'openQRDownload': 
+              setQrTargetBien(item); 
+              setIsBulkQR(false);
+              setIsQRModalOpen(true); 
+              break; 
+          case 'openFC10': openFC10Modal(item); break; 
+          case 'openFC11': openFC11Modal(item); break; 
+          case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
+          case 'deleteBien': setItemToDelete({type:'bien', id:item.id}); break; 
+          case 'requestBaja': setItemToDelete({type:'requestBaja', id:item.id, item}); break;
+          case 'printFC10': handleGenerateFC10PDF([extraData], [item]); break; 
+          default: break; 
+      } 
+  };
+
+  const handleFuncionarioNombreChange = (e) => { setFc10FormNombre(e.target.value); };
+  const handleReturnInteraction = () => { setDevFecha(new Date().toISOString().split('T')[0]); };
+  const handleAddFC04Item = () => setFc04Items(prev => [...prev, { id: generateId(), descripcion: '', rotulo: '' }]);
+  const handleRemoveFC04Item = (id) => setFc04Items(prev => prev.filter(i => i.id !== id));
+  const handleFC04ItemChange = (id, field, value) => setFc04Items(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
+
+  const misNotificaciones = useMemo(() => {
+      return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [notificaciones, currentUser]);
+  const unreadCount = misNotificaciones.filter(n => !n.leido).length;
+
+  const renderPagination = () => (
+    <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
+      <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPerPage + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPerPage, filteredBienes.length)}</span> de {filteredBienes.length}</span>
+      <div className="flex gap-2">
+        <button disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Anterior</button>
+        <button disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Siguiente</button>
+      </div>
+    </div>
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex w-full bg-white dark:bg-darkbg-main transition-colors duration-300 relative overflow-hidden">
+         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+          {toasts.map(t => (
+            <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
+              <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
+              <span className="flex-1">{t.message}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 p-12 flex-col justify-center items-center relative overflow-hidden shadow-2xl z-10">
+            <div className="absolute inset-0 bg-black/10 mix-blend-multiply pointer-events-none"></div>
+            <div className="relative z-10 flex flex-col items-center text-center animate-fade-in">
+                <div className="w-40 h-40 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 shadow-2xl mb-10 flex items-center justify-center transform transition-transform hover:scale-105 duration-500">
+                    {appLogo ? (
+                        <img src={appLogo} alt="Logo Oficial" className="w-full h-full object-contain" />
+                    ) : (
+                        <i className="fa-solid fa-landmark text-7xl text-white drop-shadow-md"></i>
+                    )}
+                </div>
+                <h1 className="text-4xl font-extrabold text-white mb-4 tracking-tight drop-shadow-sm">Sistema de Gestión Patrimonial</h1>
+                <p className="text-brand-light text-lg font-medium max-w-md opacity-90">Plataforma integral para el control y trazabilidad de los bienes de la Universidad Nacional de Pilar.</p>
+            </div>
+        </div>
+        
+        <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 bg-zinc-50 dark:bg-darkbg-main relative">
+            <div className="absolute top-6 right-6 flex gap-2">
+                <button onClick={handleCambiarIP} className="text-zinc-400 hover:text-brand-primary dark:hover:text-brand-accent transition-colors cursor-pointer text-xl p-2" title="Configurar Red"><i className="fa-solid fa-network-wired"></i></button>
+                <button onClick={() => setDarkMode(!darkMode)} className="text-zinc-400 hover:text-brand-primary dark:hover:text-brand-accent transition-colors cursor-pointer text-xl p-2" title="Alternar Tema"><i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'}`}></i></button>
+            </div>
+            
+            <div className="w-full max-w-md bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-100 dark:border-darkbg-border p-8 shadow-2xl shadow-slate-200/50 dark:shadow-none animate-slide-up relative flex flex-col">
+              <div className="flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6">
+                  <h2 className="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-1">Acceso Institucional</h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium">Por favor, ingrese sus credenciales de red.</p>
+              </div>
+              
+              <form onSubmit={handleLogin} className="w-full space-y-5">
+                {loginError && <div className="rounded-xl bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-400 font-medium flex items-center gap-3 border border-red-200 dark:border-red-900/50"><i className="fa-solid fa-circle-exclamation text-lg"></i> Credenciales incorrectas. Verifique su usuario y contraseña.</div>}
+                <div>
+                    <label htmlFor="user" className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 mb-1.5 uppercase tracking-wider">Usuario (ID)</label>
+                    <div className="relative">
+                        <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                        <input type="text" id="user" value={loginUser} onChange={e=>setLoginUser(e.target.value)} required className="block w-full rounded-xl border border-zinc-200 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-4 py-3 text-sm text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 font-medium" placeholder="Escriba su usuario..." />
+                    </div>
+                </div>
+                <div>
+                    <div className="flex justify-between items-center mb-1.5">
+                        <label htmlFor="pass" className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">Contraseña</label>
+                    </div>
+                    <div className="relative">
+                        <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                        <input type="password" id="pass" value={loginPass} onChange={e=>setLoginPass(e.target.value)} required className="block w-full rounded-xl border border-zinc-200 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-4 py-3 text-sm text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 font-medium" placeholder="••••••••" />
+                    </div>
+                </div>
+                <div className="pt-6">
+                    <button type="submit" className="w-full rounded-xl bg-brand-primary px-6 py-3.5 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]">
+                        Iniciar Sesión <i className="fa-solid fa-arrow-right-to-bracket ml-1"></i>
+                    </button>
+                </div>
+              </form>
+            </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base">
+      <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+      
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+        {toasts.map(t => (
+          <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
+            <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
+            <span className="flex-1">{t.message}</span>
+          </div>
+        ))}
+      </div>
+
+      {isProcessing.active && (
+        <div className="fixed inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm z-[500] flex flex-col items-center justify-center animate-fade-in">
+          <i className="fa-solid fa-circle-notch fa-spin text-4xl text-brand-primary mb-4"></i>
+          <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
+        </div>
+      )}
+
+      <aside className="flex w-72 flex-col bg-white dark:bg-darkbg-card border-r border-zinc-200 dark:border-darkbg-border shrink-0 z-30 transition-all duration-300">
+        <div className="flex h-16 shrink-0 items-center px-6">
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded border border-zinc-200 bg-white shadow-sm overflow-hidden dark:bg-darkbg-main dark:border-darkbg-border">
+                {appLogo ? <img src={appLogo} alt="Logo" className="w-full h-full object-contain" /> : <i className="fa-solid fa-landmark text-brand-primary text-sm"></i>}
+            </div>
+            <div className="min-w-0">
+                <h1 className="text-base font-medium tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>
+            </div>
+          </div>
+        </div>
+        
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
+           {[ 
+              { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie' },
+              { id: 'inventario', label: 'Directorio de Bienes', icon: 'fa-boxes-stacked' },
+              { id: 'fc04', label: 'Altas y Bajas (FC-04)', icon: 'fa-file-invoice' },
+              { id: 'fc10', label: 'Asignaciones (FC-10)', icon: 'fa-file-signature' },
+              { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast' },
+              ...(isAdmin ? [
+                  { id: 'aprobaciones', label: 'Aprobaciones', icon: 'fa-check-to-slot' },
+                  { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear' }
+              ] : []),
+              { id: 'ayuda', label: 'Centro de Ayuda', icon: 'fa-circle-question' }
+           ].map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`group flex w-full items-center gap-x-3 rounded-md px-4 py-3 text-sm font-medium transition-all cursor-pointer ${activeTab === tab.id ? 'bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent' : 'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-darkbg-hover dark:hover:text-white'}`}>
+                  <i className={`fa-solid ${tab.icon} flex w-5 shrink-0 justify-center text-base ${activeTab === tab.id ? 'text-brand-primary dark:text-brand-accent' : 'text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-400 dark:group-hover:text-zinc-300'}`}></i> 
+                  {tab.label}
+                  {tab.id === 'aprobaciones' && solicitudesBaja.length > 0 && (
+                      <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-[10px] font-bold text-white shadow-sm">
+                          {solicitudesBaja.length}
+                      </span>
+                  )}
+              </button>
+           ))}
+        </nav>
+      </aside>
+
+      <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
+          {dbError && (
+            <div className="flex items-center justify-center gap-x-6 bg-red-50 px-6 py-2.5 sm:px-3.5 border-b border-red-200 dark:bg-red-900/30 dark:border-red-900/50 shadow-sm z-50">
+              <p className="text-sm leading-6 text-red-700 dark:text-red-400 font-medium">
+                <i className="fa-solid fa-wifi mr-2"></i> Operando en Modo Local (Sin Conexión)
+                <button onClick={handleCambiarIP} className="ml-3 font-bold hover:underline cursor-pointer">Reconectar &rarr;</button>
+              </p>
+            </div>
+          )}
+
+          <header className="sticky top-0 z-20 flex h-20 shrink-0 items-center justify-between bg-white/80 dark:bg-darkbg-card/80 px-6 sm:px-8 border-b border-zinc-200/80 dark:border-darkbg-border/80 backdrop-blur-md shadow-xs transition-all">
+             <div className="flex items-center gap-x-3">
+                <span className="flex h-3 w-3 rounded-full bg-brand-primary animate-pulse"></span>
+                <h1 className="text-xl font-extrabold tracking-tight text-zinc-900 dark:text-white capitalize">
+                   {activeTab === 'dashboard' ? 'Panel Principal' : activeTab === 'inventario' ? 'Directorio Patrimonial' : activeTab === 'usuarios' ? 'Directorio de Usuarios' : activeTab.replace('fc', 'Registro FC-')}
+                </h1>
+             </div>
+
+             <div className="flex items-center gap-x-4">
+                <div className="flex items-center gap-2 bg-zinc-100/70 dark:bg-darkbg-main/70 p-1.5 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border/60">
+                    <div className="relative flex items-center rounded-xl bg-white dark:bg-darkbg-card shadow-xs px-3 py-1.5 transition-all hover:shadow-sm">
+                      <i className="fa-regular fa-file-pdf text-brand-primary text-sm mr-2"></i>
+                      <select className="appearance-none bg-transparent pr-6 text-xs font-bold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer" value={pdfPaperSize} onChange={(e) => setPdfPaperSize(e.target.value)}>
+                        <option value="a4" className="dark:bg-darkbg-card">A4</option>
+                        <option value="legal" className="dark:bg-darkbg-card">Oficio</option>
+                      </select>
+                      <i className="fa-solid fa-chevron-down absolute right-2 text-[9px] text-zinc-400 pointer-events-none"></i>
+                    </div>
+
+                    <div className="relative flex items-center rounded-xl bg-white dark:bg-darkbg-card shadow-xs px-3 py-1.5 transition-all hover:shadow-sm">
+                      <i className="fa-solid fa-building-columns text-brand-primary text-sm mr-2"></i>
+                      <select className="appearance-none bg-transparent pr-6 text-xs font-bold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer max-w-[180px] sm:max-w-[240px] truncate" value={dependenciaActual} onChange={(e) => { setDependenciaActual(e.target.value); clearAllFilters(); }}>
+                        {todasDependencias.map(dep => <option key={dep} value={dep} className="dark:bg-darkbg-card">{dep}</option>)}
+                      </select>
+                      <i className="fa-solid fa-chevron-down absolute right-2 text-[9px] text-zinc-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <div className="h-6 w-px bg-zinc-200 dark:bg-darkbg-border mx-1"></div>
+
+                <div className="flex items-center gap-1">
+                    <button onClick={() => setDarkMode(!darkMode)} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer shadow-xs" title="Modo Claro/Oscuro">
+                        <i className={`fa-solid text-base ${darkMode ? 'fa-sun text-yellow-500' : 'fa-moon'}`}></i>
+                    </button>
+                    
+                    <button onClick={handleCambiarIP} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer shadow-xs" title="Configuración de Red">
+                        <i className="fa-solid fa-network-wired text-base"></i>
+                    </button>
+
+                    <div className="relative flex items-center">
+                        {isNotifOpen && <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>}
+                        <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 hover:text-brand-primary hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-all cursor-pointer z-50 shadow-xs" title="Notificaciones">
+                            <i className="fa-solid fa-bell text-base"></i>
+                            {unreadCount > 0 && <span className="absolute top-2 right-2 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white dark:ring-darkbg-card"></span>}
+                        </button>
+                        
+                        {isNotifOpen && (
+                            <div className="absolute right-0 top-12 w-80 bg-white dark:bg-darkbg-card shadow-xl border border-zinc-200 dark:border-darkbg-border rounded-2xl z-50 overflow-hidden flex flex-col animate-slide-up origin-top-right">
+                                <div className="px-4 py-3 border-b border-zinc-100 dark:border-darkbg-border flex justify-between items-center bg-zinc-50/50 dark:bg-darkbg-main/50">
+                                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Notificaciones</h3>
+                                    {unreadCount > 0 && <span className="bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent text-xs px-2 py-0.5 rounded-md font-bold">{unreadCount} nuevas</span>}
+                                </div>
+                                <div className="overflow-y-auto max-h-80 custom-scrollbar bg-white dark:bg-darkbg-card">
+                                    {misNotificaciones.length === 0 ? (
+                                        <div className="p-6 text-center text-zinc-500 text-sm font-medium"><i className="fa-regular fa-bell-slash text-2xl mb-2 opacity-50 block"></i> No tienes notificaciones.</div>
+                                    ) : (
+                                        misNotificaciones.map(n => (
+                                            <div key={n.id} onClick={() => markAsRead(n)} className={`p-4 border-b border-zinc-50 dark:border-darkbg-border/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover cursor-pointer transition-colors relative ${!n.leido ? 'bg-brand-light/20 dark:bg-brand-primary/5' : ''}`}>
+                                                {!n.leido && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary"></div>}
+                                                <div className="flex items-start gap-3">
+                                                    <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${n.accion === 'aprobar' ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                                        <i className={`fa-solid ${n.accion === 'aprobar' ? 'fa-check' : 'fa-xmark'}`}></i>
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className={`text-[13px] text-zinc-900 dark:text-white leading-tight ${!n.leido ? 'font-bold' : 'font-medium'}`}>{n.titulo}</p>
+                                                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 leading-snug">{n.mensaje}</p>
+                                                        <p className="text-[10px] text-zinc-400 font-mono mt-1.5">{new Date(n.fecha).toLocaleString('es-PY', {dateStyle: 'short', timeStyle: 'short'})}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 pl-3 border-l border-zinc-200 dark:border-darkbg-border">
+                    <div className="flex items-center gap-3 bg-zinc-100/80 dark:bg-darkbg-main/80 px-3.5 py-1.5 rounded-2xl border border-zinc-200/50 dark:border-darkbg-border/50 shadow-xs">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-primary text-white font-black text-xs shadow-xs">
+                            {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div className="flex flex-col text-left">
+                            <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
+                            <span className="text-[10px] font-extrabold uppercase text-brand-primary dark:text-brand-accent tracking-wider">
+                                {currentUser?.role === 'admin' ? 'Admin' : 'Personal'}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <button onClick={handleLogout} className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white transition-all shadow-xs cursor-pointer" title="Cerrar Sesión">
+                        <i className="fa-solid fa-power-off text-sm"></i>
+                    </button>
+                </div>
+             </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 h-full flex flex-col">
+                
+                {activeTab === 'aprobaciones' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shadow-2xs">
+                          <i className="fa-solid fa-check-to-slot text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Centro de Aprobaciones</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Revisión de solicitudes de exclusión de patrimonio enviadas por funcionarios</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                        {solicitudesBaja.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-center h-full min-h-[380px]">
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 mb-5 text-emerald-500 ring-1 ring-emerald-500/20 shadow-2xs">
+                                    <i className="fa-solid fa-check-double text-3xl"></i>
+                                </div>
+                                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Todo al día</h3>
+                                <p className="mt-1.5 text-xs font-semibold text-zinc-400 max-w-sm">No existen solicitudes de baja pendientes de revisión para esta dependencia.</p>
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-auto custom-scrollbar">
+                              <table className="min-w-full text-left">
+                                <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                                  <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                    <th className="py-3.5 pl-6 pr-4 w-1/3">Bien Solicitado</th>
+                                    <th className="px-4 py-3.5 w-1/3">Custodio Actual</th>
+                                    <th className="relative py-3.5 pl-4 pr-6 text-right">Acción de Revisión</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                                  {solicitudesBaja.map(b => (
+                                    <tr key={b.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
+                                        <td className="py-4 pl-6 pr-4 align-middle">
+                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm font-mono">{b.rotulo}</div>
+                                            <div className="text-xs font-medium text-zinc-500 mt-1 line-clamp-1">{b.descripcion}</div>
+                                        </td>
+                                        <td className="px-4 py-4 align-middle">
+                                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{b.funcionario || 'No asignado'}</div>
+                                            <div className="text-[11px] text-zinc-400 mt-0.5">{b.ubicacion || 'Sin ubicación'}</div>
+                                        </td>
+                                        <td className="relative py-4 pl-4 pr-6 align-middle text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button onClick={() => openResolucionModal(b, 'rechazar')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border shadow-2xs hover:shadow-xs transition-all cursor-pointer">
+                                                    <i className="fa-solid fa-xmark text-red-500"></i> Rechazar
+                                                </button>
+                                                <button onClick={() => openResolucionModal(b, 'aprobar')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-xs hover:shadow-md cursor-pointer">
+                                                    <i className="fa-solid fa-check"></i> Aprobar Baja
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'usuarios' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-users-gear text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión de cuentas y roles de acceso al sistema</p>
+                        </div>
+                      </div>
+                      
+                      <button onClick={() => { setUsuarioEditing(null); setIsUsuarioModalOpen(true); }} className={STYLES.btnPrimary}>
+                        <i className="fa-solid fa-user-plus"></i> Nuevo Usuario
+                      </button>
+                    </div>
+
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                        <div className="flex-1 overflow-auto custom-scrollbar">
+                          <table className="min-w-full text-left">
+                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                              <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                <th className="py-3.5 pl-6 pr-4 w-1/3">Usuario y Nombre</th>
+                                <th className="px-4 py-3.5 w-1/3">Rol de Sistema</th>
+                                <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                              {usuariosList.map(u => (
+                                <tr key={u.username} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
+                                    <td className="py-4 pl-6 pr-4 align-middle">
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-black text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-2xs">
+                                            {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
+                                          </div>
+                                          <div>
+                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm leading-snug">{u.nombre}</div>
+                                            <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">@{u.username}</div>
+                                          </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-4 align-middle">
+                                        {u.cargo === 'admin' 
+                                            ? <span className="inline-flex items-center gap-1.5 rounded-xl bg-red-50/80 px-3 py-1.5 text-[11px] font-black text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/20 dark:text-red-400 uppercase tracking-wider shadow-2xs"><i className="fa-solid fa-shield-halved text-xs"></i> Administrador General</span>
+                                            : <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand-light/80 px-3 py-1.5 text-[11px] font-black text-brand-primary ring-1 ring-inset ring-brand-primary/20 dark:bg-brand-primary/20 dark:text-brand-accent uppercase tracking-wider shadow-2xs"><i className="fa-solid fa-user text-xs"></i> Funcionario Local</span>
+                                        }
+                                    </td>
+                                    <td className="relative py-4 pl-4 pr-6 align-middle text-right">
+                                        <div className="flex items-center justify-end gap-1.5">
+                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light/80 dark:hover:bg-brand-primary/20 border border-transparent hover:border-brand-primary/20 transition-all cursor-pointer shadow-2xs" title="Editar cuenta">
+                                            <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                          </button>
+                                          {u.username !== currentUser.username && (
+                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 transition-all cursor-pointer shadow-2xs" title="Eliminar cuenta">
+                                                <i className="fa-solid fa-trash-can text-xs"></i>
+                                              </button>
+                                          )}
+                                        </div>
+                                    </td>
+                                </tr>
+                              ))}
+                              {usuariosList.length === 0 && (
+                                <tr>
+                                  <td colSpan="3" className="p-12 text-center text-sm font-medium text-zinc-400 italic">No hay usuarios registrados en el sistema.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'dashboard' && (
+                  <div className="space-y-8 animate-fade-in">
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
+                        <StatCard title="Valor Neto" value={isLoading ? '...' : `Gs. ${formatCurrency(stats.totalValue)}`} subtitle="Suma de valuación" icon="fa-sack-dollar" colorClass="text-green-600 dark:text-green-400" bgIconClass="bg-green-100/80 dark:bg-green-900/30" />
+                        <StatCard title="Sin FC-10" value={isLoading ? '...' : stats.withoutFc10} subtitle="Bienes sin asignación" icon="fa-file-signature" colorClass="text-amber-600 dark:text-amber-400" bgIconClass="bg-amber-100/80 dark:bg-amber-900/30" />
+                        <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
+                    </div>
+
+                    <div className={`${STYLES.card} p-6 border-l-4 border-l-brand-primary shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent">
+                                    <i className="fa-solid fa-bolt text-lg"></i>
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-extrabold text-zinc-900 dark:text-white tracking-tight">Accesos Directos</h3>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Acciones rápidas para la gestión operativa</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:text-brand-primary dark:hover:border-brand-primary dark:hover:text-brand-accent shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
+                                    <i className="fa-solid fa-calendar-plus text-brand-primary"></i> Ingreso FC-04
+                                </button>
+
+                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-purple-500 hover:text-purple-600 dark:hover:border-purple-500 dark:hover:text-purple-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
+                                    <i className="fa-solid fa-file-zipper text-purple-500"></i> Paquete QRs
+                                </button>
+
+                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
+                                    <i className="fa-solid fa-file-import text-emerald-500"></i> Importar CSV
+                                </button>
+
+                                <div className="relative inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:text-sky-600 dark:hover:border-sky-500 dark:hover:text-sky-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer overflow-hidden">
+                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                                    <i className="fa-solid fa-image text-sky-500"></i> Subir Logo
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <div className={`${STYLES.card} flex flex-col`}>
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
+                          <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Estado de Regularización</h2>
+                        </div>
+                        <div className="flex flex-1 flex-col sm:flex-row items-center justify-around p-8 gap-8">
+                          <div className="flex-1 w-full flex justify-center"><DonutChart percentage={stats.percFC10} colorClass="text-green-500" textClass="text-zinc-900 dark:text-white" icon="fa-file-contract" label="Cobertura FC-10" subtext={`${stats.withFc10} de ${stats.totalItems}`} /></div>
+                          <div className="hidden sm:block w-px h-24 bg-zinc-200 dark:bg-darkbg-border"></div>
+                          <div className="flex-1 w-full flex justify-center"><DonutChart percentage={stats.percQR} colorClass="text-brand-primary" textClass="text-zinc-900 dark:text-white" icon="fa-qrcode" label="Etiquetado QR" subtext={`${stats.withQR} de ${stats.totalItems}`} /></div>
+                        </div>
+                      </div>
+
+                      <div className={`${STYLES.card} flex flex-col`}>
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
+                          <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Tendencias Operativas</h2>
+                        </div>
+                        <div className="flex flex-1 flex-col sm:flex-row p-8 gap-8">
+                          <div className="flex-1 flex flex-col border-b border-zinc-100 dark:border-darkbg-border pb-6 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-8">
+                            <h3 className="text-xs font-semibold text-zinc-500 mb-5">Adquisiciones Anuales</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-4">
+                              {timeStats.adqByYear.length === 0 ? <p className="text-sm text-zinc-400 text-center py-4 italic">Datos insuficientes.</p> : timeStats.adqByYear.map((item, idx) => {
+                                  const colors = ["bg-brand-primary", "bg-zinc-500", "bg-zinc-400", "bg-zinc-300"];
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
+                                })}
+                            </div>
+                          </div>
+                          <div className="flex-1 flex flex-col">
+                            <h3 className="text-xs font-semibold text-zinc-500 mb-5">Asignaciones Mensuales</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-6">
+                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-green-500" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-300 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    
+                  </div>
+                )}
+
+                {activeTab === 'inventario' && (
+                    <div className="animate-fade-in flex flex-col h-full space-y-6">
+                      
+                      {/* TARJETA MAESTRA UNIFICADA (Título, Acciones y Herramientas en un solo bloque limpio) */}
+                      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-6">
+                        
+                        {/* FILA SUPERIOR: Título y Botón Principal */}
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                              <i className="fa-solid fa-boxes-stacked text-xl"></i>
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                                 Directorio Patrimonial
+                              </h2>
+                              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos</p>
+                            </div>
+                          </div>
+
+                          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !px-6 !py-3 shadow-md shrink-0"}>
+                              <i className="fa-solid fa-plus"></i> Añadir Registro
+                          </button>
+                        </div>
+
+                        {/* FILA INFERIOR DE LA TARJETA: Herramientas Operativas y Reportes Organizados */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mr-1">Datos:</span>
+                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary}>
+                                <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
+                            </button>
+                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary}>
+                                <i className="fa-solid fa-file-import text-brand-primary"></i> Importar CSV
+                            </button>
+                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary}>
+                                <i className="fa-solid fa-download text-sky-500"></i> Exportar CSV
+                            </button>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mr-1">Salidas:</span>
+                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary}>
+                                <i className="fa-solid fa-file-zipper text-purple-500"></i> Lote QRs
+                            </button>
+                            <button onClick={openFC03Modal} className={STYLES.btnSecondary}>
+                                <i className="fa-solid fa-print text-amber-500"></i> Reporte FC-03
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* SECCIÓN DE BÚSQUEDA Y FILTROS OPTIMIZADA */}
+                      <div className={`${STYLES.card} p-5 space-y-4`}>
+                        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
+                          
+                          {/* BUSCADOR PRINCIPAL */}
+                          <div className="w-full xl:w-96 shrink-0 relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+                            <input 
+                              type="text" 
+                              placeholder="Buscar rótulo, cuenta, responsable..." 
+                              className="block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 py-3 pl-11 pr-9 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-2xs" 
+                              value={searchInput} 
+                              onChange={(e) => setSearchInput(e.target.value)} 
+                            />
+                            {searchInput && (
+                              <button onClick={() => setSearchInput('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                                <i className="fa-solid fa-circle-xmark text-xs"></i>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* FILTROS PRINCIPALES SIMÉTRICOS EN LÍNEA */}
+                          <div className="w-full flex items-center gap-2.5 overflow-x-auto custom-scrollbar pb-1 xl:pb-0 justify-start xl:justify-end">
+                            <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
+                            <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
+                            <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
+                            <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
+                            
+                            <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-zinc-800 text-white border-zinc-900 dark:bg-white dark:text-black' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
+                              <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-red-400' : 'text-zinc-400'}`}></i> Bajas
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {hasFilters && (
+                            <div className="pt-3 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
+                              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mr-1">Filtros activos:</span>
+                              {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-bold text-white cursor-pointer hover:bg-zinc-700 transition-colors shadow-2xs" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
+                              {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
+                            </div>
+                        )}
+                      </div>
+
+                      {/* TABLA PRINCIPAL DE BIENES */}
+                      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                          <div className="flex-1 overflow-auto custom-scrollbar relative">
+                            <table className="min-w-full text-left">
+                              <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                                <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                  <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
+                                  <th className="px-4 py-3.5">Localización y Custodio</th>
+                                  <th className="px-4 py-3.5">Condición Física</th>
+                                  <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                                {paginatedBienes.map(b => (
+                                  <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        {renderPagination()}
+                      </div>
+                    </div>
+                )}
+
+                {activeTab === 'fc04' && (
+                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-file-invoice text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Registro Mensual FC-04</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión contable de altas y bajas patrimoniales</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
+                        <button onClick={() => openFC04Modal(null)} className={STYLES.btnPrimary}>
+                            <i className="fa-solid fa-plus"></i> Redactar Planilla
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
+                      {isLoading ? ( <SkeletonLoader /> ) : filteredFC04.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
+                              <i className="fa-solid fa-folder-open text-2xl"></i>
+                            </div>
+                            <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin expedientes registrados</h3>
+                            <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen formularios FC-04 generados en el ciclo seleccionado.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                          {filteredFC04.map(fc => {
+                            const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento);
+                            const isAlta = fc.origenMovimiento !== 'B';
+                            return (
+                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group`}>
+                                <div className="flex justify-between items-start mb-6">
+                                  <div className="flex items-center gap-4">
+                                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl shadow-2xs ${isAlta ? 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300' : 'bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
+                                        <i className={`fa-solid ${isAlta ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`}></i>
+                                    </div>
+                                    <div>
+                                        <p className="font-extrabold text-zinc-900 dark:text-white text-lg leading-snug">{origenObj?.nombre || fc.origenMovimiento}</p>
+                                        <p className="text-xs text-zinc-400 font-bold mt-0.5 uppercase tracking-wider">Periodo: {fc.mes} / {fc.anio}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <button onClick={()=>handleGenerateFC04PDF(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Imprimir PDF"><i className="fa-solid fa-print text-xs"></i></button>
+                                    <button onClick={()=>openFC04Modal(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
+                                    {isAdmin && (
+                                        <button onClick={()=>setItemToDelete({type:'fc04', id:fc.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-darkbg-border">
+                                  {fc.sinMovimiento ? (
+                                    <span className="inline-flex items-center rounded-xl bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600 dark:bg-darkbg-main dark:text-zinc-400 border border-zinc-200 dark:border-darkbg-border">Sin Movimiento</span>
+                                  ) : (
+                                    <div>
+                                        <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Activos ({fc.bienesSnapshot?.length || 0})</p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
+                                          {fc.bienesSnapshot?.length > 3 && <span className="text-xs font-bold text-brand-primary self-center ml-1">+{fc.bienesSnapshot.length - 3}</span>}
+                                        </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'fc10' && (
+                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-file-signature text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Actas de Responsabilidad (FC-10)</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de los bienes institucionales</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
+                        <button onClick={handleExportFC10CSV} className={STYLES.btnSecondary}>
+                            <i className="fa-solid fa-file-csv text-emerald-500"></i> Exportar CSV
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
+                      {isLoading ? (
+                        <SkeletonLoader />
+                      ) : filteredFC10.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
+                            <i className="fa-solid fa-folder-open text-2xl"></i>
+                          </div>
+                          <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin asignaciones en el ciclo</h3>
+                          <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen actas FC-10 generadas en el periodo seleccionado.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                          {filteredFC10.map(fc => {
+                            const bien = bienes.find(b=>b.id === fc.bienId) || {};
+                            const isDevuelto = !!fc.devolucionFecha;
+                            return (
+                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group relative overflow-hidden`}>
+                                {!isDevuelto && <div className="absolute top-0 left-0 w-full h-1 bg-brand-primary"></div>}
+                                <div className="flex justify-between items-start mb-5">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg shadow-2xs ${isDevuelto ? 'bg-zinc-100 text-zinc-500 dark:bg-darkbg-main dark:text-zinc-400' : 'bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
+                                        <i className={`fa-solid ${isDevuelto ? 'fa-box-archive' : 'fa-file-signature'}`}></i>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        {isDevuelto ? (
+                                          <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-zinc-600 dark:bg-darkbg-main dark:text-zinc-400 border border-zinc-200/60 dark:border-darkbg-border">Concluido</span>
+                                        ) : (
+                                          <span className="inline-flex items-center rounded-lg bg-brand-light px-2.5 py-0.5 text-[10px] font-black uppercase text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent border border-brand-primary/20">Vigente</span>
+                                        )}
+                                        <p className="text-xs font-bold text-zinc-400 mt-1"><i className="fa-regular fa-calendar mr-1"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Imprimir"><i className="fa-solid fa-print text-xs"></i></button>
+                                    <button onClick={() => openFC10Modal(bien, fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar / Cerrar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
+                                    {isAdmin && (
+                                        <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex-1 flex flex-col">
+                                    <h4 className="font-extrabold text-zinc-900 dark:text-white text-base leading-snug">{fc.funcionarioNombre}</h4>
+                                    <p className="text-xs font-semibold text-zinc-400 mb-4">{fc.funcionarioCargo}</p>
+                                    <div className="mt-auto bg-zinc-50/80 dark:bg-darkbg-main/80 p-3.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border">
+                                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mb-1 font-mono"><i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {bien.rotulo}</p>
+                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{bien.descripcion || 'Sin detalle técnico.'}</p>
+                                    </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'fc11' && (
+                  <div className="animate-fade-in flex flex-col h-full space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-truck-fast text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Autorizaciones de Traslado (FC-11)</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-3 items-center">
+                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
+                        <button onClick={handleExportFC11CSV} className={STYLES.btnSecondary}>
+                            <i className="fa-solid fa-file-csv text-emerald-500"></i> Exportar CSV
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
+                      {isLoading ? ( <SkeletonLoader /> ) : filteredFC11.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
+                            <i className="fa-solid fa-boxes-packing text-2xl"></i>
+                          </div>
+                          <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin traslados registrados</h3>
+                          <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen expedientes FC-11 procesados en el periodo seleccionado.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                          {filteredFC11.map(fc => {
+                            const depRemitente = fc.dependenciaRemitente || fc.remitente || '';
+                            const depDestinataria = fc.dependenciaDestinataria || fc.destinatario || '';
+                            const esSalida = depRemitente === dependenciaActual;
+
+                            return (
+                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group relative overflow-hidden`}>
+                                <div className={`absolute top-0 left-0 w-full h-1 ${esSalida ? 'bg-zinc-500' : 'bg-brand-primary'}`}></div>
+                                <div className="flex justify-between items-start mb-5">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg shadow-2xs ${esSalida ? 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300' : 'bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
+                                        <i className={`fa-solid ${esSalida ? 'fa-arrow-right-from-bracket' : 'fa-arrow-right-to-bracket'}`}></i>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        {esSalida ? <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-0.5 text-[10px] font-black text-zinc-700 border border-zinc-200 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border uppercase tracking-wider">Despacho</span> : <span className="inline-flex items-center rounded-lg bg-brand-light px-2.5 py-0.5 text-[10px] font-black text-brand-primary border border-brand-primary/20 dark:bg-brand-primary/20 dark:text-brand-accent uppercase tracking-wider">Recepción</span>}
+                                        <p className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 mt-1 uppercase">Nº {fc.numeroFormulario}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1">
+                                    <button onClick={()=>handleGenerateFC11PDF([fc])} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Re-imprimir"><i className="fa-solid fa-print text-xs"></i></button>
+                                    <button onClick={()=>openFC11Modal(bienes.find(b => b.id === fc.bienId) || fc.bienSnapshot, fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
+                                    {isAdmin && (
+                                        <button onClick={()=>setItemToDelete({type:'fc11', id:fc.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-2 flex-1 flex flex-col">
+                                  <div className="flex flex-col gap-1.5 mb-4 border-l-2 border-zinc-200 dark:border-darkbg-border pl-3 py-1">
+                                     <p className="text-xs text-zinc-500 dark:text-zinc-400"><span className="font-bold text-zinc-900 dark:text-zinc-100">{esSalida ? 'Hacia:' : 'Desde:'}</span> {esSalida ? depDestinataria : depRemitente}</p>
+                                  </div>
+                                  <div className="mt-auto bg-zinc-50/80 dark:bg-darkbg-main/80 p-3.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border">
+                                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mb-1 font-mono"><i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {fc.bienSnapshot?.rotulo}</p>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{fc.bienSnapshot?.descripcion || 'Especificación omitida'}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {activeTab === 'ayuda' && (
+                  <div className="space-y-8 animate-fade-in">
+                    <div className="relative rounded-2xl overflow-hidden bg-brand-primary dark:bg-brand-dark px-6 py-12 sm:px-12 sm:py-16 shadow-lg">
+                        <div className="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
+                        <div className="relative z-10 max-w-3xl">
+                            <span className="inline-flex items-center gap-x-2 rounded-md bg-white/20 px-3 py-1 text-xs font-bold text-white mb-6 backdrop-blur-sm">
+                                <i className="fa-solid fa-book-open"></i> Guía Operativa
+                            </span>
+                            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl mb-5">Soporte y Normativa</h2>
+                            <p className="text-lg font-medium leading-8 text-brand-light">Documentación oficial para la correcta administración y trazabilidad del ciclo de vida de los bienes institucionales dentro de la universidad.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="lg:col-span-5">
+                            <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
+                                <i className="fa-solid fa-network-wired text-brand-primary"></i> Procedimiento Lógico
+                            </h2>
+                            <div className={`${STYLES.card} p-6 sm:p-8 relative overflow-hidden`}>
+                                <div className="absolute left-[56px] top-12 bottom-12 w-0.5 bg-zinc-200 dark:bg-darkbg-border hidden sm:block z-0"></div>
+                                <div className="space-y-2 relative z-10">
+                                    <WorkflowStep number="1" title="Alta (FC-04)" description="La incorporación inicial exige la creación de un FC-04 de Alta. Esto registra contablemente el ítem en la base de datos principal." icon="fa-arrow-trend-up" color="bg-zinc-500" />
+                                    <WorkflowStep number="2" title="Delegación (FC-10)" description="La entrega física requiere el levantamiento de un FC-10 nominal. Este instrumento legal transfiere la responsabilidad civil del objeto." icon="fa-file-signature" color="bg-brand-primary" />
+                                    <WorkflowStep number="3" title="Movilidad (FC-11)" description="Toda reubicación entre facultades debe ampararse en un FC-11, el cual extingue automáticamente la responsabilidad del custodio anterior." icon="fa-dolly" color="bg-zinc-600" />
+                                    <WorkflowStep number="4" title="Extinción (FC-04)" description="El desuso o rotura definitiva obliga a tramitar un FC-04 de Baja para remover contablemente el valor del patrimonio activo." icon="fa-ban" color="bg-red-500" />
+                                </div>
+                            </div>
+                        </div>
+                        <div className="lg:col-span-7">
+                            <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
+                                <i className="fa-solid fa-clipboard-question text-brand-primary"></i> Preguntas Frecuentes
+                            </h2>
+                            <div className="space-y-4">
+                                <FaqItem question="Explicación de la alerta crítica 'Req. Acción'" answer="Este indicador previene discrepancias en el inventario. Se activa bajo dos escenarios: 1) Ingreso de un nuevo bien sin ubicación física definida. 2) Recepción de un bien trasladado (FC-11) que no ha sido re-asignado legalmente mediante un nuevo FC-10." />
+                                <FaqItem question="Protocolo para exclusión de inventario (Baja)" answer="La normativa exige generar un expediente FC-04 de cierre, seleccionando 'Baja' como origen. El sistema procesará el descargo contable e inhabilitará el registro. La modificación manual del estado en el inventario solo se admite para correcciones de digitación." />
+                                <FaqItem question="Autocompletado de la estructura organizacional" answer="El formulario FC-10 emplea aprendizaje histórico. Al procesar las primeras asignaciones, el sistema mapea la jerarquía (Unidad, Repartición, etc.) permitiendo el despliegue automático en procesos futuros, reduciendo la carga administrativa." />
+                                <FaqItem question="Recuperación de registros históricos (Bajas)" answer="A fines de precisión contable, los ítems dados de baja no participan de las métricas principales. Para auditar este histórico, acceda a 'Directorio Patrimonial' y ejecute el filtro 'Bajas' en el panel de herramientas." />
+                                <FaqItem question="Exportación masiva de código de barras (QR)" answer="A través de la vista de Inventario, usted puede aplicar segmentaciones por ubicación o custodio. Ejecute el comando 'Lote QRs' para compilar un archivo comprimido (.zip) estructurado para impresión industrial." />
+                            </div>
+                        </div>
+                    </div>
+                  </div>
+                )}
+            </div>
+          </main>
+      </div>
+
+      {isQRModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-md"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                  <i className="fa-solid fa-qrcode mr-2 text-brand-primary"></i> 
+                  {isBulkQR ? 'Descarga Masiva de Códigos' : 'Descargar Etiqueta'}
+              </h2>
+              <button onClick={() => setIsQRModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className={STYLES.modalBody}>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
+                  Seleccione el formato de descarga deseado para {isBulkQR ? 'los bienes filtrados' : `el bien ${qrTargetBien?.rotulo}`}.
+              </p>
+              
+              <div className="space-y-4">
+                  <button 
+                      onClick={() => isBulkQR ? handleBulkLabelPNGZip() : handleDownloadLabelPNG(qrTargetBien)} 
+                      className="w-full flex items-center p-4 border-2 border-zinc-200 dark:border-darkbg-border rounded-xl hover:border-brand-primary hover:bg-brand-light/30 dark:hover:bg-brand-primary/10 transition-all text-left group cursor-pointer"
+                  >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-colors shadow-sm">
+                          <i className="fa-solid fa-print text-xl"></i>
+                      </div>
+                      <div className="ml-4">
+                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Formato Etiqueta (PNG)</h3>
+                          <p className="text-xs text-zinc-500 mt-1">62mm x 100mm. Diseñado para impresoras térmicas Brother (Rojo/Negro).</p>
+                      </div>
+                  </button>
+
+                  <button 
+                      onClick={() => isBulkQR ? handleBulkSimpleQRZip() : handleDownloadSimpleQR(qrTargetBien)} 
+                      className="w-full flex items-center p-4 border-2 border-zinc-200 dark:border-darkbg-border rounded-xl hover:border-brand-primary hover:bg-brand-light/30 dark:hover:bg-brand-primary/10 transition-all text-left group cursor-pointer"
+                  >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-colors shadow-sm">
+                          <i className="fa-solid fa-file-image text-xl"></i>
+                      </div>
+                      <div className="ml-4">
+                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Código Simple (PNG)</h3>
+                          <p className="text-xs text-zinc-500 mt-1">Solo el gráfico QR en alta resolución (1024x1024 px).</p>
+                      </div>
+                  </button>
+              </div>
+            </div>
+            <div className={STYLES.modalFooter}>
+              <button onClick={() => setIsQRModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isFC03ModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-lg"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Generar Inventario FC-03</h2>
+              <button onClick={() => setIsFC03ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <div className={STYLES.modalBody}>
+              <div className="space-y-4">
+                <div>
+                    <label className={STYLES.label}>Tipo de Reporte</label>
+                    <select className={STYLES.input} value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
+                        <option value="general">General (Toda la Dependencia)</option>
+                        <option value="ubicacion">Por Ubicación Específica</option>
+                        <option value="funcionario">Por Funcionario Responsable</option>
+                    </select>
+                </div>
+                {fc03Config.tipoFiltro === 'ubicacion' && (
+                    <div>
+                        <label className={STYLES.label}>Seleccionar Ubicación</label>
+                        <select className={STYLES.input} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                            <option value="">Seleccione una ubicación...</option>
+                            {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                    </div>
+                )}
+                {fc03Config.tipoFiltro === 'funcionario' && (
+                    <div>
+                        <label className={STYLES.label}>Seleccionar Funcionario</label>
+                        <select className={STYLES.input} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                            <option value="">Seleccione un funcionario...</option>
+                            {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                    </div>
+                )}
+                <div>
+                    <label className={STYLES.label}>Lugar de Emisión</label>
+                    <input type="text" className={STYLES.input} value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
+                </div>
+              </div>
+            </div>
+            <div className={STYLES.modalFooter}>
+              <button onClick={() => setIsFC03ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+              <button onClick={executeGenerateFC03} className={STYLES.btnPrimary} disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}><i className="fa-solid fa-file-pdf"></i> Generar Documento</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isFC04ModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-5xl"}>
+            <div className={STYLES.modalHeader}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent font-black">
+                  <i className="fa-solid fa-file-circle-plus text-base"></i>
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">
+                    {fc04Editing ? 'Editar Expediente FC-04' : 'Nuevo Movimiento FC-04'}
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-medium">Registro oficial de altas y bajas patrimoniales</p>
+                </div>
+              </div>
+              <button onClick={() => setIsFC04ModalOpen(false)} className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><span className="sr-only">Cerrar</span><i className="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form onSubmit={saveFC04} className="flex flex-col h-full overflow-hidden">
+              <div className={STYLES.modalBody}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                  <div>
+                    <label className={STYLES.label}>Mes</label>
+                    <select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input}>
+                      {Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={STYLES.label}>Año</label>
+                    <select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input}>
+                      {Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={STYLES.label}>Origen de Movimiento</label>
+                    <select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento || "A"} className={STYLES.input}>
+                      {ORIGENES_FC04.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-darkbg-border">
+                    <h3 className={STYLES.sectionTitle + " !mb-0"}>Detalle de Bienes</h3>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer">
+                        <input type="checkbox" checked={fc04SinMovimiento} onChange={(e) => setFc04SinMovimiento(e.target.checked)} className="rounded-md border-zinc-300 text-brand-primary focus:ring-brand-primary" /> Sin Movimiento
+                      </label>
+                      {!fc04SinMovimiento && (
+                        <button type="button" onClick={handleAddFC04Item} className={STYLES.btnSecondary + " !py-1.5 !px-3 !text-xs"}>
+                          <i className="fa-solid fa-plus text-brand-primary"></i> Fila
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {!fc04SinMovimiento && (
+                    <div className="overflow-x-auto custom-scrollbar border border-zinc-200/80 dark:border-darkbg-border rounded-xl">
+                      <table className="w-full text-left min-w-[800px]">
+                        <thead className="bg-zinc-50 dark:bg-darkbg-main border-b border-zinc-200 dark:border-darkbg-border text-[10px] font-black text-zinc-400 uppercase">
+                          <tr>
+                            <th className="p-2.5 w-20">Cta</th><th className="p-2.5 w-16">Sub</th><th className="p-2.5 w-16">An1</th><th className="p-2.5 w-16">An2</th>
+                            <th className="p-2.5 min-w-[160px]">Descripción</th><th className="p-2.5 w-28">Rótulo</th><th className="p-2.5 w-28">Valor</th>
+                            <th className="p-2.5 w-32">Adquisición</th><th className="p-2.5 w-16">Vida</th><th className="p-2.5 w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                          {fc04Items.length === 0 ? (
+                            <tr>
+                              <td colSpan="10" className="p-8 text-center text-zinc-400 text-xs font-medium italic">Añade filas para registrar los bienes del formulario.</td>
+                            </tr>
+                          ) : fc04Items.map(item => (
+                            <tr key={item.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors">
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.cuenta} onChange={e=>handleFC04ItemChange(item.id, 'cuenta', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.subcuenta} onChange={e=>handleFC04ItemChange(item.id, 'subcuenta', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-1.5 !text-xs"} value={item.analitico1} onChange={e=>handleFC04ItemChange(item.id, 'analitico1', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-1.5 !text-xs"} value={item.analitico2} onChange={e=>handleFC04ItemChange(item.id, 'analitico2', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} required value={item.descripcion} onChange={e=>handleFC04ItemChange(item.id, 'descripcion', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs font-mono font-bold"} required value={item.rotulo} onChange={e=>handleFC04ItemChange(item.id, 'rotulo', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs text-right font-bold"} required value={formatCurrency(item.valorUnitario)} onChange={e=>handleFC04ItemChange(item.id, 'valorUnitario', e.target.value.replace(/\D/g, ''))} /></td>
+                              <td className="p-1.5"><input type="date" className={STYLES.input + " !p-2 !text-xs"} required value={item.fechaAdquisicion} onChange={e=>handleFC04ItemChange(item.id, 'fechaAdquisicion', e.target.value)} /></td>
+                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.vidaUtil} onChange={e=>handleFC04ItemChange(item.id, 'vidaUtil', e.target.value)} /></td>
+                              <td className="p-1.5 text-center">
+                                <button type="button" onClick={()=>handleRemoveFC04Item(item.id)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all cursor-pointer">
+                                  <i className="fa-solid fa-trash-can text-xs"></i>
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className={STYLES.modalFooter}>
+                <button type="button" onClick={() => setIsFC04ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar FC-04</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isFC10ModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-4xl"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {fc10Editing ? 'Modificar Acta FC-10' : 'Nueva Asignación FC-10'}
+              </h2>
+              <button onClick={() => setIsFC10ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onSubmit={saveFC10} className="flex flex-col h-full overflow-hidden">
+              <div className={STYLES.modalBody}>
+                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
+                  <h3 className={STYLES.sectionTitle}>Estructura Organizacional</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Unidad</label><input list="lista-unidades" name="unidad" required value={fc10FormOrg.unidad} onChange={e => handleOrgNameChange(e, 'unidad', 'unidadCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="unidadCod" required value={fc10FormOrg.unidadCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, unidadCod: e.target.value})} className={STYLES.input} /></div></div>
+                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Repartición</label><input list="lista-reparticiones" name="reparticion" required value={fc10FormOrg.reparticion} onChange={e => handleOrgNameChange(e, 'reparticion', 'reparticionCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="reparticionCod" required value={fc10FormOrg.reparticionCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, reparticionCod: e.target.value})} className={STYLES.input} /></div></div>
+                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Dependencia</label><input list="lista-dependencias" name="dependenciaOrg" required value={fc10FormOrg.dependenciaOrg} onChange={e => handleOrgNameChange(e, 'dependenciaOrg', 'dependenciaCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="dependenciaCod" required value={fc10FormOrg.dependenciaCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, dependenciaCod: e.target.value})} className={STYLES.input} /></div></div>
+                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Área</label><input list="lista-areas" name="area" required value={fc10FormOrg.area} onChange={e => handleOrgNameChange(e, 'area', 'areaCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="areaCod" required value={fc10FormOrg.areaCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, areaCod: e.target.value})} className={STYLES.input} /></div></div>
+                  </div>
+                  <datalist id="lista-unidades">{datosMemorizados.unidades.map(i => <option key={i} value={i} />)}</datalist>
+                  <datalist id="lista-reparticiones">{datosMemorizados.reparticiones.map(i => <option key={i} value={i} />)}</datalist>
+                  <datalist id="lista-dependencias">{datosMemorizados.dependencias.map(i => <option key={i} value={i} />)}</datalist>
+                  <datalist id="lista-areas">{datosMemorizados.areas.map(i => <option key={i} value={i} />)}</datalist>
+                </div>
+
+                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
+                  <h3 className={STYLES.sectionTitle}>Funcionario Responsable</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2"><label className={STYLES.label}>Nombre y Apellido</label><input list="lista-funcionarios" name="funcionarioNombre" required value={fc10FormNombre} onChange={handleFuncionarioNombreChange} className={STYLES.input} /><datalist id="lista-funcionarios">{funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}</datalist></div>
+                    <div><label className={STYLES.label}>Cédula de Identidad</label><input name="funcionarioDoc" required value={fc10FormDoc} onChange={e=>setFc10FormDoc(formatCI(e.target.value))} className={STYLES.input} /></div>
+                    <div className="md:col-span-3"><label className={STYLES.label}>Cargo / Ocupación</label><input name="funcionarioCargo" required value={fc10FormCargo} onChange={e=>setFc10FormCargo(e.target.value)} className={STYLES.input} /></div>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
+                  <h3 className={STYLES.sectionTitle}>Movimientos y Estado</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <label className={STYLES.label}>Fecha de Entrega</label>
+                      <div className="relative">
+                        <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={STYLES.input + " pl-3 pr-10"} />
+                        <i className="fa-regular fa-calendar absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"></i>
+                      </div>
+                    </div>
+                    <div><label className={STYLES.label}>Lugar de Entrega</label><input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || dependenciaActual} className={STYLES.input} /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div className="md:col-span-2"><label className={STYLES.label}>Estado Físico</label><select name="estadoConservacion" defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien?.estadoConservacion || "Bueno"} className={STYLES.input}>{ESTADOS_CONSERVACION.map(e=><option key={e} value={e}>{e}</option>)}</select></div>
+                    <div><label className={STYLES.label}>Cantidad</label><input type="number" name="cantidad" required defaultValue={fc10Editing?.cantidad || "1"} className={STYLES.input} min="1" /></div>
+                    <div><label className={STYLES.label}>Valor (Gs.)</label><input name="valorTotal" required defaultValue={formatCurrency(fc10Editing?.valorTotal || fc10TargetBien?.valorUnitario)} onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} className={STYLES.input + " text-right font-bold"} /></div>
+                  </div>
+                  <div><label className={STYLES.label}>Observaciones Técnicas</label><textarea name="observaciones" defaultValue={fc10Editing?.observaciones} className={STYLES.input + " min-h-[90px] resize-none"}></textarea></div>
+                </div>
+
+                {fc10Editing && (
+                  <div className="bg-zinc-100 dark:bg-darkbg-main p-6 rounded-xl border border-zinc-200 dark:border-darkbg-border">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className={STYLES.sectionTitle + " !mb-0 !text-zinc-600 dark:!text-zinc-400"}>Registrar Devolución (Cierre FC-10)</h3>
+                        <button type="button" onClick={handleReturnInteraction} className="text-xs font-bold text-brand-primary hover:underline">Autocompletar</button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div><label className={STYLES.label}>Fecha de Devolución</label><input type="date" name="devolucionFecha" value={devFecha} onChange={e=>setDevFecha(e.target.value)} className={STYLES.input} /></div>
+                      <div><label className={STYLES.label}>Lugar de Recepción</label><input name="devolucionLugar" value={devLugar} onChange={e=>setDevLugar(e.target.value)} className={STYLES.input} /></div>
+                      <div><label className={STYLES.label}>Nombre del Receptor</label><input name="devolucionReceptor" value={devReceptor} onChange={e=>setDevReceptor(e.target.value)} className={STYLES.input} /></div>
+                      <div><label className={STYLES.label}>Cargo del Receptor</label><input name="devolucionCargoReceptor" value={devCargo} onChange={e=>setDevCargo(e.target.value)} className={STYLES.input} /></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className={STYLES.modalFooter}>
+                <button type="button" onClick={() => setIsFC10ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-save"></i> {fc10Editing ? 'Actualizar Acta' : 'Generar FC-10'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isFC11ModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-2xl"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                {fc11Editing ? 'Modificar Traslado FC-11' : 'Trasladar Bien (FC-11)'}
+              </h2>
+              <button onClick={() => setIsFC11ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onSubmit={saveFC11} className="flex flex-col h-full overflow-hidden">
+              <div className={STYLES.modalBody}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div><label className={STYLES.label}>Nº Formulario</label><input name="numeroFormulario" required value={fc11FormNumber} onChange={e => setFc11FormNumber(e.target.value)} className={STYLES.input} /></div>
+                  <div>
+                    <label className={STYLES.label}>Fecha</label>
+                    <div className="relative">
+                      <input type="date" name="fecha" required defaultValue={fc11Editing?.fecha || new Date().toISOString().split('T')[0]} className={STYLES.input + " pl-3 pr-10"} />
+                      <i className="fa-regular fa-calendar absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"></i>
+                    </div>
+                  </div>
+                  <div><label className={STYLES.label}>Área Remitente</label><input name="areaRemitente" required defaultValue={fc11Editing?.areaRemitente} className={STYLES.input} /></div>
+                  <div><label className={STYLES.label}>Dependencia Destino</label><select name="dependenciaDestinataria" required defaultValue={fc11Editing?.dependenciaDestinataria || (dependenciaActual === DEPENDENCIAS_UNP[0] ? DEPENDENCIAS_UNP[1] : DEPENDENCIAS_UNP[0])} className={STYLES.input}>{DEPENDENCIAS_UNP.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+                  <div><label className={STYLES.label}>Área Destino</label><input name="areaDestinataria" required defaultValue={fc11Editing?.areaDestinataria} className={STYLES.input} /></div>
+                  <div><label className={STYLES.label}>Motivo</label><select name="motivo" required defaultValue={fc11Editing?.motivo || MOTIVOS_FC11[0]} className={STYLES.input}>{MOTIVOS_FC11.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                  <div><label className={STYLES.label}>Estado Físico Actual</label><select name="estadoConservacion" required defaultValue={fc11Editing?.estadoConservacion || fc11TargetBien?.estadoConservacion || "Bueno"} className={STYLES.input}>{ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}</select></div>
+                  <div className="md:col-span-2"><label className={STYLES.label}>Observaciones</label><textarea name="observaciones" defaultValue={fc11Editing?.observaciones} className={STYLES.input + " min-h-[90px] resize-none"}></textarea></div>
+                </div>
+              </div>
+              <div className={STYLES.modalFooter}>
+                <button type="button" onClick={() => setIsFC11ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-truck-fast"></i> Registrar Traslado</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isUsuarioModalOpen && isAdmin && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-lg"}>
+            <div className={STYLES.modalHeader}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent font-black">
+                  <i className="fa-solid fa-user-gear text-base"></i>
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">
+                    {usuarioEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+                  </h2>
+                  <p className="text-xs text-zinc-400 font-medium">Configure las credenciales y nivel de acceso</p>
+                </div>
+              </div>
+              <button onClick={() => setIsUsuarioModalOpen(false)} className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form onSubmit={saveUsuario} className="flex flex-col h-full overflow-hidden">
+              <div className={STYLES.modalBody}>
+                <div className="space-y-5">
+                    
+                    <div>
+                      <label className={STYLES.label}>Usuario (Login / ID)</label>
+                      <div className="relative">
+                        <i className="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                        <input 
+                          type="text" 
+                          name="username" 
+                          required 
+                          defaultValue={usuarioEditing?.username} 
+                          disabled={!!usuarioEditing} 
+                          className={`${STYLES.input} pl-11 ${usuarioEditing ? 'bg-zinc-100 dark:bg-zinc-800/80 cursor-not-allowed text-zinc-500' : ''}`} 
+                          placeholder="Ej. mocampo" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={STYLES.label}>Nombre Completo</label>
+                      <div className="relative">
+                        <i className="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                        <input 
+                          type="text" 
+                          name="nombre" 
+                          required 
+                          defaultValue={usuarioEditing?.nombre} 
+                          className={`${STYLES.input} pl-11`} 
+                          placeholder="Ej. Matías Ocampo" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={STYLES.label}>
+                        Contraseña {usuarioEditing && <span className="text-zinc-400 font-normal lowercase">(dejar en blanco para conservar)</span>}
+                      </label>
+                      <div className="relative">
+                        <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                        <input 
+                          type="password" 
+                          name="password" 
+                          required={!usuarioEditing} 
+                          className={`${STYLES.input} pl-11`} 
+                          placeholder="••••••••" 
+                          minLength="6" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className={STYLES.label}>Rol de Sistema</label>
+                      <div className="relative">
+                        <i className="fa-solid fa-shield-halved absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
+                        <select name="cargo" required defaultValue={usuarioEditing?.cargo || 'user'} className={`${STYLES.input} pl-11 appearance-none cursor-pointer pr-10`}>
+                            <option value="user">Funcionario Local (Solo lectura y creación básica)</option>
+                            <option value="admin">Administrador General (Control Total)</option>
+                        </select>
+                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
+                      </div>
+                    </div>
+
+                </div>
+              </div>
+              
+              <div className={STYLES.modalFooter}>
+                <button type="button" onClick={() => setIsUsuarioModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar Usuario</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isBienModalOpen && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-5xl"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <i className="fa-solid fa-box-open text-[#1e3a8a]"></i> {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
+              </h2>
+              <button onClick={() => setIsBienModalOpen(false)} className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 transition-colors cursor-pointer"><span className="sr-only">Cerrar</span><i className="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <form ref={bienFormRef} onSubmit={(e) => saveBien(e, false)} className="flex flex-col h-full overflow-hidden">
+              <div className={STYLES.modalBody}>
+                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
+                  <h3 className={STYLES.sectionTitle}><i className="fa-solid fa-calculator text-[#1e3a8a] mr-1"></i> 1. Imputación Contable (Opcional)</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
+                    <div><label className={STYLES.label}>Cuenta Mayor</label><input list="lista-cuentas" name="cuenta" defaultValue={bienEditing?.cuenta} className={STYLES.input} placeholder="Ej. 2.6.1.01" /></div>
+                    <div><label className={STYLES.label}>Sub-Cuenta</label><input list="lista-subcuentas" name="subcuenta" defaultValue={bienEditing?.subcuenta} className={STYLES.input} placeholder="..." /></div>
+                    <div><label className={STYLES.label}>Analítico 1</label><input list="lista-analiticos1" name="analitico1" defaultValue={bienEditing?.analitico1} className={STYLES.input} placeholder="..." /></div>
+                    <div><label className={STYLES.label}>Analítico 2</label><input list="lista-analiticos2" name="analitico2" defaultValue={bienEditing?.analitico2} className={STYLES.input} placeholder="..." /></div>
+                  </div>
+                </div>
+                
+                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
+                  <h3 className={STYLES.sectionTitle}><i className="fa-solid fa-laptop-code text-[#1e3a8a] mr-1"></i> 2. Especificaciones Técnicas</h3>
+                  <div className="space-y-6 mt-2">
+                    <div><label className={STYLES.label}>Descripción General</label><input list="lista-descripciones" required name="descripcion" defaultValue={bienEditing?.descripcion} className={STYLES.input} placeholder="Ej. Computadora de Escritorio HP Intel Core i5..." /></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
+                      <div><label className={STYLES.label}>Nº Rótulo</label><input required name="rotulo" defaultValue={bienEditing?.rotulo} className={`${STYLES.input} font-bold text-[#1e3a8a]`} placeholder="Ej. 10255" /></div>
+                      <div>
+                        <label className={STYLES.label}>Ingreso</label>
+                        <input 
+                          type="date" 
+                          required 
+                          name="fechaAdquisicion" 
+                          defaultValue={bienEditing?.fechaAdquisicion ? String(bienEditing?.fechaAdquisicion).split('T')[0] : ''} 
+                          className={STYLES.input} 
+                        />
+                      </div>
+                      <div>
+                        <label className={STYLES.label}>Vida Útil</label>
+                        <div className="relative">
+                          <input type="number" name="vidaUtil" defaultValue={bienEditing?.vidaUtil} className={STYLES.input} />
+                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                            <span className="text-zinc-400 text-xs font-bold">Años</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div><label className={STYLES.label}>Valor (Gs.)</label><input required name="valorUnitario" defaultValue={formatCurrency(bienEditing?.valorUnitario)} onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} className={`${STYLES.input} text-right font-bold text-zinc-900`} /></div>
+                      <div>
+                        <label className={STYLES.label}>Condición</label>
+                        <select required name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || "Bueno"} className={STYLES.input}>
+                            {ESTADOS_CONSERVACION.map(e=><option key={e} value={e}>{e}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-5 mb-6">
+                      <h3 className={STYLES.sectionTitle + " !mb-0"}><i className="fa-solid fa-map-location-dot text-[#1e3a8a] mr-1"></i> 3. Localización (Opcional)</h3>
+                      <div className="relative flex items-center bg-zinc-50 px-4 py-2.5 rounded-xl border border-zinc-200">
+                          <input type="checkbox" name="hasQR" defaultChecked={bienEditing?.hasQR} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer" />
+                          <div className="ml-3 text-sm leading-6 mt-0.5">
+                            <label className="font-bold text-zinc-900 cursor-pointer select-none">Declarar Etiqueta QR Impresa</label>
+                          </div>
+                      </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className={STYLES.label}>Custodio Designado</label><input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} className={STYLES.input} placeholder="Nombre completo..." /><datalist id="lista-funcionarios-modal-bien">{funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}</datalist></div>
+                    <div><label className={STYLES.label}>Ubicación Operativa</label><input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={STYLES.input} placeholder="Oficina / Laboratorio..." /><datalist id="lista-ubicaciones-modal-bien">{ubicacionesUnicas.map(u => <option key={u} value={u} />)}</datalist></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className={STYLES.modalFooter}>
+                <button type="button" onClick={() => setIsBienModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                {!bienEditing && (
+                    <button type="button" onClick={(e) => saveBien(e, true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-light border border-brand-primary/20 px-5 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-primary/20 transition-all shadow-sm cursor-pointer">
+                        <i className="fa-solid fa-plus-minus"></i> Guardar y Añadir Otro
+                    </button>
+                )}
+                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-save"></i> Guardar Registro</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {resolucionBaja && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-lg !rounded-[32px]"}>
+            <div className={STYLES.modalHeader}>
+              <h2 className={`text-lg font-black tracking-tight ${resolucionBaja.accion === 'aprobar' ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'} flex items-center gap-2`}>
+                  <i className={`fa-solid ${resolucionBaja.accion === 'aprobar' ? 'fa-check-double' : 'fa-xmark'}`}></i> 
+                  {resolucionBaja.accion === 'aprobar' ? 'Aprobar Baja Definitiva' : 'Rechazar Solicitud'}
+              </h2>
+              <button onClick={() => setResolucionBaja(null)} className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onSubmit={submitResolucionBaja} className="flex flex-col h-full overflow-hidden">
+                <div className={STYLES.modalBody}>
+                    <div className="bg-zinc-50 dark:bg-darkbg-main p-5 rounded-2xl border border-zinc-100 dark:border-darkbg-border mb-6">
+                        <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Bien Solicitado:</p>
+                        <p className="text-sm font-black text-zinc-900 dark:text-white">{resolucionBaja.bien.rotulo}</p>
+                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{resolucionBaja.bien.descripcion}</p>
+                        <p className="text-xs font-bold text-[#1e3a8a] mt-3"><i className="fa-solid fa-user-clock mr-1"></i> Solicitado por: {resolucionBaja.bien.bajaSolicitadaPor || 'Desconocido'}</p>
+                    </div>
+                    
+                    <div>
+                        <label className={STYLES.label}>Motivo / Observación (Opcional para aprobar, Obligatorio para rechazar)</label>
+                        <textarea 
+                            required={resolucionBaja.accion === 'rechazar'}
+                            value={motivoResolucion} 
+                            onChange={e => setMotivoResolucion(e.target.value)} 
+                            className={STYLES.input + " min-h-[100px] text-sm leading-relaxed"} 
+                            placeholder="Escribe un mensaje para el usuario que solicitó la baja..."
+                        ></textarea>
+                        {resolucionBaja.accion === 'aprobar' && <p className="text-xs text-red-500 font-bold mt-3"><i className="fa-solid fa-triangle-exclamation"></i> Al aprobar, el bien pasará a estado "De Baja" en todo el sistema.</p>}
+                    </div>
+                </div>
+                <div className={STYLES.modalFooter}>
+                    <button type="button" onClick={() => setResolucionBaja(null)} className={STYLES.btnSecondary}>Cancelar</button>
+                    <button type="submit" className={`inline-flex items-center justify-center gap-2 rounded-xl px-6 py-2.5 text-sm font-bold text-white transition-all shadow-md cursor-pointer ${resolucionBaja.accion === 'aprobar' ? 'bg-red-600 hover:bg-red-700' : 'bg-zinc-800 hover:bg-zinc-900'}`}>
+                        Confirmar {resolucionBaja.accion === 'aprobar' ? 'Baja' : 'Rechazo'}
+                    </button>
+                </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {itemToDelete && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-sm !rounded-[32px]"}>
+            <div className="p-8 text-center bg-white dark:bg-darkbg-card">
+              
+              {itemToDelete.type === 'requestBaja' ? (
+                  <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-orange-50 dark:bg-orange-900/20 mb-6 ring-4 ring-orange-500/10">
+                    <i className="fa-solid fa-arrow-down-short-wide text-3xl text-orange-500"></i>
+                  </div>
+              ) : (
+                  <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-red-50 dark:bg-red-900/20 mb-6 ring-4 ring-red-500/10">
+                    <i className="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i>
+                  </div>
+              )}
+
+              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-3">
+                  {itemToDelete.type === 'requestBaja' ? '¿Solicitar Baja?' : '¿Confirmar Eliminación?'}
+              </h3>
+              
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">
+                  {itemToDelete.type === 'requestBaja' 
+                      ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
+                      : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
+              </p>
+              
+              {itemToDelete.type === 'usuario' && itemToDelete.cargo === 'admin' && (
+                  <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl">
+                      <span className="inline-flex items-center rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white shadow-sm tracking-widest uppercase">
+                        <i className="fa-solid fa-shield-halved mr-2"></i> ROL ADMIN
+                      </span>
+                      <p className="text-xs text-red-600 dark:text-red-400 mt-2 font-bold leading-snug">Está a punto de eliminar una cuenta con privilegios de administrador general.</p>
+                  </div>
+              )}
+            </div>
+            <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
+              <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
+              <button onClick={confirmDeleteAction} className={`flex-1 py-4 text-sm font-black transition-colors focus:outline-none cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/20' : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'}`}>
+                  {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

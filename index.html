@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema de Gestión Patrimonial UNP</title>
+  
+  <!-- Tipografía Google Fonts e Iconos FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Estilos base de Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { 
+      darkMode: 'class', 
+      theme: { 
+        extend: { 
+          colors: { 
+            brand: { primary: '#1e3a8a', hover: '#1e40af', dark: '#172554', light: '#eff6ff', accent: '#3b82f6' },
+            darkbg: { main: '#121212', card: '#1e1e1e', border: '#2d2d2d', hover: '#2a2a2a' },
+            zinc: { 50: '#f8f9fa', 100: '#f1f3f4', 200: '#e8eaed', 300: '#dadce0', 400: '#bdc1c6', 500: '#9aa0a6', 600: '#80868b', 700: '#5f6368', 800: '#3c4043', 900: '#202124', 950: '#171717' }
+          }, 
+          fontFamily: { sans: ['"Inter"', 'sans-serif'] }
+        } 
+      } 
+    }
+  </script>
+
+  <!-- Librerías cliente para exportación de reportes PDF, ZIP y QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; margin: 0; padding: 0; overflow: hidden; } 
+    .dark body { background-color: #121212; }
+  </style>
+</head>
+<body class="text-zinc-800 dark:text-zinc-200 transition-colors duration-300 antialiased">
+  <!-- Contenedor principal de React -->
+  <div id="root"></div>
+  
+  <!-- Punto de entrada modular de React con Vite -->
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+</html>
