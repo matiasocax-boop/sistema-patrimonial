@@ -302,11 +302,10 @@ export default function App() {
               if (typeof inner === 'string') {
                   try { inner = JSON.parse(inner); } catch (e) { inner = {}; }
               }
-              // Combinamos el ID de la fila de Supabase con el contenido interno del JSON
+              // Extraemos todo el contenido de 'data' y forzamos el id correcto de la fila
               return {
-                  id: item.id,
-                  ...(inner || {}),
-                  ...(typeof inner === 'object' && inner !== null ? inner : {})
+                  ...(typeof inner === 'object' && inner !== null ? inner : {}),
+                  id: item.id
               };
           });
       };
