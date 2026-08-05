@@ -298,18 +298,16 @@ export default function App() {
       const parseRows = (res) => {
           if (!res.data) return [];
           return res.data.map(item => {
-              let parsedData = item.data;
-              if (typeof parsedData === 'string') {
-                  try {
-                      parsedData = JSON.parse(parsedData);
-                  } catch (e) {
-                      parsedData = {};
-                  }
+              let inner = item.data;
+              if (typeof inner === 'string') {
+                  try { inner = JSON.parse(inner); } catch (e) { inner = {}; }
               }
-              if (parsedData && typeof parsedData === 'object') {
-                  return { id: item.id, ...parsedData };
-              }
-              return item;
+              // Combinamos el ID de la fila de Supabase con el contenido interno del JSON
+              return {
+                  id: item.id,
+                  ...(inner || {}),
+                  ...(typeof inner === 'object' && inner !== null ? inner : {})
+              };
           });
       };
 
@@ -325,8 +323,8 @@ export default function App() {
 
       if (currentUser) {
           const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
-          if (freshUser && freshUser.cargo === 'admin' && currentUser.role !== 'admin') {
-              const updatedSessionUser = { ...freshUser, role: 'admin' };
+          if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin') && currentUser.role !== 'admin') {
+              const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
               setCurrentUser(updatedSessionUser);
               localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
           }
