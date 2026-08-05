@@ -298,8 +298,16 @@ export default function App() {
       const parseRows = (res) => {
           if (!res.data) return [];
           return res.data.map(item => {
-              if (item.data && typeof item.data === 'object') {
-                  return { id: item.id, ...item.data };
+              let parsedData = item.data;
+              if (typeof parsedData === 'string') {
+                  try {
+                      parsedData = JSON.parse(parsedData);
+                  } catch (e) {
+                      parsedData = {};
+                  }
+              }
+              if (parsedData && typeof parsedData === 'object') {
+                  return { id: item.id, ...parsedData };
               }
               return item;
           });
@@ -315,7 +323,6 @@ export default function App() {
       const parsedUsuarios = parseRows(resUsuarios);
       setUsuariosList(parsedUsuarios);
 
-      // Si el usuario actual es admin pero estaba en modo personal, actualizamos sus permisos automáticamente si existe en la BD
       if (currentUser) {
           const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
           if (freshUser && freshUser.cargo === 'admin' && currentUser.role !== 'admin') {
