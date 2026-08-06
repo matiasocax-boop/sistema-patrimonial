@@ -46,10 +46,10 @@ const decodeText = (buffer) => {
 
 const generateSimpleQR = async (bien) => { 
     const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
-    const qrText = `CÓDIGO: ${bien.rotulo||''}\nCTA: ${cuentaCompleta}\nDESC: ${bien.descripcion||''}\nADQ: ${bien.fechaAdquisicion||''}\nVALOR: Gs. ${formatCurrency(bien.valorUnitario)}`;
+    const qrText = `CÓDIGO: ${bien.rotulo||''}\nCTA: ${cuentaCompleta}\nDESC: ${bien.descripcion||''}\nADQ: ${bien.fechaAdquisicion||''}\nVALOR: Gs. ${formatCurrency(bien.valorUnitario)}\nPROPIEDAD UNP - PARAGUAY`;
     try {
         if (window.QRCode) {
-            return await window.QRCode.toDataURL(qrText, { width: 1024, margin: 2, errorCorrectionLevel: 'H', color: { dark: '#000000', light: '#ffffff' } });
+            return await window.QRCode.toDataURL(qrText, { width: 1024, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
         }
         return '';
     } catch (err) { console.error("Error generando QR", err); return ''; }
@@ -213,6 +213,7 @@ export default function App() {
   
   const [loginUser, setLoginUser] = useState(''); 
   const [loginPass, setLoginPass] = useState(''); 
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
@@ -223,6 +224,38 @@ export default function App() {
 
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
+
+  // Cierre de sesión automático por inactividad (2 horas)
+  const handleLogout = useCallback(() => { 
+      setIsAuthenticated(false); setCurrentUser(null); 
+      localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
+      setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    let inactivityTimer;
+    const maxInactivityTime = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        addToast("Sesión cerrada por inactividad (2 horas sin uso).", "warning");
+        handleLogout();
+      }, maxInactivityTime);
+    };
+
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isAuthenticated, handleLogout]);
 
   const [isLoading, setIsLoading] = useState(true); 
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
@@ -279,12 +312,6 @@ export default function App() {
 
   const todasDependencias = DEPENDENCIAS_UNP;
   const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
-
-  const handleLogout = useCallback(() => { 
-      setIsAuthenticated(false); setCurrentUser(null); 
-      localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
-      setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
-  }, []);
 
   const fetchAllRows = async (tableName) => {
     let allData = [];
@@ -1174,8 +1201,6 @@ export default function App() {
       setIsScannerOpen(false);
       
       let codigoLimpio = decodedText;
-      
-      // Si el QR tiene el formato de la etiqueta, extraemos solo el rótulo
       if (decodedText.includes('CÓDIGO:')) {
           const partes = decodedText.split('CTA:')[0];
           codigoLimpio = partes.replace('CÓDIGO:', '').trim();
@@ -1281,7 +1306,23 @@ export default function App() {
                     </div>
                     <div className="relative">
                         <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                        <input type="password" id="pass" value={loginPass} onChange={e=>setLoginPass(e.target.value)} required className="block w-full rounded-xl border border-zinc-200 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-4 py-3 text-sm text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 font-medium" placeholder="••••••••" />
+                        <input 
+                            type={showPassword ? "text" : "password"} 
+                            id="pass" 
+                            value={loginPass} 
+                            onChange={e=>setLoginPass(e.target.value)} 
+                            required 
+                            className="block w-full rounded-xl border border-zinc-200 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-11 py-3 text-sm text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 font-medium" 
+                            placeholder="••••••••" 
+                        />
+                        <button 
+                            type="button" 
+                            onClick={() => setShowPassword(!showPassword)} 
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition-colors cursor-pointer"
+                            title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                        >
+                            <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                        </button>
                     </div>
                 </div>
                 <div className="pt-6">
