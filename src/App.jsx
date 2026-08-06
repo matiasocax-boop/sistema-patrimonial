@@ -393,11 +393,24 @@ export default function App() {
   }, [currentUser]);
 
   useEffect(() => { 
-      if(isAuthenticated) {
-          fetchData(); 
-          const sincronizacion = setInterval(() => { fetchData(); }, 15000); 
-          return () => clearInterval(sincronizacion); 
-      }
+      if (!isAuthenticated) return;
+
+      fetchData(); 
+
+      const subscription = supabase
+          .channel('cambios-patrimonio')
+          .on(
+              'postgres_changes',
+              { event: '*', schema: 'public' },
+              () => {
+                  fetchData();
+              }
+          )
+          .subscribe();
+
+      return () => { 
+          supabase.removeChannel(subscription); 
+      }; 
   }, [isAuthenticated, fetchData]); 
   
   const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
