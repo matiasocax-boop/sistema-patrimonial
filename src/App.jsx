@@ -1098,14 +1098,26 @@ export default function App() {
             }
         }
         else {
-            if (type === 'bien') res = await supabase.from('bens').delete().eq('id', id);
+            if (type === 'bien') {
+    if (item.estadoConservacion === 'De Baja') {
+        res = await supabase.from('bens').delete().eq('id', id); // Borrado definitivo
+    } else {
+        res = await supabase.from('bens').update({ estadoConservacion: 'De Baja' }).eq('id', id); // Baja lógica
+    }
+}
             else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
             else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
             else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
             else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
 
             if (!res.error) {
-                if (type === 'bien') setBienes(prev => prev.filter(b => b.id !== id)); 
+                if (type === 'bien') {
+    if (item.estadoConservacion === 'De Baja') {
+        setBienes(prev => prev.filter(b => b.id !== id));
+    } else {
+        setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
+    }
+} 
                 else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id)); 
@@ -1197,7 +1209,7 @@ export default function App() {
           case 'openFC10': openFC10Modal(item); break; 
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
-          case 'deleteBien': setItemToDelete({type:'bien', id:item.id}); break; 
+          case 'deleteBien': setItemToDelete({type:'bien', id:item.id, item}); break; 
           case 'requestBaja': setItemToDelete({type:'requestBaja', id:item.id, item}); break;
           case 'printFC10': handleGenerateFC10PDF([extraData], [item]); break; 
           default: break; 
@@ -2762,10 +2774,12 @@ export default function App() {
               </h3>
               
               <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">
-                  {itemToDelete.type === 'requestBaja' 
-                      ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
-                      : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
-              </p>
+    {itemToDelete.type === 'requestBaja' 
+        ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
+        : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
+        ? 'El bien pasará a estado "De Baja". No se eliminará de la base de datos todavía.'
+        : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
+</p>
               
               {itemToDelete.type === 'usuario' && itemToDelete.cargo === 'admin' && (
                   <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl">
@@ -2779,8 +2793,8 @@ export default function App() {
             <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
               <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
               <button onClick={confirmDeleteAction} className={`flex-1 py-4 text-sm font-black transition-colors focus:outline-none cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/20' : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'}`}>
-                  {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Sí, eliminar'}
-              </button>
+    {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : (itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja' ? 'Pasar a Baja' : 'Sí, eliminar')}
+</button>
             </div>
           </div>
         </div>
