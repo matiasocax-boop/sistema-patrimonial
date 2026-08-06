@@ -1091,7 +1091,7 @@ export default function App() {
         
         if (type === 'requestBaja') {
             const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
-            res = await supabase.from('bens').update(updatedBien).eq('id', id);
+            res = await supabase.from('bens').update({ data: updatedBien }).eq('id', id);
             if (!res.error) {
                 setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
                 addToast("Solicitud de baja enviada a revisión.", "warning");
@@ -1099,12 +1099,13 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
-    if (item.estadoConservacion === 'De Baja') {
-        res = await supabase.from('bens').delete().eq('id', id); // Borrado definitivo
-    } else {
-        res = await supabase.from('bens').update({ estadoConservacion: 'De Baja' }).eq('id', id); // Baja lógica
-    }
-}
+                if (item.estadoConservacion === 'De Baja') {
+                    res = await supabase.from('bens').delete().eq('id', id);
+                } else {
+                    const updatedItem = { ...item, estadoConservacion: 'De Baja' };
+                    res = await supabase.from('bens').update({ data: updatedItem }).eq('id', id);
+                }
+            }
             else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
             else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
             else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
@@ -1112,17 +1113,18 @@ export default function App() {
 
             if (!res.error) {
                 if (type === 'bien') {
-    if (item.estadoConservacion === 'De Baja') {
-        setBienes(prev => prev.filter(b => b.id !== id));
-    } else {
-        setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
-    }
-} 
+                    if (item.estadoConservacion === 'De Baja') {
+                        setBienes(prev => prev.filter(b => b.id !== id));
+                    } else {
+                        setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
+                    }
+                }
                 else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id)); 
                 else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
-                addToast("Registro eliminado permanentemente", "success"); 
+                
+                addToast(type === 'bien' && item.estadoConservacion !== 'De Baja' ? "Bien pasado a estado de baja" : "Registro eliminado permanentemente", "success"); 
             } else {
                 addToast(res.error.message || "No se pudo completar en el servidor.", "error");
             }
