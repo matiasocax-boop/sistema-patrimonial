@@ -276,7 +276,7 @@ export default function App() {
   const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
 
   useEffect(() => { const timer = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 300); return () => clearTimeout(timer); }, [searchInput]);
-  const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 50;
+  const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 10;
   const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); const [fc10Month, setFc10Month] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   
   const [isBienModalOpen, setIsBienModalOpen] = useState(false); const [bienEditing, setBienEditing] = useState(null);
@@ -395,22 +395,33 @@ export default function App() {
   useEffect(() => { 
       if (!isAuthenticated) return;
 
+      // 1. Carga inicial (una sola vez)
       fetchData(); 
 
+      // 2. Realtime con Actualizaciones Optimistas (Cero peticiones extra a BD)
       const subscription = supabase
           .channel('cambios-patrimonio')
-          .on(
-              'postgres_changes',
-              { event: '*', schema: 'public' },
-              () => {
-                  fetchData();
-              }
-          )
-          .subscribe();
+          .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+              const { table, eventType, new: newRecord, old: oldRecord } = payload;
+              
+              const parseRecord = (record) => record ? { id: record.id, ...(typeof record.data === 'string' ? JSON.parse(record.data) : record.data) } : null;
+              const newItem = parseRecord(newRecord);
+              const oldItem = parseRecord(oldRecord);
 
-      return () => { 
-          supabase.removeChannel(subscription); 
-      }; 
+              const updateState = (setter) => {
+                  if (eventType === 'INSERT') setter(prev => [newItem, ...prev]);
+                  else if (eventType === 'UPDATE') setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
+                  else if (eventType === 'DELETE') setter(prev => prev.filter(i => i.id !== oldItem.id));
+              };
+
+              if (table === 'bens') updateState(setBienes);
+              else if (table === 'fc10') updateState(setFc10List);
+              else if (table === 'fc11') updateState(setFc11List);
+              else if (table === 'fc04') updateState(setFc04List);
+              else if (table === 'auditoria') updateState(setNotificaciones);
+          }).subscribe();
+
+      return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]); 
   
   const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
