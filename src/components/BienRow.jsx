@@ -60,14 +60,26 @@ export default function BienRow({ b, fcRecord, onAction, isAdmin }) {
             <td className="relative py-4 pl-4 pr-6 align-middle text-right">
                 <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => onAction('openQRDownload', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer" title="Descargar QR"><i className="fa-solid fa-qrcode"></i></button>
+                    
                     {!isBaja && <button onClick={() => onAction('openFC10', b)} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors cursor-pointer ${b.hasFC10 ? 'text-brand-primary bg-brand-light/50 hover:bg-brand-light' : 'text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50'}`} title="Gestionar FC-10"><i className="fa-solid fa-file-signature"></i></button>}
+                    
                     {!isBaja && <button onClick={() => onAction('openFC11', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 transition-colors cursor-pointer" title="Trasladar (FC-11)"><i className="fa-solid fa-truck-fast"></i></button>}
+                    
                     <button onClick={() => onAction('editBien', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 transition-colors cursor-pointer" title="Editar Información"><i className="fa-solid fa-pen-to-square"></i></button>
-                    {!isBaja && !isPendienteBaja && (isAdmin ? (
-                        <button onClick={() => onAction('deleteBien', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer" title="Dar de Baja"><i className="fa-solid fa-trash-can"></i></button>
+                    
+                    {/* LÓGICA DE ELIMINACIÓN CORREGIDA */}
+                    {isAdmin ? (
+                        <button onClick={() => onAction('deleteBien', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer" title={isBaja ? "Eliminar Definitivamente" : "Dar de Baja"}>
+                            <i className="fa-solid fa-trash-can"></i>
+                        </button>
                     ) : (
-                        <button onClick={() => onAction('requestBaja', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer" title="Solicitar Baja"><i className="fa-solid fa-arrow-down-short-wide"></i></button>
-                    ))}
+                        !isBaja && !isPendienteBaja && (
+                            <button onClick={() => onAction('requestBaja', b)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-orange-600 hover:bg-orange-50 transition-colors cursor-pointer" title="Solicitar Baja">
+                                <i className="fa-solid fa-arrow-down-short-wide"></i>
+                            </button>
+                        )
+                    )}
+
                     {fcRecord && <button onClick={() => onAction('printFC10', b, fcRecord)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer" title="Imprimir FC-10 Vigente"><i className="fa-solid fa-print"></i></button>}
                 </div>
             </td>
