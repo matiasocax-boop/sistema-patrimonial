@@ -1583,7 +1583,7 @@ export default function App() {
                             )}
                           </div>
 
-                          <div className="w-full flex items-center gap-2.5 overflow-x-auto custom-scrollbar pb-1 xl:pb-0 justify-start xl:justify-end">
+                          <div className="w-full flex flex-wrap items-center gap-2.5 justify-start xl:justify-end">
                             <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
                             <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
                             <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
