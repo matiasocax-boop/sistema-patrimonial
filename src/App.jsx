@@ -228,6 +228,9 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
+  const [showChangelog, setShowChangelog] = useState(false);
 
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
@@ -413,6 +416,20 @@ export default function App() {
       
       const parsedUsuarios = parseDirect(resUsuarios.data);
       setUsuariosList(parsedUsuarios);
+      // Leer configuración de mantenimiento
+      const resConfig = await supabase.from('configuracion_sistema').select('*').limit(1).single();
+      if (resConfig.data) {
+          setIsMaintenanceMode(resConfig.data.en_mantenimiento);
+          setSystemConfig({ version: resConfig.data.version_actual, notes: resConfig.data.notas_actualizacion });
+          
+          const lastSeenVersion = localStorage.getItem('unp_last_version');
+          if (lastSeenVersion && lastSeenVersion !== resConfig.data.version_actual && !resConfig.data.en_mantenimiento) {
+              setShowChangelog(true);
+          }
+          if (!lastSeenVersion) {
+              localStorage.setItem('unp_last_version', resConfig.data.version_actual);
+          }
+      }
 
       if (currentUser) {
           const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
@@ -454,7 +471,16 @@ export default function App() {
               else if (table === 'fc11') updateState(setFc11List);
               else if (table === 'fc04') updateState(setFc04List);
               else if (table === 'auditoria') updateState(setNotificaciones);
+              else if (table === 'configuracion_sistema' && eventType === 'UPDATE') {
+                  setIsMaintenanceMode(newItem.en_mantenimiento);
+                  setSystemConfig({ version: newItem.version_actual, notes: newItem.notas_actualizacion });
+                  const lastVersion = localStorage.getItem('unp_last_version');
+                  if (lastVersion && lastVersion !== newItem.version_actual && !newItem.en_mantenimiento) {
+                      setShowChangelog(true);
+                  }
+              }
           }).subscribe();
+          
 
       return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]); 
@@ -1258,6 +1284,19 @@ export default function App() {
   );
 
   if (!isAuthenticated) {
+  if (isMaintenanceMode) {
+      return (
+          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+              <div className="w-24 h-24 bg-brand-light dark:bg-brand-primary/20 text-brand-primary rounded-3xl flex items-center justify-center mb-8 animate-pulse shadow-sm">
+                  <i className="fa-solid fa-screwdriver-wrench text-5xl"></i>
+              </div>
+              <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight mb-4">Sistema en Mantenimiento</h1>
+              <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-md mx-auto font-medium leading-relaxed">
+                  Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos.
+              </p>
+          </div>
+      );
+  }
       return (
           <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />
       );
@@ -2313,7 +2352,38 @@ export default function App() {
           </div>
         </div>
       )}
-
+    {showChangelog && (
+        <div className={STYLES.modalOverlay}>
+            <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden"}>
+                <div className="bg-brand-primary p-8 text-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
+                    <div className="relative z-10">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white backdrop-blur-md shadow-sm mb-4 uppercase tracking-widest">
+                            ¡Nueva Actualización!
+                        </span>
+                        <h2 className="text-3xl font-black text-white tracking-tight">{systemConfig.version}</h2>
+                    </div>
+                </div>
+                <div className="p-8 bg-white dark:bg-darkbg-card">
+                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">Novedades y Mejoras</h3>
+                    <div className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed whitespace-pre-wrap">
+                        {systemConfig.notes}
+                    </div>
+                </div>
+                <div className={STYLES.modalFooter + " justify-center !border-none !pt-0 bg-white dark:bg-darkbg-card"}>
+                    <button 
+                        onClick={() => {
+                            localStorage.setItem('unp_last_version', systemConfig.version);
+                            setShowChangelog(false);
+                        }} 
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-6 py-3.5 text-sm font-bold text-white transition-all shadow-md hover:bg-brand-hover active:scale-95 cursor-pointer"
+                    >
+                        Entendido, continuar al sistema
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 }
