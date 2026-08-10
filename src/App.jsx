@@ -2191,7 +2191,7 @@ export default function App() {
               fc04SinMovimiento={fc04SinMovimiento}
               setFc04SinMovimiento={setFc04SinMovimiento}
               handleAddFC04Item={handleAddFC04Item}
-              fc04Items={fc04Items}
+              fc04Items={fc04Items || []}  // Seguro anticrash adicional
               handleFC04ItemChange={handleFC04ItemChange}
               formatCurrency={formatCurrency}
               handleRemoveFC04Item={handleRemoveFC04Item}

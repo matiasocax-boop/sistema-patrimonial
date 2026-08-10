@@ -1,6 +1,11 @@
 import React from 'react';
 
 export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, fc10Month, fc10Year, ORIGENES_FC04, fc04SinMovimiento, setFc04SinMovimiento, handleAddFC04Item, fc04Items, handleFC04ItemChange, handleRemoveFC04Item, STYLES }) {
+    
+    // PROTECCIÓN ANTICRASH: Si la lista de items llega desconectada, usamos un array vacío
+    const safeItems = fc04Items || [];
+    const safeOrigenes = ORIGENES_FC04 || [];
+
     return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-5xl"}>
@@ -16,7 +21,7 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
                             <div><label className={STYLES.label}>Mes</label><select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
                             <div><label className={STYLES.label}>Año</label><select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-                            <div><label className={STYLES.label}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento} className={STYLES.input}>{ORIGENES_FC04.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
+                            <div><label className={STYLES.label}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento} className={STYLES.input}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
                         </div>
 
                         <div className="flex items-center gap-2 mb-6 p-4 rounded-lg bg-zinc-50 border border-zinc-200 dark:bg-darkbg-main dark:border-darkbg-border">
@@ -45,9 +50,9 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border bg-white dark:bg-darkbg-card">
-                                            {(!fc04Items || fc04Items.length === 0) ? (
-                                                <tr><td colSpan="6" className="p-8 text-center text-sm font-medium text-zinc-400">Presiona "Agregar Fila" para comenzar a listar bienes.</td></tr>
-                                            ) : fc04Items.map(item => (
+                                            {safeItems.length === 0 ? (
+                                                <tr><td colSpan="6" className="p-8 text-center text-sm font-medium text-zinc-400">Presiona "Agregar Fila" para listar bienes.</td></tr>
+                                            ) : safeItems.map(item => (
                                                 <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50">
                                                     <td className="p-1.5"><input required className={STYLES.input + " !py-2 !text-xs"} value={item.cuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'cuenta', e.target.value)} /></td>
                                                     <td className="p-1.5"><input className={STYLES.input + " !py-2 !text-xs"} value={item.subcuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'subcuenta', e.target.value)} /></td>
