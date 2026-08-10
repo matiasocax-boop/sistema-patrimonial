@@ -8,6 +8,10 @@ import { SelectFilter, PeriodSelector } from './components/FilterComponents';
 import BienRow from './components/BienRow';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
+import BienModal from './components/BienModal';
+import FC04Modal from './components/FC04Modal';
+import FC10Modal from './components/FC10Modal';
+import FC11Modal from './components/FC11Modal';
 import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 
@@ -265,7 +269,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard'); 
   const [dependenciaActual, setDependenciaActual] = useState(DEPENDENCIAS_UNP[0]);
   
-  const [bienes, setBienes] = useState([]); 
+  const [bienes, setBienes] = useState([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
@@ -965,13 +970,20 @@ export default function App() {
 
    const saveBien = async (e, keepOpen = false) => {
     if(e) e.preventDefault(); 
+    if (isSaving) return;
+
     const form = bienFormRef.current;
     if (!form || !form.reportValidity()) return;
 
+    setIsSaving(true);
     const formData = new FormData(form); 
     const rotuloInput = formData.get('rotulo').trim(); 
     const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && (!bienEditing || b.id !== bienEditing.id)); 
-    if (isDuplicate) { addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); return; }
+    if (isDuplicate) { 
+        addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); 
+        setIsSaving(false);
+        return; 
+    }
     
     const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
     
@@ -985,11 +997,8 @@ export default function App() {
         }
 
         if (!res.error) {
-            setBienes(prev => bienEditing ? prev.map(b => b.id === bienData.id ? bienData : b) : [bienData, ...prev]); 
-            fetchData();
-            
             if (keepOpen) {
-                addToast(`"${rotuloInput}" guardado. Puedes añadir el siguiente.`, "success");
+                addToast(`"${rotuloInput}" guardado.`, "success");
                 form.elements['rotulo'].value = '';
                 form.elements['descripcion'].value = '';
                 if(form.elements['hasQR']) form.elements['hasQR'].checked = false;
@@ -997,12 +1006,16 @@ export default function App() {
                 setBienEditing(null);
             } else {
                 setIsBienModalOpen(false); 
-                addToast(bienEditing ? "Registro actualizado exitosamente" : "Bien guardado exitosamente", "success"); 
+                addToast("Bien guardado exitosamente", "success"); 
             }
         } else {
             addToast("Error al guardar en el servidor.", "error");
         }
-    } catch (e) { addToast("Error al guardar.", "error"); }
+    } catch (e) { 
+        addToast("Error al guardar.", "error"); 
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const saveFC11 = async (e) => {
@@ -2131,224 +2144,59 @@ export default function App() {
       )}
 
       {isFC04ModalOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-5xl"}>
-            <div className={STYLES.modalHeader}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent font-black">
-                  <i className="fa-solid fa-file-circle-plus text-base"></i>
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">
-                    {fc04Editing ? 'Editar Expediente FC-04' : 'Nuevo Movimiento FC-04'}
-                  </h2>
-                  <p className="text-xs text-zinc-400 font-medium">Registro oficial de altas y bajas patrimoniales</p>
-                </div>
-              </div>
-              <button onClick={() => setIsFC04ModalOpen(false)} className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><span className="sr-only">Cerrar</span><i className="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            
-            <form onSubmit={saveFC04} className="flex flex-col h-full overflow-hidden">
-              <div className={STYLES.modalBody}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                  <div>
-                    <label className={STYLES.label}>Mes</label>
-                    <select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input}>
-                      {Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={STYLES.label}>Año</label>
-                    <select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input}>
-                      {Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={STYLES.label}>Origen de Movimiento</label>
-                    <select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento || "A"} className={STYLES.input}>
-                      {ORIGENES_FC04.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-4">
-                  <div className="flex justify-between items-center pb-3 border-b border-zinc-100 dark:border-darkbg-border">
-                    <h3 className={STYLES.sectionTitle + " !mb-0"}>Detalle de Bienes</h3>
-                    <div className="flex items-center gap-4">
-                      <label className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 cursor-pointer">
-                        <input type="checkbox" checked={fc04SinMovimiento} onChange={(e) => setFc04SinMovimiento(e.target.checked)} className="rounded-md border-zinc-300 text-brand-primary focus:ring-brand-primary" /> Sin Movimiento
-                      </label>
-                      {!fc04SinMovimiento && (
-                        <button type="button" onClick={handleAddFC04Item} className={STYLES.btnSecondary + " !py-1.5 !px-3 !text-xs"}>
-                          <i className="fa-solid fa-plus text-brand-primary"></i> Fila
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {!fc04SinMovimiento && (
-                    <div className="overflow-x-auto custom-scrollbar border border-zinc-200/80 dark:border-darkbg-border rounded-xl">
-                      <table className="w-full text-left min-w-[800px]">
-                        <thead className="bg-zinc-50 dark:bg-darkbg-main border-b border-zinc-200 dark:border-darkbg-border text-[10px] font-black text-zinc-400 uppercase">
-                          <tr>
-                            <th className="p-2.5 w-20">Cta</th><th className="p-2.5 w-16">Sub</th><th className="p-2.5 w-16">An1</th><th className="p-2.5 w-16">An2</th>
-                            <th className="p-2.5 min-w-[160px]">Descripción</th><th className="p-2.5 w-28">Rótulo</th><th className="p-2.5 w-28">Valor</th>
-                            <th className="p-2.5 w-32">Adquisición</th><th className="p-2.5 w-16">Vida</th><th className="p-2.5 w-10"></th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                          {fc04Items.length === 0 ? (
-                            <tr>
-                              <td colSpan="10" className="p-8 text-center text-zinc-400 text-xs font-medium italic">Añade filas para registrar los bienes del formulario.</td>
-                            </tr>
-                          ) : fc04Items.map(item => (
-                            <tr key={item.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors">
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.cuenta} onChange={e=>handleFC04ItemChange(item.id, 'cuenta', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.subcuenta} onChange={e=>handleFC04ItemChange(item.id, 'subcuenta', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-1.5 !text-xs"} value={item.analitico1} onChange={e=>handleFC04ItemChange(item.id, 'analitico1', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-1.5 !text-xs"} value={item.analitico2} onChange={e=>handleFC04ItemChange(item.id, 'analitico2', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} required value={item.descripcion} onChange={e=>handleFC04ItemChange(item.id, 'descripcion', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs font-mono font-bold"} required value={item.rotulo} onChange={e=>handleFC04ItemChange(item.id, 'rotulo', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs text-right font-bold"} required value={formatCurrency(item.valorUnitario)} onChange={e=>handleFC04ItemChange(item.id, 'valorUnitario', e.target.value.replace(/\D/g, ''))} /></td>
-                              <td className="p-1.5"><input type="date" className={STYLES.input + " !p-2 !text-xs"} required value={item.fechaAdquisicion} onChange={e=>handleFC04ItemChange(item.id, 'fechaAdquisicion', e.target.value)} /></td>
-                              <td className="p-1.5"><input className={STYLES.input + " !p-2 !text-xs"} value={item.vidaUtil} onChange={e=>handleFC04ItemChange(item.id, 'vidaUtil', e.target.value)} /></td>
-                              <td className="p-1.5 text-center">
-                                <button type="button" onClick={()=>handleRemoveFC04Item(item.id)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all cursor-pointer">
-                                  <i className="fa-solid fa-trash-can text-xs"></i>
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={STYLES.modalFooter}>
-                <button type="button" onClick={() => setIsFC04ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar FC-04</button>
-              </div>
-            </form>
-          </div>
-        </div>
+          <FC04Modal 
+              setIsFC04ModalOpen={setIsFC04ModalOpen}
+              fc04Editing={fc04Editing}
+              saveFC04={saveFC04}
+              fc10Month={fc10Month}
+              fc10Year={fc10Year}
+              ORIGENES_FC04={ORIGENES_FC04}
+              fc04SinMovimiento={fc04SinMovimiento}
+              setFc04SinMovimiento={setFc04SinMovimiento}
+              handleAddFC04Item={handleAddFC04Item}
+              fc04Items={fc04Items}
+              handleFC04ItemChange={handleFC04ItemChange}
+              formatCurrency={formatCurrency}
+              handleRemoveFC04Item={handleRemoveFC04Item}
+              STYLES={STYLES}
+          />
       )}
 
       {isFC10ModalOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-4xl"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                {fc10Editing ? 'Modificar Acta FC-10' : 'Nueva Asignación FC-10'}
-              </h2>
-              <button onClick={() => setIsFC10ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <form onSubmit={saveFC10} className="flex flex-col h-full overflow-hidden">
-              <div className={STYLES.modalBody}>
-                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
-                  <h3 className={STYLES.sectionTitle}>Estructura Organizacional</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Unidad</label><input list="lista-unidades" name="unidad" required value={fc10FormOrg.unidad} onChange={e => handleOrgNameChange(e, 'unidad', 'unidadCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="unidadCod" required value={fc10FormOrg.unidadCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, unidadCod: e.target.value})} className={STYLES.input} /></div></div>
-                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Repartición</label><input list="lista-reparticiones" name="reparticion" required value={fc10FormOrg.reparticion} onChange={e => handleOrgNameChange(e, 'reparticion', 'reparticionCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="reparticionCod" required value={fc10FormOrg.reparticionCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, reparticionCod: e.target.value})} className={STYLES.input} /></div></div>
-                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Dependencia</label><input list="lista-dependencias" name="dependenciaOrg" required value={fc10FormOrg.dependenciaOrg} onChange={e => handleOrgNameChange(e, 'dependenciaOrg', 'dependenciaCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="dependenciaCod" required value={fc10FormOrg.dependenciaCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, dependenciaCod: e.target.value})} className={STYLES.input} /></div></div>
-                    <div className="flex gap-2"><div className="flex-1"><label className={STYLES.label}>Área</label><input list="lista-areas" name="area" required value={fc10FormOrg.area} onChange={e => handleOrgNameChange(e, 'area', 'areaCod')} className={STYLES.input} /></div><div className="w-24"><label className={STYLES.label}>Cód.</label><input name="areaCod" required value={fc10FormOrg.areaCod} onChange={e=>setFc10FormOrg({...fc10FormOrg, areaCod: e.target.value})} className={STYLES.input} /></div></div>
-                  </div>
-                  <datalist id="lista-unidades">{datosMemorizados.unidades.map(i => <option key={i} value={i} />)}</datalist>
-                  <datalist id="lista-reparticiones">{datosMemorizados.reparticiones.map(i => <option key={i} value={i} />)}</datalist>
-                  <datalist id="lista-dependencias">{datosMemorizados.dependencias.map(i => <option key={i} value={i} />)}</datalist>
-                  <datalist id="lista-areas">{datosMemorizados.areas.map(i => <option key={i} value={i} />)}</datalist>
-                </div>
-
-                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
-                  <h3 className={STYLES.sectionTitle}>Funcionario Responsable</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2"><label className={STYLES.label}>Nombre y Apellido</label><input list="lista-funcionarios" name="funcionarioNombre" required value={fc10FormNombre} onChange={handleFuncionarioNombreChange} className={STYLES.input} /><datalist id="lista-funcionarios">{funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}</datalist></div>
-                    <div><label className={STYLES.label}>Cédula de Identidad</label><input name="funcionarioDoc" required value={fc10FormDoc} onChange={e=>setFc10FormDoc(formatCI(e.target.value))} className={STYLES.input} /></div>
-                    <div className="md:col-span-3"><label className={STYLES.label}>Cargo / Ocupación</label><input name="funcionarioCargo" required value={fc10FormCargo} onChange={e=>setFc10FormCargo(e.target.value)} className={STYLES.input} /></div>
-                  </div>
-                </div>
-
-                <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200 dark:border-darkbg-border rounded-xl p-6 md:p-8">
-                  <h3 className={STYLES.sectionTitle}>Movimientos y Estado</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                      <label className={STYLES.label}>Fecha de Entrega</label>
-                      <div className="relative">
-                        <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={STYLES.input + " pl-3 pr-10"} />
-                        <i className="fa-regular fa-calendar absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"></i>
-                      </div>
-                    </div>
-                    <div><label className={STYLES.label}>Lugar de Entrega</label><input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || dependenciaActual} className={STYLES.input} /></div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                    <div className="md:col-span-2"><label className={STYLES.label}>Estado Físico</label><select name="estadoConservacion" defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien?.estadoConservacion || "Bueno"} className={STYLES.input}>{ESTADOS_CONSERVACION.map(e=><option key={e} value={e}>{e}</option>)}</select></div>
-                    <div><label className={STYLES.label}>Cantidad</label><input type="number" name="cantidad" required defaultValue={fc10Editing?.cantidad || "1"} className={STYLES.input} min="1" /></div>
-                    <div><label className={STYLES.label}>Valor (Gs.)</label><input name="valorTotal" required defaultValue={formatCurrency(fc10Editing?.valorTotal || fc10TargetBien?.valorUnitario)} onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} className={STYLES.input + " text-right font-bold"} /></div>
-                  </div>
-                  <div><label className={STYLES.label}>Observaciones Técnicas</label><textarea name="observaciones" defaultValue={fc10Editing?.observaciones} className={STYLES.input + " min-h-[90px] resize-none"}></textarea></div>
-                </div>
-
-                {fc10Editing && (
-                  <div className="bg-zinc-100 dark:bg-darkbg-main p-6 rounded-xl border border-zinc-200 dark:border-darkbg-border">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className={STYLES.sectionTitle + " !mb-0 !text-zinc-600 dark:!text-zinc-400"}>Registrar Devolución (Cierre FC-10)</h3>
-                        <button type="button" onClick={handleReturnInteraction} className="text-xs font-bold text-brand-primary hover:underline">Autocompletar</button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className={STYLES.label}>Fecha de Devolución</label><input type="date" name="devolucionFecha" value={devFecha} onChange={e=>setDevFecha(e.target.value)} className={STYLES.input} /></div>
-                      <div><label className={STYLES.label}>Lugar de Recepción</label><input name="devolucionLugar" value={devLugar} onChange={e=>setDevLugar(e.target.value)} className={STYLES.input} /></div>
-                      <div><label className={STYLES.label}>Nombre del Receptor</label><input name="devolucionReceptor" value={devReceptor} onChange={e=>setDevReceptor(e.target.value)} className={STYLES.input} /></div>
-                      <div><label className={STYLES.label}>Cargo del Receptor</label><input name="devolucionCargoReceptor" value={devCargo} onChange={e=>setDevCargo(e.target.value)} className={STYLES.input} /></div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className={STYLES.modalFooter}>
-                <button type="button" onClick={() => setIsFC10ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-save"></i> {fc10Editing ? 'Actualizar Acta' : 'Generar FC-10'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
+          <FC10Modal 
+              setIsFC10ModalOpen={setIsFC10ModalOpen}
+              fc10Editing={fc10Editing}
+              saveFC10={saveFC10}
+              fc10Month={fc10Month}
+              fc10Year={fc10Year}
+              funcionariosConDatos={funcionariosConDatos}
+              fc10Items={fc10Items}
+              handleAddFC10Item={handleAddFC10Item}
+              handleRemoveFC10Item={handleRemoveFC10Item}
+              handleFC10ItemChange={handleFC10ItemChange}
+              bienes={bienes}
+              formatCurrency={formatCurrency}
+              STYLES={STYLES}
+          />
       )}
 
       {isFC11ModalOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-2xl"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                {fc11Editing ? 'Modificar Traslado FC-11' : 'Trasladar Bien (FC-11)'}
-              </h2>
-              <button onClick={() => setIsFC11ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <form onSubmit={saveFC11} className="flex flex-col h-full overflow-hidden">
-              <div className={STYLES.modalBody}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div><label className={STYLES.label}>Nº Formulario</label><input name="numeroFormulario" required value={fc11FormNumber} onChange={e => setFc11FormNumber(e.target.value)} className={STYLES.input} /></div>
-                  <div>
-                    <label className={STYLES.label}>Fecha</label>
-                    <div className="relative">
-                      <input type="date" name="fecha" required defaultValue={fc11Editing?.fecha || new Date().toISOString().split('T')[0]} className={STYLES.input + " pl-3 pr-10"} />
-                      <i className="fa-regular fa-calendar absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none"></i>
-                    </div>
-                  </div>
-                  <div><label className={STYLES.label}>Área Remitente</label><input name="areaRemitente" required defaultValue={fc11Editing?.areaRemitente} className={STYLES.input} /></div>
-                  <div><label className={STYLES.label}>Dependencia Destino</label><select name="dependenciaDestinataria" required defaultValue={fc11Editing?.dependenciaDestinataria || (dependenciaActual === DEPENDENCIAS_UNP[0] ? DEPENDENCIAS_UNP[1] : DEPENDENCIAS_UNP[0])} className={STYLES.input}>{DEPENDENCIAS_UNP.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
-                  <div><label className={STYLES.label}>Área Destino</label><input name="areaDestinataria" required defaultValue={fc11Editing?.areaDestinataria} className={STYLES.input} /></div>
-                  <div><label className={STYLES.label}>Motivo</label><select name="motivo" required defaultValue={fc11Editing?.motivo || MOTIVOS_FC11[0]} className={STYLES.input}>{MOTIVOS_FC11.map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                  <div><label className={STYLES.label}>Estado Físico Actual</label><select name="estadoConservacion" required defaultValue={fc11Editing?.estadoConservacion || fc11TargetBien?.estadoConservacion || "Bueno"} className={STYLES.input}>{ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}</select></div>
-                  <div className="md:col-span-2"><label className={STYLES.label}>Observaciones</label><textarea name="observaciones" defaultValue={fc11Editing?.observaciones} className={STYLES.input + " min-h-[90px] resize-none"}></textarea></div>
-                </div>
-              </div>
-              <div className={STYLES.modalFooter}>
-                <button type="button" onClick={() => setIsFC11ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-truck-fast"></i> Registrar Traslado</button>
-              </div>
-            </form>
-          </div>
-        </div>
+          <FC11Modal 
+              setIsFC11ModalOpen={setIsFC11ModalOpen}
+              fc11Editing={fc11Editing}
+              saveFC11={saveFC11}
+              fc10Month={fc10Month}
+              fc10Year={fc10Year}
+              todasDependencias={todasDependencias}
+              dependenciaActual={dependenciaActual}
+              fc11Items={fc11Items}
+              handleAddFC11Item={handleAddFC11Item}
+              handleRemoveFC11Item={handleRemoveFC11Item}
+              handleFC11ItemChange={handleFC11ItemChange}
+              bienes={bienes}
+              formatCurrency={formatCurrency}
+              STYLES={STYLES}
+          />
       )}
 
       {isUsuarioModalOpen && isAdmin && (
@@ -2446,92 +2294,19 @@ export default function App() {
       )}
 
       {isBienModalOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-5xl"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <i className="fa-solid fa-box-open text-[#1e3a8a]"></i> {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
-              </h2>
-              <button onClick={() => setIsBienModalOpen(false)} className="rounded-full p-2 text-zinc-400 hover:bg-zinc-100 transition-colors cursor-pointer"><span className="sr-only">Cerrar</span><i className="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            
-            <form ref={bienFormRef} onSubmit={(e) => saveBien(e, false)} className="flex flex-col h-full overflow-hidden">
-              <div className={STYLES.modalBody}>
-                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
-                  <h3 className={STYLES.sectionTitle}><i className="fa-solid fa-calculator text-[#1e3a8a] mr-1"></i> 1. Imputación Contable (Opcional)</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-2">
-                    <div><label className={STYLES.label}>Cuenta Mayor</label><input list="lista-cuentas" name="cuenta" defaultValue={bienEditing?.cuenta} className={STYLES.input} placeholder="Ej. 2.6.1.01" /></div>
-                    <div><label className={STYLES.label}>Sub-Cuenta</label><input list="lista-subcuentas" name="subcuenta" defaultValue={bienEditing?.subcuenta} className={STYLES.input} placeholder="..." /></div>
-                    <div><label className={STYLES.label}>Analítico 1</label><input list="lista-analiticos1" name="analitico1" defaultValue={bienEditing?.analitico1} className={STYLES.input} placeholder="..." /></div>
-                    <div><label className={STYLES.label}>Analítico 2</label><input list="lista-analiticos2" name="analitico2" defaultValue={bienEditing?.analitico2} className={STYLES.input} placeholder="..." /></div>
-                  </div>
-                </div>
-                
-                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
-                  <h3 className={STYLES.sectionTitle}><i className="fa-solid fa-laptop-code text-[#1e3a8a] mr-1"></i> 2. Especificaciones Técnicas</h3>
-                  <div className="space-y-6 mt-2">
-                    <div><label className={STYLES.label}>Descripción General</label><input list="lista-descripciones" required name="descripcion" defaultValue={bienEditing?.descripcion} className={STYLES.input} placeholder="Ej. Computadora de Escritorio HP Intel Core i5..." /></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-                      <div><label className={STYLES.label}>Nº Rótulo</label><input required name="rotulo" defaultValue={bienEditing?.rotulo} className={`${STYLES.input} font-bold text-[#1e3a8a]`} placeholder="Ej. 10255" /></div>
-                      <div>
-                        <label className={STYLES.label}>Ingreso</label>
-                        <input 
-                          type="date" 
-                          required 
-                          name="fechaAdquisicion" 
-                          defaultValue={bienEditing?.fechaAdquisicion ? String(bienEditing?.fechaAdquisicion).split('T')[0] : ''} 
-                          className={STYLES.input} 
-                        />
-                      </div>
-                      <div>
-                        <label className={STYLES.label}>Vida Útil</label>
-                        <div className="relative">
-                          <input type="number" name="vidaUtil" defaultValue={bienEditing?.vidaUtil} className={STYLES.input} />
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
-                            <span className="text-zinc-400 text-xs font-bold">Años</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div><label className={STYLES.label}>Valor (Gs.)</label><input required name="valorUnitario" defaultValue={formatCurrency(bienEditing?.valorUnitario)} onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} className={`${STYLES.input} text-right font-bold text-zinc-900`} /></div>
-                      <div>
-                        <label className={STYLES.label}>Condición</label>
-                        <select required name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || "Bueno"} className={STYLES.input}>
-                            {ESTADOS_CONSERVACION.map(e=><option key={e} value={e}>{e}</option>)}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white shadow-sm border border-zinc-100 rounded-[32px] p-8">
-                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-zinc-100 pb-5 mb-6">
-                      <h3 className={STYLES.sectionTitle + " !mb-0"}><i className="fa-solid fa-map-location-dot text-[#1e3a8a] mr-1"></i> 3. Localización (Opcional)</h3>
-                      <div className="relative flex items-center bg-zinc-50 px-4 py-2.5 rounded-xl border border-zinc-200">
-                          <input type="checkbox" name="hasQR" defaultChecked={bienEditing?.hasQR} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer" />
-                          <div className="ml-3 text-sm leading-6 mt-0.5">
-                            <label className="font-bold text-zinc-900 cursor-pointer select-none">Declarar Etiqueta QR Impresa</label>
-                          </div>
-                      </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className={STYLES.label}>Custodio Designado</label><input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} className={STYLES.input} placeholder="Nombre completo..." /><datalist id="lista-funcionarios-modal-bien">{funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}</datalist></div>
-                    <div><label className={STYLES.label}>Ubicación Operativa</label><input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={STYLES.input} placeholder="Oficina / Laboratorio..." /><datalist id="lista-ubicaciones-modal-bien">{ubicacionesUnicas.map(u => <option key={u} value={u} />)}</datalist></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className={STYLES.modalFooter}>
-                <button type="button" onClick={() => setIsBienModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                {!bienEditing && (
-                    <button type="button" onClick={(e) => saveBien(e, true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-light border border-brand-primary/20 px-5 py-2.5 text-sm font-semibold text-brand-primary hover:bg-brand-primary/20 transition-all shadow-sm cursor-pointer">
-                        <i className="fa-solid fa-plus-minus"></i> Guardar y Añadir Otro
-                    </button>
-                )}
-                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-save"></i> Guardar Registro</button>
-              </div>
-            </form>
-          </div>
-        </div>
+          <BienModal 
+              setIsBienModalOpen={setIsBienModalOpen}
+              bienEditing={bienEditing}
+              setBienEditing={setBienEditing}
+              bienFormRef={bienFormRef}
+              saveBien={saveBien}
+              isSaving={isSaving}
+              formatCurrency={formatCurrency}
+              ESTADOS_CONSERVACION={ESTADOS_CONSERVACION}
+              funcionariosConDatos={funcionariosConDatos}
+              ubicacionesUnicas={ubicacionesUnicas}
+              STYLES={STYLES}
+          />
       )}
 
       {resolucionBaja && (
