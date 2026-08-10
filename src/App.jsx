@@ -274,6 +274,43 @@ export default function App() {
   const [fc04Items, setFc04Items] = useState([]);
   const [fc10Items, setFc10Items] = useState([]);
   const [fc11Items, setFc11Items] = useState([]);
+  
+  const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
+
+  const handleAddFC04Item = () => setFc04Items([...fc04Items, { id: Date.now(), cuenta: '', subcuenta: '', analitico1: '', analitico2: '', descripcion: '', rotulo: '', valorUnitario: '', fechaAdquisicion: '', vidaUtil: '' }]);
+  const handleRemoveFC04Item = (id) => setFc04Items(fc04Items.filter(item => item.id !== id));
+  const handleFC04ItemChange = (id, field, value) => setFc04Items(fc04Items.map(item => item.id === id ? { ...item, [field]: value } : item));
+
+  const handleAddFC10Item = () => setFc10Items([...fc10Items, { id: Date.now(), rotulo: '', descripcion: '', valorUnitario: '', estadoConservacion: '' }]);
+  const handleRemoveFC10Item = (id) => setFc10Items(fc10Items.filter(item => item.id !== id));
+  const handleFC10ItemChange = (id, field, value) => {
+      setFc10Items(fc10Items.map(item => {
+          if (item.id === id) {
+              if (field === 'rotulo') {
+                  const matched = bienes.find(b => b.rotulo === value);
+                  if (matched) return { ...item, rotulo: value, descripcion: matched.descripcion, valorUnitario: matched.valorUnitario, estadoConservacion: matched.estadoConservacion, originalId: matched.id };
+              }
+              return { ...item, [field]: value };
+          }
+          return item;
+      }));
+  };
+
+  const handleAddFC11Item = () => setFc11Items([...fc11Items, { id: Date.now(), rotulo: '', descripcion: '', valorUnitario: '', estadoConservacion: '' }]);
+  const handleRemoveFC11Item = (id) => setFc11Items(fc11Items.filter(item => item.id !== id));
+  const handleFC11ItemChange = (id, field, value) => {
+      setFc11Items(fc11Items.map(item => {
+          if (item.id === id) {
+              if (field === 'rotulo') {
+                  const matched = bienes.find(b => b.rotulo === value);
+                  if (matched) return { ...item, rotulo: value, descripcion: matched.descripcion, valorUnitario: matched.valorUnitario, estadoConservacion: matched.estadoConservacion, originalId: matched.id };
+              }
+              return { ...item, [field]: value };
+          }
+          return item;
+      }));
+  };
+
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
@@ -1250,9 +1287,6 @@ export default function App() {
 
   const handleFuncionarioNombreChange = (e) => { setFc10FormNombre(e.target.value); };
   const handleReturnInteraction = () => { setDevFecha(new Date().toISOString().split('T')[0]); };
-  const handleAddFC04Item = () => setFc04Items(prev => [...prev, { id: generateId(), descripcion: '', rotulo: '' }]);
-  const handleRemoveFC04Item = (id) => setFc04Items(prev => prev.filter(i => i.id !== id));
-  const handleFC04ItemChange = (id, field, value) => setFc04Items(prev => prev.map(i => i.id === id ? { ...i, [field]: value } : i));
 
   const handleScanSuccess = (decodedText) => {
       setIsScannerOpen(false);
