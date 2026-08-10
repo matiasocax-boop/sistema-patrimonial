@@ -16,17 +16,17 @@ import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 
 const STYLES = {
-    input: "block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 py-2.5 px-3.5 text-zinc-900 shadow-2xs placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
-    label: "block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5",
-    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-xs hover:shadow-md disabled:opacity-50",
-    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary dark:hover:border-brand-primary dark:hover:text-brand-accent focus:outline-none transition-all active:scale-95 cursor-pointer shadow-2xs hover:shadow-xs disabled:opacity-50",
-    card: "bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs overflow-hidden transition-shadow duration-300",
-    modalOverlay: "fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
-    modalContent: "bg-white dark:bg-darkbg-card rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col border border-zinc-200/80 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
+    input: "block w-full rounded-lg border border-zinc-300/80 bg-white py-2.5 px-3.5 text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
+    label: "block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5",
+    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
+    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-darkbg-main border border-zinc-300 dark:border-darkbg-border px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
+    card: "bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden transition-shadow duration-300",
+    modalOverlay: "fixed inset-0 bg-zinc-900/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
+    modalContent: "bg-white dark:bg-darkbg-card rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200/80 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
     modalHeader: "flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
-    modalBody: "p-6 sm:p-8 overflow-y-auto space-y-6 bg-zinc-50/50 dark:bg-darkbg-main/50 custom-scrollbar",
-    modalFooter: "flex justify-end gap-3 px-6 py-5 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
-    sectionTitle: "text-xs font-black tracking-wider text-brand-primary dark:text-brand-accent uppercase mb-4"
+    modalBody: "p-6 sm:p-8 overflow-y-auto space-y-8 bg-white dark:bg-darkbg-card custom-scrollbar",
+    modalFooter: "flex justify-end gap-3 px-6 py-5 border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main shrink-0 z-10",
+    sectionTitle: "text-base font-semibold text-zinc-800 dark:text-white mb-5 flex items-center gap-2 border-b border-zinc-100 dark:border-darkbg-border pb-3"
 };
 
 const DEPENDENCIAS_UNP = ["Rectorado", "Facultad de Ciencias Aplicadas", "Facultad de Humanidades y Ciencias de la Educación", "Facultad de Ciencias Contables, Administrativas y Económicas", "Facultad de Derecho, Ciencias Políticas y Sociales", "Facultad de Ciencias Agropecuarias y Desarrollo Rural", "Facultad de Ciencias Biomédicas", "Facultad de Ciencias, Tecnologías y Artes"];
