@@ -232,7 +232,6 @@ export default function App() {
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
 
-  // Cierre de sesión automático por inactividad (2 horas)
   const handleLogout = useCallback(() => { 
       setIsAuthenticated(false); setCurrentUser(null); 
       localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
@@ -241,10 +240,8 @@ export default function App() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-
     let inactivityTimer;
-    const maxInactivityTime = 2 * 60 * 60 * 1000; // 2 horas en milisegundos
-
+    const maxInactivityTime = 2 * 60 * 60 * 1000;
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(() => {
@@ -252,12 +249,9 @@ export default function App() {
         handleLogout();
       }, maxInactivityTime);
     };
-
     const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
     events.forEach(event => window.addEventListener(event, resetTimer));
-
     resetTimer();
-
     return () => {
       clearTimeout(inactivityTimer);
       events.forEach(event => window.removeEventListener(event, resetTimer));
@@ -320,8 +314,15 @@ export default function App() {
   const [searchInput, setSearchInput] = useState(''); const [searchTerm, setSearchTerm] = useState(''); 
   const [filtroFuncionario, setFiltroFuncionario] = useState(''); const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
   const [filtroAnio, setFiltroAnio] = useState(''); const [filtroMes, setFiltroMes] = useState(''); 
+  
+  // NUEVOS FILTROS CONTABLES
+  const [filtroSubcuenta, setFiltroSubcuenta] = useState(''); 
+  const [filtroAnalitico1, setFiltroAnalitico1] = useState(''); 
+  const [filtroAnalitico2, setFiltroAnalitico2] = useState('');
+
   const [filtroQR, setFiltroQR] = useState('ALL'); const [filtroFC10, setFiltroFC10] = useState('ALL'); const [filtroEstado, setFiltroEstado] = useState('ALL');
-  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
+  
+  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
 
   useEffect(() => { const timer = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 300); return () => clearTimeout(timer); }, [searchInput]);
   const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 10;
@@ -347,16 +348,7 @@ export default function App() {
 
   const [itemToDelete, setItemToDelete] = useState(null); const [dbError, setDbError] = useState(false);
   
-  const [fc10FormNombre, setFc10FormNombre] = useState(''); const [fc10FormDoc, setFc10FormDoc] = useState(''); const [fc10FormCargo, setFc10FormCargo] = useState(''); const [devLugar, setDevLugar] = useState(''); const [devFecha, setDevFecha] = useState(''); const [devReceptor, setDevReceptor] = useState(''); const [devCargo, setDevCargo] = useState(''); const [fc10FormOrg, setFc10FormOrg] = useState({ unidad: '', unidadCod: '', reparticion: '', reparticionCod: '', dependenciaOrg: '', dependenciaCod: '', area: '', areaCod: '' });
   const fileInputRef = useRef(null); const bienFormRef = useRef(null); 
-
-  const datosMemorizados = useMemo(() => { 
-    const uMap = new Map(); const rMap = new Map(); const dMap = new Map(); const aMap = new Map();
-    const addToMap = (map, val) => { if (!val) return; const cleanVal = String(val).trim(); if (cleanVal === '') return; const key = normalizeStr(cleanVal); if (!map.has(key)) map.set(key, cleanVal.toUpperCase()); };
-    fc10List.forEach(f => { addToMap(uMap, f.unidad); addToMap(rMap, f.reparticion); addToMap(dMap, f.dependenciaOrg); addToMap(aMap, f.area); });
-    estructurasDB.forEach(e => { if(e.nombre) { if(e.tipoEstructura === 'unidad') addToMap(uMap, e.nombre); if(e.tipoEstructura === 'reparticion') addToMap(rMap, e.nombre); if(e.tipoEstructura === 'dependencia') addToMap(dMap, e.nombre); if(e.tipoEstructura === 'area') addToMap(aMap, e.nombre); } });
-    return { unidades: Array.from(uMap.values()).sort(), reparticiones: Array.from(rMap.values()).sort(), dependencias: Array.from(dMap.values()).sort(), areas: Array.from(aMap.values()).sort() }; 
-  }, [fc10List, estructurasDB]);
 
   const todasDependencias = DEPENDENCIAS_UNP;
   const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
@@ -442,16 +434,11 @@ export default function App() {
 
   useEffect(() => { 
       if (!isAuthenticated) return;
-
-      // 1. Carga inicial (una sola vez)
       fetchData(); 
-
-      // 2. Realtime con Actualizaciones Optimistas (Cero peticiones extra a BD)
       const subscription = supabase
           .channel('cambios-patrimonio')
           .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
               const { table, eventType, new: newRecord, old: oldRecord } = payload;
-              
               const parseRecord = (record) => record ? { id: record.id, ...(typeof record.data === 'string' ? JSON.parse(record.data) : record.data) } : null;
               const newItem = parseRecord(newRecord);
               const oldItem = parseRecord(oldRecord);
@@ -472,7 +459,7 @@ export default function App() {
       return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]); 
   
-  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
+  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
   
   const handleLogin = async (e) => { 
     e.preventDefault(); 
@@ -515,6 +502,10 @@ export default function App() {
   const ubicacionesUnicas = useMemo(() => { const ubiMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.ubicacion && String(b.ubicacion).trim() !== "").forEach(b => { const val = String(b.ubicacion).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); fc10List.filter(fc => fc.dependencia === dependenciaActual && fc.entregadoLugar).forEach(fc => { const val = String(fc.entregadoLugar).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); return Array.from(ubiMap.values()).sort(); }, [bienes, fc10List, dependenciaActual]);
   const aniosUnicos = useMemo(() => { const years = bienes.filter(b => b.dependencia === dependenciaActual && b.fechaAdquisicion).map(b => parseDateInfo(b.fechaAdquisicion).year).filter(y => y && !isNaN(parseInt(y))); return [...new Set(years)].sort((a, b) => b - a); }, [bienes, dependenciaActual]);
   
+  const subcuentasUnicas = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.subcuenta||'').trim() !== '').map(b => String(b.subcuenta).trim()))].sort(), [bienes, dependenciaActual]);
+  const analiticos1Unicos = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.analitico1||'').trim() !== '').map(b => String(b.analitico1).trim()))].sort(), [bienes, dependenciaActual]);
+  const analiticos2Unicos = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.analitico2||'').trim() !== '').map(b => String(b.analitico2).trim()))].sort(), [bienes, dependenciaActual]);
+
   const stats = useMemo(() => { const depBienes = bienes.filter(b => b.dependencia === dependenciaActual && b.estadoConservacion !== 'De Baja'); const totalItems = depBienes.length; const totalValue = depBienes.reduce((acc, curr) => acc + (parseInt(curr.valorUnitario) || 0), 0); const withFc10 = depBienes.filter(b => b.hasFC10).length; const withQR = depBienes.filter(b => b.hasQR).length; const estados = { bueno: depBienes.filter(b => b.estadoConservacion === 'Bueno' || b.estadoConservacion === 'Muy bueno').length, regular: depBienes.filter(b => b.estadoConservacion === 'Regular').length, malo: depBienes.filter(b => b.estadoConservacion === 'Malo' || b.estadoConservacion === 'Inutilizable').length }; const percFC10 = totalItems === 0 ? 0 : (withFc10 / totalItems) * 100; const percQR = totalItems === 0 ? 0 : (withQR / totalItems) * 100; const cuentasCounts = {}; depBienes.forEach(b => { if (b.cuenta) cuentasCounts[b.cuenta] = (cuentasCounts[b.cuenta] || 0) + 1; }); const topCuentas = Object.entries(cuentasCounts).sort((a, b) => b[1] - a[1]).slice(0, 3); return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas }; }, [bienes, dependenciaActual]);
   const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
   
@@ -524,6 +515,9 @@ export default function App() {
     if (filtroUbicacion) filtered = filtered.filter(b => String(b.ubicacion||'').trim() === filtroUbicacion); 
     if (filtroAnio) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).year === filtroAnio); 
     if (filtroMes) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).month === filtroMes);
+    if (filtroSubcuenta) filtered = filtered.filter(b => String(b.subcuenta||'').trim() === filtroSubcuenta);
+    if (filtroAnalitico1) filtered = filtered.filter(b => String(b.analitico1||'').trim() === filtroAnalitico1);
+    if (filtroAnalitico2) filtered = filtered.filter(b => String(b.analitico2||'').trim() === filtroAnalitico2);
     if (filtroEstado !== 'ALL') filtered = filtered.filter(b => b.estadoConservacion === filtroEstado); 
     if (filtroQR === 'YES') filtered = filtered.filter(b => b.hasQR === true); 
     if (filtroQR === 'NO') filtered = filtered.filter(b => b.hasQR !== true); 
@@ -532,7 +526,7 @@ export default function App() {
     if (searchTerm) { const term = String(searchTerm).toLowerCase(); filtered = filtered.filter(b => String(b.rotulo || '').toLowerCase().includes(term) || String(b.descripcion || '').toLowerCase().includes(term) || String(b.cuenta || '').toLowerCase().includes(term) || String(b.ubicacion || '').toLowerCase().includes(term) || String(b.funcionario || '').toLowerCase().includes(term) ); } 
     filtered.sort((a, b) => { const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; const numA = getSuffixNum(a.rotulo); const numB = getSuffixNum(b.rotulo); if (numA !== numB) return numA - numB; return String(a.rotulo || '').localeCompare(String(b.rotulo || '')); }); 
     return filtered; 
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroEstado, filtroQR, filtroFC10, searchTerm]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
@@ -541,104 +535,12 @@ export default function App() {
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
   
-  const solicitudesBaja = useMemo(() => {
-      return bienes.filter(b => b.solicitudBaja === true && b.dependencia === dependenciaActual);
-  }, [bienes, dependenciaActual]);
+  const solicitudesBaja = useMemo(() => { return bienes.filter(b => b.solicitudBaja === true && b.dependencia === dependenciaActual); }, [bienes, dependenciaActual]);
 
-  const handleDownloadLabelPNG = async (bien) => {
-      setIsProcessing({ active: true, text: 'Generando Etiqueta...' });
-      setTimeout(async () => {
-          try {
-              const dataUrl = await generateProfessionalLabelPNG(bien, appLogo);
-              if (dataUrl && window.saveAs) {
-                  const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
-                  window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`);
-                  addToast("Etiqueta descargada con éxito", "success");
-              }
-          } catch (e) {
-              addToast("Error al generar la etiqueta", "error");
-          } finally {
-              setIsProcessing({ active: false, text: '' });
-              setIsQRModalOpen(false);
-          }
-      }, 100);
-  };
-
-  const handleDownloadSimpleQR = async (bien) => {
-      setIsProcessing({ active: true, text: 'Procesando imagen QR...' });
-      try {
-          const dataUrl = await generateSimpleQR(bien);
-          if(dataUrl && window.saveAs) {
-              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
-              window.saveAs(dataUrl, `QR_${cleanRotulo}.png`);
-              addToast("Código QR simple descargado", "success");
-          }
-      } catch (e) {
-          addToast("Error al descargar el QR", "error");
-      } finally {
-          setIsProcessing({ active: false, text: '' });
-          setIsQRModalOpen(false);
-      }
-  };
-
-  const handleBulkLabelPNGZip = async () => {
-      if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
-      setIsProcessing({ active: true, text: 'Generando Lote de Etiquetas...' });
-      setTimeout(async () => {
-          try {
-              const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
-              const zip = new window.JSZip(); 
-              const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
-              
-              for (let i = 0; i < filteredBienes.length; i++) { 
-                  const bien = filteredBienes[i]; 
-                  const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); 
-                  if(dataUrl) { 
-                      const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); 
-                      folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); 
-                  }
-              }
-              const content = await zip.generateAsync({type:"blob"}); 
-              if(window.saveAs) window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); 
-              addToast("Archivo ZIP de etiquetas generado", "success");
-          } catch (error) { 
-              addToast("Hubo un error al generar el archivo ZIP.", "error"); 
-          } finally { 
-              setIsProcessing({ active: false, text: '' }); 
-              setIsQRModalOpen(false);
-          }
-      }, 100);
-  };
-
-  const handleBulkSimpleQRZip = async () => {
-      if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
-      setIsProcessing({ active: true, text: 'Comprimiendo ZIP de QRs simples...' });
-      
-      setTimeout(async () => {
-          try {
-              const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
-              const zip = new window.JSZip(); 
-              const folder = zip.folder(`QRs_Simples_${cleanDepName}`);
-              
-              for (let i = 0; i < filteredBienes.length; i++) { 
-                  const bien = filteredBienes[i]; 
-                  const dataUrl = await generateSimpleQR(bien); 
-                  if(dataUrl) { 
-                      const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); 
-                      folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); 
-                  }
-              }
-              const content = await zip.generateAsync({type:"blob"}); 
-              if(window.saveAs) window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); 
-              addToast("Archivo ZIP generado con éxito", "success");
-          } catch (error) { 
-              addToast("Hubo un error al generar el archivo ZIP.", "error"); 
-          } finally { 
-              setIsProcessing({ active: false, text: '' }); 
-              setIsQRModalOpen(false);
-          }
-      }, 100);
-  };
+  const handleDownloadLabelPNG = async (bien) => { setIsProcessing({ active: true, text: 'Generando Etiqueta...' }); setTimeout(async () => { try { const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if (dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`); addToast("Etiqueta descargada con éxito", "success"); } } catch (e) { addToast("Error al generar la etiqueta", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
+  const handleDownloadSimpleQR = async (bien) => { setIsProcessing({ active: true, text: 'Procesando imagen QR...' }); try { const dataUrl = await generateSimpleQR(bien); if(dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `QR_${cleanRotulo}.png`); addToast("Código QR simple descargado", "success"); } } catch (e) { addToast("Error al descargar el QR", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } };
+  const handleBulkLabelPNGZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Generando Lote de Etiquetas...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP de etiquetas generado", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
+  const handleBulkSimpleQRZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Comprimiendo ZIP de QRs simples...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`QRs_Simples_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateSimpleQR(bien); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP generado con éxito", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
 
   const handleGenerateFC04PDF = (fc) => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
@@ -913,7 +815,7 @@ export default function App() {
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
     setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
     try { 
-        await supabase.from('bens').update({ hasQR: updatedBien.hasQR }).eq('id', updatedBien.id);
+        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
         addToast(`Estado QR actualizado`, "success"); 
     } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
   };
@@ -970,7 +872,8 @@ export default function App() {
         }
         if (newBienes.length > 0) { 
             try { 
-                await supabase.from('bens').insert(newBienes);
+                const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
+                await supabase.from('bens').insert(payloadNewBienes);
                 await fetchData(); 
                 setActiveTab('inventario'); 
                 addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); 
@@ -1064,8 +967,6 @@ export default function App() {
     const fc11Data = { id: fc11Editing ? fc11Editing.id : generateId(), numeroFormulario: f.get('numeroFormulario'), fecha: f.get('fecha'), dependenciaRemitente: dependenciaActual, areaRemitente: f.get('areaRemitente'), dependenciaDestinataria: f.get('dependenciaDestinataria'), areaDestinataria: f.get('areaDestinataria'), motivo: f.get('motivo'), estadoConservacion: f.get('estadoConservacion'), observaciones: f.get('observaciones'), bienId: fc11TargetBien.id, bienSnapshot: fc11TargetBien, tipoRegistro: 'FC11' }; 
     const esMovimientoInterno = fc11Data.dependenciaRemitente === fc11Data.dependenciaDestinataria; 
     const updatedBien = { ...fc11TargetBien, dependencia: fc11Data.dependenciaDestinataria, estadoConservacion: fc11Data.estadoConservacion, hasFC10: false, funcionario: esMovimientoInterno ? fc11TargetBien.funcionario : '', ubicacion: esMovimientoInterno ? fc11TargetBien.ubicacion : '' };
-    
-    // ENVOLTURA PARA SUPABASE
     const payloadFC11 = { id: fc11Data.id, data: fc11Data };
 
     try {
@@ -1096,8 +997,6 @@ export default function App() {
     e.preventDefault(); 
     const f = new FormData(e.target); 
     const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
-    
-    // ENVOLTURA PARA SUPABASE
     const payloadFC04 = { id: fc04Data.id, data: fc04Data };
 
     try {
@@ -1107,7 +1006,6 @@ export default function App() {
       } else {
           res = await supabase.from('fc04').insert([payloadFC04]);
       }
-      
       if (res?.error) throw res.error;
 
       if (!fc04SinMovimiento && fc04Items.length > 0) {
@@ -1152,8 +1050,6 @@ export default function App() {
     const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; 
     const isDevuelto = !!fcData.devolucionFecha; 
     const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
-    
-    // ENVOLTURA PARA SUPABASE
     const payloadFC10 = { id: fcData.id, data: fcData };
 
     try { 
@@ -1257,7 +1153,7 @@ export default function App() {
               estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
           };
 
-          const res = await supabase.from('bens').update(updatedBien).eq('id', bien.id);
+          const res = await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
           
           if (!res.error) {
               setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
@@ -1276,7 +1172,7 @@ export default function App() {
                       bienId: bien.id,
                       accion: accion
                   };
-                  await supabase.from('auditoria').insert([notif]);
+                  await supabase.from('auditoria').insert([{ id: notif.id, data: notif }]);
                   setNotificaciones(prev => [notif, ...prev]);
               }
               
@@ -1295,27 +1191,19 @@ export default function App() {
       const updated = {...notif, leido: true};
       setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
       try { 
-          await supabase.from('auditoria').update({ leido: true }).eq('id', notif.id);
+          await supabase.from('auditoria').update({ data: updated }).eq('id', notif.id);
       } catch(e) {}
   };
 
-  const openResolucionModal = (bien, accion) => {
-      setResolucionBaja({ bien, accion });
-      setMotivoResolucion('');
-  };
-
-  const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setFc10FormNombre(fc ? fc.funcionarioNombre : bien.funcionario || ''); setIsFC10ModalOpen(true); };
+  const openResolucionModal = (bien, accion) => { setResolucionBaja({ bien, accion }); setMotivoResolucion(''); };
+  const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setIsFC10ModalOpen(true); };
   const openFC11Modal = (bien, fc = null) => { setFc11TargetBien(bien); setFc11Editing(fc); setFc11FormNumber(fc ? fc.numeroFormulario : ''); setIsFC11ModalOpen(true); };
   const openFC04Modal = (fc = null) => { setFc04Editing(fc); if (fc) { setFc04Items(fc.bienesSnapshot || []); setFc04SinMovimiento(fc.sinMovimiento); } else { setFc04Items([]); setFc04SinMovimiento(false); } setIsFC04ModalOpen(true); };
   
   const handleRowAction = (action, item, extraData) => { 
       switch(action) { 
           case 'toggleQR': toggleQR(item); break; 
-          case 'openQRDownload': 
-              setQrTargetBien(item); 
-              setIsBulkQR(false);
-              setIsQRModalOpen(true); 
-              break; 
+          case 'openQRDownload': setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); break; 
           case 'openFC10': openFC10Modal(item); break; 
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
@@ -1326,18 +1214,13 @@ export default function App() {
       } 
   };
 
-  const handleFuncionarioNombreChange = (e) => { setFc10FormNombre(e.target.value); };
-  const handleReturnInteraction = () => { setDevFecha(new Date().toISOString().split('T')[0]); };
-
   const handleScanSuccess = (decodedText) => {
       setIsScannerOpen(false);
-      
       let codigoLimpio = decodedText;
       if (decodedText.includes('CÓDIGO:')) {
           const partes = decodedText.split('CTA:')[0];
           codigoLimpio = partes.replace('CÓDIGO:', '').trim();
       }
-
       addToast(`Bien escaneado: ${codigoLimpio}`, "success");
       setSearchInput(codigoLimpio);
       setActiveTab('inventario');
@@ -1353,26 +1236,15 @@ export default function App() {
                   html5QrCode.start(
                       { facingMode: "environment" },
                       { fps: 10, qrbox: { width: 250, height: 250 } },
-                      (decodedText) => {
-                          html5QrCode.stop().then(() => {
-                              handleScanSuccess(decodedText);
-                          }).catch(() => {
-                              handleScanSuccess(decodedText);
-                          });
-                      },
+                      (decodedText) => { html5QrCode.stop().then(() => { handleScanSuccess(decodedText); }).catch(() => { handleScanSuccess(decodedText); }); },
                       (errorMessage) => {}
-                  ).catch(err => {
-                      addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error");
-                      setIsScannerOpen(false);
-                  });
+                  ).catch(err => { addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error"); setIsScannerOpen(false); });
               }
           }, 300);
       }
   }, [isScannerOpen]);
 
-  const misNotificaciones = useMemo(() => {
-      return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-  }, [notificaciones, currentUser]);
+  const misNotificaciones = useMemo(() => { return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [notificaciones, currentUser]);
   const unreadCount = misNotificaciones.filter(n => !n.leido).length;
 
   const renderPagination = () => (
@@ -1387,20 +1259,7 @@ export default function App() {
 
   if (!isAuthenticated) {
       return (
-          <LoginScreen 
-              handleLogin={handleLogin}
-              loginUser={loginUser}
-              setLoginUser={setLoginUser}
-              loginPass={loginPass}
-              setLoginPass={setLoginPass}
-              showPassword={showPassword}
-              setShowPassword={setShowPassword}
-              loginError={loginError}
-              darkMode={darkMode}
-              setDarkMode={setDarkMode}
-              appLogo={appLogo}
-              toasts={toasts}
-          />
+          <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />
       );
   }
 
@@ -1423,15 +1282,8 @@ export default function App() {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar 
-          isSidebarOpen={isSidebarOpen} 
-          setIsSidebarOpen={setIsSidebarOpen} 
-          appLogo={appLogo} 
-          activeTab={activeTab} 
-          setActiveTab={setActiveTab} 
-          isAdmin={isAdmin} 
-          solicitudesBaja={solicitudesBaja} 
-      />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} />
+      
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
             <div className="flex items-center justify-center gap-x-6 bg-red-50 px-6 py-2.5 sm:px-3.5 border-b border-red-200 dark:bg-red-900/30 dark:border-red-900/50 shadow-sm z-50">
@@ -1441,27 +1293,7 @@ export default function App() {
             </div>
           )}
 
-          <Header 
-           setIsSidebarOpen={setIsSidebarOpen}
-           activeTab={activeTab}
-           setIsScannerOpen={setIsScannerOpen}
-           pdfPaperSize={pdfPaperSize}
-           setPdfPaperSize={setPdfPaperSize}
-           dependenciaActual={dependenciaActual}
-           setDependenciaActual={setDependenciaActual}
-           todasDependencias={todasDependencias}
-           clearAllFilters={clearAllFilters}
-           darkMode={darkMode}
-           setDarkMode={setDarkMode}
-           isNotifOpen={isNotifOpen}
-           setIsNotifOpen={setIsNotifOpen}
-           unreadCount={unreadCount}
-           misNotificaciones={misNotificaciones}
-           markAsRead={markAsRead}
-           currentUser={currentUser}
-           isAdmin={isAdmin}
-           handleLogout={handleLogout}
-       />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={setDependenciaActual} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={handleLogout} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -1552,7 +1384,7 @@ export default function App() {
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left">
                             <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                              <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                              <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                 <th className="py-3.5 pl-6 pr-4 w-1/3">Usuario y Nombre</th>
                                 <th className="px-4 py-3.5 w-1/3">Rol de Sistema</th>
                                 <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
@@ -1755,6 +1587,9 @@ export default function App() {
                             <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
                             <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
                             <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
+                            <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
+                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
+                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
                             <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
                             
                             <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-zinc-800 text-white border-zinc-900 dark:bg-white dark:text-black' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
@@ -1770,6 +1605,9 @@ export default function App() {
                               {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
                               {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
                               {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroSubcuenta && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroSubcuenta('')}>Subcta: {filtroSubcuenta} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroAnalitico1 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico1('')}>An.1: {filtroAnalitico1} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroAnalitico2 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico2('')}>An.2: {filtroAnalitico2} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
                               {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-bold text-white cursor-pointer hover:bg-zinc-700 transition-colors shadow-2xs" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
                               {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
                               <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
@@ -1781,7 +1619,7 @@ export default function App() {
                           <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                             <table className="min-w-full text-left">
                               <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                                <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                   <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
                                   <th className="px-4 py-3.5">Localización y Custodio</th>
                                   <th className="px-4 py-3.5">Condición Física</th>
@@ -2243,7 +2081,7 @@ export default function App() {
               fc04SinMovimiento={fc04SinMovimiento}
               setFc04SinMovimiento={setFc04SinMovimiento}
               handleAddFC04Item={handleAddFC04Item}
-              fc04Items={fc04Items || []}  // Seguro anticrash adicional
+              fc04Items={fc04Items || []}
               handleFC04ItemChange={handleFC04ItemChange}
               formatCurrency={formatCurrency}
               handleRemoveFC04Item={handleRemoveFC04Item}
