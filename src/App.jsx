@@ -1059,55 +1059,80 @@ export default function App() {
   };
 
   const saveFC11 = async (e) => {
-    e.preventDefault(); const f = new FormData(e.target); const fc11Data = { id: fc11Editing ? fc11Editing.id : generateId(), numeroFormulario: f.get('numeroFormulario'), fecha: f.get('fecha'), dependenciaRemitente: dependenciaActual, areaRemitente: f.get('areaRemitente'), dependenciaDestinataria: f.get('dependenciaDestinataria'), areaDestinataria: f.get('areaDestinataria'), motivo: f.get('motivo'), estadoConservacion: f.get('estadoConservacion'), observaciones: f.get('observaciones'), bienId: fc11TargetBien.id, bienSnapshot: fc11TargetBien, tipoRegistro: 'FC11' }; 
+    e.preventDefault(); 
+    const f = new FormData(e.target); 
+    const fc11Data = { id: fc11Editing ? fc11Editing.id : generateId(), numeroFormulario: f.get('numeroFormulario'), fecha: f.get('fecha'), dependenciaRemitente: dependenciaActual, areaRemitente: f.get('areaRemitente'), dependenciaDestinataria: f.get('dependenciaDestinataria'), areaDestinataria: f.get('areaDestinataria'), motivo: f.get('motivo'), estadoConservacion: f.get('estadoConservacion'), observaciones: f.get('observaciones'), bienId: fc11TargetBien.id, bienSnapshot: fc11TargetBien, tipoRegistro: 'FC11' }; 
     const esMovimientoInterno = fc11Data.dependenciaRemitente === fc11Data.dependenciaDestinataria; 
     const updatedBien = { ...fc11TargetBien, dependencia: fc11Data.dependenciaDestinataria, estadoConservacion: fc11Data.estadoConservacion, hasFC10: false, funcionario: esMovimientoInterno ? fc11TargetBien.funcionario : '', ubicacion: esMovimientoInterno ? fc11TargetBien.ubicacion : '' };
     
+    // ENVOLTURA PARA SUPABASE
+    const payloadFC11 = { id: fc11Data.id, data: fc11Data };
+
     try {
+      let res;
       if (fc11Editing) {
-          await supabase.from('fc11').update(fc11Data).eq('id', fc11Data.id);
+          res = await supabase.from('fc11').update(payloadFC11).eq('id', fc11Data.id);
       } else {
-          await supabase.from('fc11').insert([fc11Data]);
+          res = await supabase.from('fc11').insert([payloadFC11]);
       }
+      if (res?.error) throw res.error;
 
       const openFc10 = fc10List.find(fc => fc.bienId === fc11TargetBien.id && !fc.devolucionFecha); 
       if (openFc10) { 
           const closedFc10 = { ...openFc10, devolucionFecha: new Date().toISOString().split('T')[0], devolucionLugar: "Traslado FC-11", devolucionReceptor: "Sistema" }; 
-          await supabase.from('fc10').update(closedFc10).eq('id', closedFc10.id);
+          await supabase.from('fc10').update({ data: closedFc10 }).eq('id', closedFc10.id);
           setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); 
       }
 
-      await supabase.from('bens').update(updatedBien).eq('id', updatedBien.id);
+      await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
       
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
       if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
       fetchData();
-    } catch (error) { addToast("Error al registrar FC-11.", "error"); }
+    } catch (error) { console.error(error); addToast("Error al registrar FC-11.", "error"); }
   };
 
   const saveFC04 = async (e) => {
-    e.preventDefault(); const f = new FormData(e.target); const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
+    e.preventDefault(); 
+    const f = new FormData(e.target); 
+    const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
+    
+    // ENVOLTURA PARA SUPABASE
+    const payloadFC04 = { id: fc04Data.id, data: fc04Data };
+
     try {
+      let res;
       if (fc04Editing) {
-          await supabase.from('fc04').update(fc04Data).eq('id', fc04Data.id);
+          res = await supabase.from('fc04').update(payloadFC04).eq('id', fc04Data.id);
       } else {
-          await supabase.from('fc04').insert([fc04Data]);
+          res = await supabase.from('fc04').insert([payloadFC04]);
       }
+      
+      if (res?.error) throw res.error;
 
       if (!fc04SinMovimiento && fc04Items.length > 0) {
-          const isBaja = fc04Data.origenMovimiento === 'B'; const newBienes = []; const updatedBienes = [];
+          const isBaja = fc04Data.origenMovimiento === 'B'; 
+          const newBienes = []; 
+          const updatedBienes = [];
+          
           for (const item of fc04Items) {
               const existingBien = bienes.find(b => b.rotulo.toLowerCase() === item.rotulo.toLowerCase() && b.dependencia === dependenciaActual);
-              if (isBaja) { if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); } 
-              else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); }
+              if (isBaja) { 
+                  if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); 
+              } else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { 
+                  newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); 
+              }
           }
           if (newBienes.length > 0) { 
-              await supabase.from('bens').insert(newBienes);
+              const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
+              await supabase.from('bens').insert(payloadNewBienes);
               setBienes(prev => [...newBienes, ...prev]); 
               addToast(`${newBienes.length} bienes inyectados.`, "success"); 
           }
           if (updatedBienes.length > 0) { 
-              for (const b of updatedBienes) await supabase.from('bens').update(b).eq('id', b.id);
+              for (const b of updatedBienes) {
+                  await supabase.from('bens').update({ data: b }).eq('id', b.id);
+              }
               setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
               addToast(`${updatedBienes.length} bajas registradas.`, "success"); 
           }
@@ -1115,19 +1140,32 @@ export default function App() {
       if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
       fetchData();
       addToast("Expediente FC-04 guardado", "success");
-    } catch (error) { addToast("Error guardando FC-04.", "error"); }
+    } catch (error) { console.error(error); addToast("Error guardando FC-04.", "error"); }
   };
 
   const saveFC10 = async (e) => {
-    e.preventDefault(); const formData = new FormData(e.target); const orgDataToSave = { unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod') }; localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; const isDevuelto = !!fcData.devolucionFecha; const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
-    try { 
-        if (fc10Editing) {
-            await supabase.from('fc10').update(fcData).eq('id', fcData.id);
-        } else {
-            await supabase.from('fc10').insert([fcData]);
-        }
+    e.preventDefault(); 
+    const formData = new FormData(e.target); 
+    const orgDataToSave = { unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod') }; 
+    localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); 
+    
+    const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; 
+    const isDevuelto = !!fcData.devolucionFecha; 
+    const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
+    
+    // ENVOLTURA PARA SUPABASE
+    const payloadFC10 = { id: fcData.id, data: fcData };
 
-        await supabase.from('bens').update(updatedBien).eq('id', updatedBien.id);
+    try { 
+        let res;
+        if (fc10Editing) {
+            res = await supabase.from('fc10').update(payloadFC10).eq('id', fcData.id);
+        } else {
+            res = await supabase.from('fc10').insert([payloadFC10]);
+        }
+        if (res?.error) throw res.error;
+
+        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
 
         const checkAndAddStructure = async (name, code, tipo) => { 
             if (name && code) { 
@@ -1137,16 +1175,19 @@ export default function App() {
                     if (!exists) { 
                         const newStruct = { id: generateId(), nombre: nameUpper, codigo: code, tipoRegistro: 'ESTRUCTURA', tipoEstructura: tipo }; 
                         setEstructurasDB(prev => [...prev, newStruct]); 
-                        await supabase.from('estructuras').insert([newStruct]); 
+                        await supabase.from('estructuras').insert([{ id: newStruct.id, data: newStruct }]); 
                     } 
                 } catch(err) {}
             } 
         }; 
         await checkAndAddStructure(orgDataToSave.unidad, orgDataToSave.unidadCod, 'unidad'); await checkAndAddStructure(orgDataToSave.reparticion, orgDataToSave.reparticionCod, 'reparticion'); await checkAndAddStructure(orgDataToSave.dependenciaOrg, orgDataToSave.dependenciaCod, 'dependencia'); await checkAndAddStructure(orgDataToSave.area, orgDataToSave.areaCod, 'area'); 
-        setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); setIsFC10ModalOpen(false); 
+        
+        setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
+        setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
+        setIsFC10ModalOpen(false); 
         fetchData();
         addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
-    } catch (error) { addToast("Error al guardar.", "error"); }
+    } catch (error) { console.error(error); addToast("Error al guardar.", "error"); }
   };
 
   const confirmDeleteAction = async () => {
