@@ -330,7 +330,7 @@ export default function App() {
   const [isBienModalOpen, setIsBienModalOpen] = useState(false); const [bienEditing, setBienEditing] = useState(null);
   const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false); const [fc10TargetBien, setFc10TargetBien] = useState(null); const [fc10Editing, setFc10Editing] = useState(null);
   const [isFC11ModalOpen, setIsFC11ModalOpen] = useState(false); const [fc11TargetBien, setFc11TargetBien] = useState(null); const [fc11Editing, setFc11Editing] = useState(null); const [fc11FormNumber, setFc11FormNumber] = useState('');
-  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); 
+  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); const [fc04Editing, setFc04Editing] = useState(null);
   const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false); const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
   
   const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);

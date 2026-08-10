@@ -45,7 +45,7 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border bg-white dark:bg-darkbg-card">
-                                            {fc04Items.length === 0 ? (
+                                            {(!fc04Items || fc04Items.length === 0) ? (
                                                 <tr><td colSpan="6" className="p-8 text-center text-sm font-medium text-zinc-400">Presiona "Agregar Fila" para comenzar a listar bienes.</td></tr>
                                             ) : fc04Items.map(item => (
                                                 <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50">
