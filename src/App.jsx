@@ -271,6 +271,9 @@ export default function App() {
   
   const [bienes, setBienes] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [fc04Items, setFc04Items] = useState([]);
+  const [fc10Items, setFc10Items] = useState([]);
+  const [fc11Items, setFc11Items] = useState([]);
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
