@@ -1452,7 +1452,7 @@ export default function App() {
                             <div className="flex-1 overflow-auto custom-scrollbar">
                               <table className="min-w-full text-left">
                                 <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                                  <tr className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                  <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
                                     <th className="py-3.5 pl-6 pr-4 w-1/3">Bien Solicitado</th>
                                     <th className="px-4 py-3.5 w-1/3">Custodio Actual</th>
                                     <th className="relative py-3.5 pl-4 pr-6 text-right">Acción de Revisión</th>
@@ -1875,36 +1875,47 @@ export default function App() {
                             const bien = bienes.find(b=>b.id === fc.bienId) || {};
                             const isDevuelto = !!fc.devolucionFecha;
                             return (
-                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group relative overflow-hidden`}>
-                                {!isDevuelto && <div className="absolute top-0 left-0 w-full h-1 bg-brand-primary"></div>}
-                                <div className="flex justify-between items-start mb-5">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg shadow-2xs ${isDevuelto ? 'bg-zinc-100 text-zinc-500 dark:bg-darkbg-main dark:text-zinc-400' : 'bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
-                                        <i className={`fa-solid ${isDevuelto ? 'fa-box-archive' : 'fa-file-signature'}`}></i>
+                              <div key={fc.id} className="bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200 dark:border-darkbg-border shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
+                                <div className={`absolute top-0 left-0 w-full h-1 ${isDevuelto ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-brand-primary'}`}></div>
+                                
+                                <div className="p-5 flex-1 flex flex-col">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex flex-col gap-1.5">
+                                            {isDevuelto ? (
+                                                <span className="inline-flex w-fit items-center rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                                    Devuelto
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex w-fit items-center rounded-md bg-brand-light/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent border border-brand-primary/20 shadow-sm">
+                                                    Vigente
+                                                </span>
+                                            )}
+                                            <span className="text-xs font-medium text-zinc-500 flex items-center gap-1">
+                                                <i className="fa-regular fa-calendar"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-darkbg-card rounded-lg shadow-sm border border-zinc-100 dark:border-darkbg-border p-1">
+                                            <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Imprimir"><i className="fa-solid fa-print"></i></button>
+                                            <button onClick={() => openFC10Modal(bien, fc)} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Editar / Cerrar"><i className="fa-solid fa-pen-to-square"></i></button>
+                                            {isAdmin && (
+                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="text-zinc-500 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md transition cursor-pointer" title="Eliminar"><i className="fa-solid fa-trash-can"></i></button>
+                                            )}
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col">
-                                        {isDevuelto ? (
-                                          <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-0.5 text-[10px] font-black uppercase text-zinc-600 dark:bg-darkbg-main dark:text-zinc-400 border border-zinc-200/60 dark:border-darkbg-border">Concluido</span>
-                                        ) : (
-                                          <span className="inline-flex items-center rounded-lg bg-brand-light px-2.5 py-0.5 text-[10px] font-black uppercase text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent border border-brand-primary/20">Vigente</span>
-                                        )}
-                                        <p className="text-xs font-bold text-zinc-400 mt-1"><i className="fa-regular fa-calendar mr-1"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}</p>
+                                    
+                                    <div className="mt-2">
+                                        <h4 className="font-bold text-zinc-900 dark:text-white text-sm uppercase tracking-tight">{fc.funcionarioNombre}</h4>
+                                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">{fc.funcionarioCargo}</p>
                                     </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Imprimir"><i className="fa-solid fa-print text-xs"></i></button>
-                                    <button onClick={() => openFC10Modal(bien, fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar / Cerrar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                                    {isAdmin && (
-                                        <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                                    )}
-                                  </div>
                                 </div>
-                                <div className="mt-2 flex-1 flex flex-col">
-                                    <h4 className="font-extrabold text-zinc-900 dark:text-white text-base leading-snug">{fc.funcionarioNombre}</h4>
-                                    <p className="text-xs font-semibold text-zinc-400 mb-4">{fc.funcionarioCargo}</p>
-                                    <div className="mt-auto bg-zinc-50/80 dark:bg-darkbg-main/80 p-3.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border">
-                                      <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mb-1 font-mono"><i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {bien.rotulo}</p>
-                                      <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{bien.descripcion || 'Sin detalle técnico.'}</p>
+                                
+                                <div className="bg-zinc-50/80 dark:bg-darkbg-main/80 border-t border-zinc-100 dark:border-darkbg-border p-4">
+                                    <div className="flex items-start gap-2.5">
+                                        <i className="fa-solid fa-tag text-zinc-400 mt-0.5 text-xs"></i>
+                                        <div>
+                                            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 font-mono tracking-tight">{bien.rotulo}</p>
+                                            <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-1 mt-0.5 font-medium">{bien.descripcion || 'Sin descripción técnica'}</p>
+                                        </div>
                                     </div>
                                 </div>
                               </div>
