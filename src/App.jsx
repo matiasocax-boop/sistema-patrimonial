@@ -1519,32 +1519,32 @@ export default function App() {
                             </thead>
                             <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
                               {usuariosList.map(u => (
-                                <tr key={u.username} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
-                                    <td className="py-4 pl-6 pr-4 align-middle">
+                                <tr key={u.username} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50 transition-colors border-b border-zinc-50 dark:border-darkbg-border/30">
+                                    <td className="py-3 pl-6 pr-4 align-middle">
                                         <div className="flex items-center gap-3">
-                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-black text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-2xs">
+                                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-bold text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-sm">
                                               {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
                                           </div>
                                           <div>
-                                              <div className="font-extrabold text-zinc-900 dark:text-white text-sm leading-snug">{u.nombre}</div>
-                                              <div className="text-xs font-semibold text-zinc-400 dark:text-zinc-500 mt-0.5 font-mono">@{u.username}</div>
+                                              <div className="font-semibold text-zinc-900 dark:text-white text-sm">{u.nombre}</div>
+                                              <div className="text-xs text-zinc-500 mt-0.5">@{u.username}</div>
                                           </div>
                                         </div>
                                     </td>
-                                    <td className="px-4 py-4 align-middle">
+                                    <td className="px-4 py-3 align-middle">
                                         {u.cargo === 'admin' 
-                                            ? <span className="inline-flex items-center gap-1.5 rounded-xl bg-red-50/80 px-3 py-1.5 text-[11px] font-black text-red-700 ring-1 ring-inset ring-red-600/20 dark:bg-red-900/20 dark:text-red-400 uppercase tracking-wider shadow-2xs"><i className="fa-solid fa-shield-halved text-xs"></i> Administrador General</span>
-                                            : <span className="inline-flex items-center gap-1.5 rounded-xl bg-brand-light/80 px-3 py-1.5 text-[11px] font-black text-brand-primary ring-1 ring-inset ring-brand-primary/20 dark:bg-brand-primary/20 dark:text-brand-accent uppercase tracking-wider shadow-2xs"><i className="fa-solid fa-user text-xs"></i> Funcionario Local</span>
+                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-900/20 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-shield-halved text-[10px]"></i> Administrador</span>
+                                            : <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 shadow-sm"><i className="fa-solid fa-user text-[10px]"></i> Funcionario</span>
                                         }
                                     </td>
-                                    <td className="relative py-4 pl-4 pr-6 align-middle text-right">
-                                        <div className="flex items-center justify-end gap-1.5">
-                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light/80 dark:hover:bg-brand-primary/20 border border-transparent hover:border-brand-primary/20 transition-all cursor-pointer shadow-2xs" title="Editar cuenta">
-                                              <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                    <td className="relative py-3 pl-4 pr-6 align-middle text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary transition-colors cursor-pointer" title="Editar">
+                                              <i className="fa-solid fa-pen-to-square"></i>
                                           </button>
                                           {u.username !== currentUser.username && (
-                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-transparent hover:border-red-200 transition-all cursor-pointer shadow-2xs" title="Eliminar cuenta">
-                                                  <i className="fa-solid fa-trash-can text-xs"></i>
+                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="text-zinc-400 hover:text-red-500 transition-colors cursor-pointer" title="Eliminar">
+                                                  <i className="fa-solid fa-trash-can"></i>
                                               </button>
                                           )}
                                         </div>
@@ -1647,45 +1647,45 @@ export default function App() {
 
                 {activeTab === 'inventario' && (
                     <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs space-y-6 shrink-0">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
+                      <div className="bg-white dark:bg-darkbg-card p-5 sm:p-6 rounded-xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-5 shrink-0">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-darkbg-border">
                           <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                              <i className="fa-solid fa-boxes-stacked text-xl"></i>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-sm">
+                              <i className="fa-solid fa-boxes-stacked text-lg"></i>
                             </div>
                             <div>
-                              <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">
+                              <h2 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
                                   Directorio Patrimonial
                               </h2>
-                              <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos</p>
+                              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos</p>
                             </div>
                           </div>
 
-                          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !px-6 !py-3 shadow-md shrink-0"}>
+                          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " shadow-sm shrink-0"}>
                               <i className="fa-solid fa-plus"></i> Añadir Registro
                           </button>
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mr-1">Datos:</span>
-                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary}>
+                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mr-1">Datos:</span>
+                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary + " !py-2 !px-3"}>
                                 <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
                             </button>
-                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary}>
+                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary + " !py-2 !px-3"}>
                                 <i className="fa-solid fa-file-import text-brand-primary"></i> Importar CSV
                             </button>
-                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary}>
+                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary + " !py-2 !px-3"}>
                                 <i className="fa-solid fa-download text-sky-500"></i> Exportar CSV
                             </button>
                           </div>
                           
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mr-1">Salidas:</span>
-                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary}>
+                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mr-1">Salidas:</span>
+                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary + " !py-2 !px-3"}>
                                 <i className="fa-solid fa-file-zipper text-purple-500"></i> Lote QRs
                             </button>
-                            <button onClick={openFC03Modal} className={STYLES.btnSecondary}>
+                            <button onClick={openFC03Modal} className={STYLES.btnSecondary + " !py-2 !px-3"}>
                                 <i className="fa-solid fa-print text-amber-500"></i> Reporte FC-03
                             </button>
                           </div>
@@ -2202,35 +2202,25 @@ export default function App() {
       {isFC10ModalOpen && (
           <FC10Modal 
               setIsFC10ModalOpen={setIsFC10ModalOpen}
+              fc10TargetBien={fc10TargetBien}
               fc10Editing={fc10Editing}
               saveFC10={saveFC10}
-              fc10Month={fc10Month}
-              fc10Year={fc10Year}
-              funcionariosConDatos={funcionariosConDatos}
-              fc10Items={fc10Items}
-              handleAddFC10Item={handleAddFC10Item}
-              handleRemoveFC10Item={handleRemoveFC10Item}
-              handleFC10ItemChange={handleFC10ItemChange}
-              bienes={bienes}
-              formatCurrency={formatCurrency}
               STYLES={STYLES}
+              formatCurrency={formatCurrency}
+              funcionariosConDatos={funcionariosConDatos}
           />
       )}
 
       {isFC11ModalOpen && (
           <FC11Modal 
               setIsFC11ModalOpen={setIsFC11ModalOpen}
+              fc11TargetBien={fc11TargetBien}
               fc11Editing={fc11Editing}
               saveFC11={saveFC11}
               fc10Month={fc10Month}
               fc10Year={fc10Year}
               todasDependencias={todasDependencias}
               dependenciaActual={dependenciaActual}
-              fc11Items={fc11Items}
-              handleAddFC11Item={handleAddFC11Item}
-              handleRemoveFC11Item={handleRemoveFC11Item}
-              handleFC11ItemChange={handleFC11ItemChange}
-              bienes={bienes}
               formatCurrency={formatCurrency}
               STYLES={STYLES}
           />
