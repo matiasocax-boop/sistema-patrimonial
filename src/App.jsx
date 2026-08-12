@@ -359,15 +359,37 @@ export default function App() {
         }
       }
 
-      const { data: nuevosBienesData, error: errorBienes } = await supabase
-        .from('bens')
-        .select('id, data, updated_at')
-        .gt('updated_at', ultimaFecha);
+      // CORRECCIÓN 1: Paginación para descargar los 1700 bienes sin chocar con el límite
+      let todosLosNuevosBienes = [];
+      let rangeSize = 1000;
+      let from = 0;
+      let to = rangeSize - 1;
+      let keepFetchingBienes = true;
 
-      if (!errorBienes && nuevosBienesData && nuevosBienesData.length > 0) {
+      while (keepFetchingBienes) {
+        const { data: batch, error } = await supabase
+          .from('bens')
+          .select('id, data, updated_at')
+          .gt('updated_at', ultimaFecha)
+          .range(from, to);
+
+        if (error || !batch || batch.length === 0) {
+          keepFetchingBienes = false;
+        } else {
+          todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
+          if (batch.length < rangeSize) {
+            keepFetchingBienes = false;
+          } else {
+            from += rangeSize;
+            to += rangeSize;
+          }
+        }
+      }
+
+      if (todosLosNuevosBienes.length > 0) {
         const mapaBienes = new Map(cacheBienes.map(b => [b.id, b]));
         
-        nuevosBienesData.forEach(item => {
+        todosLosNuevosBienes.forEach(item => {
             const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
             mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
         });
@@ -422,12 +444,16 @@ export default function App() {
           }
       }
 
+      // CORRECCIÓN 2: Freno condicional para evitar el bucle infinito
       if (currentUser) {
           const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
           if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin')) {
-              const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
-              setCurrentUser(updatedSessionUser);
-              localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
+              // Solo se actualiza si NO era admin previamente
+              if (currentUser.role !== 'admin' || currentUser.cargo !== 'admin') {
+                  const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
+                  setCurrentUser(updatedSessionUser);
+                  localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
+              }
           }
       }
 
