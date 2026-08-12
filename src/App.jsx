@@ -514,7 +514,37 @@ export default function App() {
     }
   };
   
-  const handleLogoUpload = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); const maxSize = 300; let width = img.width; let height = img.height; if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } canvas.width = width; canvas.height = height; const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); const newLogo = canvas.toDataURL('image/png'); localStorage.setItem('logoOficial', newLogo); setAppLogo(newLogo); addToast("Logo oficial actualizado", "success"); }; img.src = event.target.result; }; reader.readAsDataURL(file); e.target.value = null; };
+  const handleLogoUpload = (e) => { 
+    const file = e.target.files[0]; 
+    if (!file) return; 
+    const reader = new FileReader(); 
+    reader.onload = (event) => { 
+        const img = new Image(); 
+        img.onload = () => { 
+            const canvas = document.createElement('canvas'); 
+            const maxSize = 300; 
+            let width = img.width; 
+            let height = img.height; 
+            if (width > height) { 
+                if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
+            } else { 
+                if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
+            } 
+            canvas.width = width; 
+            canvas.height = height; 
+            const ctx = canvas.getContext('2d'); 
+            ctx.drawImage(img, 0, 0, width, height); 
+            // Optimización de imagen a WebP con compresión de calidad 85% para ahorrar espacio local
+            const compressedLogo = canvas.toDataURL('image/webp', 0.85); 
+            localStorage.setItem('logoOficial', compressedLogo); 
+            setAppLogo(compressedLogo); 
+            addToast("Logo oficial optimizado y actualizado", "success"); 
+        }; 
+        img.src = event.target.result; 
+    }; 
+    reader.readAsDataURL(file); 
+    e.target.value = null; 
+  };
 
   const funcionariosConDatos = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { const nombreSeguro = String(fc.funcionarioNombre).trim(); if(!map.has(normalizeStr(nombreSeguro))) { map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); } } }); return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }, [fc10List]);
   const funcionariosUnicos = useMemo(() => { const funcMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && String(b.funcionario).trim() !== "").forEach(b => { const val = String(b.funcionario).trim(); const key = normalizeStr(val); if(!funcMap.has(key)) funcMap.set(key, val); }); return Array.from(funcMap.values()).sort(); }, [bienes, dependenciaActual]);
@@ -959,7 +989,6 @@ export default function App() {
         }
 
         if (!res.error) {
-            // Actualización instantánea en pantalla sin recargar ni gastar egress extra
             setBienes(prev => {
                 if (bienEditing) {
                     return prev.map(b => b.id === bienData.id ? bienData : b);
@@ -968,7 +997,6 @@ export default function App() {
                 }
             });
 
-            // Actualizar también la caché local en IndexedDB para mantener consistencia
             const cacheActual = await localforage.getItem('bienes_cache') || [];
             let nuevoCache = [...cacheActual];
             const idxCache = nuevoCache.findIndex(b => b.id === bienData.id);
@@ -1296,7 +1324,8 @@ export default function App() {
     </div>
   );
 
-  if (!isAuthenticated) {
+  // MEJORA 1: Pantalla de mantenimiento global ubicada al inicio absoluto.
+  // Bloquea por completo el acceso a cualquier usuario si está activada en la base de datos.
   if (isMaintenanceMode) {
       return (
           <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -1305,11 +1334,13 @@ export default function App() {
               </div>
               <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight mb-4">Sistema en Mantenimiento</h1>
               <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-md mx-auto font-medium leading-relaxed">
-                  Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos.
+                  {systemConfig.notes || "Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos."}
               </p>
           </div>
       );
   }
+
+  if (!isAuthenticated) {
       return (
           <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />
       );
@@ -2340,12 +2371,12 @@ export default function App() {
               </h3>
               
               <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">
-    {itemToDelete.type === 'requestBaja' 
-        ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
-        : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
-        ? 'El bien pasará a estado "De Baja". No se eliminará de la base de datos todavía.'
-        : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
-</p>
+                {itemToDelete.type === 'requestBaja' 
+                    ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
+                    : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
+                    ? 'El bien pasará a estado "De Baja". No se eliminará de la base de datos todavía.'
+                    : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
+              </p>
               
               {itemToDelete.type === 'usuario' && itemToDelete.cargo === 'admin' && (
                   <div className="mt-4 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-2xl">
@@ -2359,8 +2390,8 @@ export default function App() {
             <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
               <button onClick={() => setItemToDelete(null)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
               <button onClick={confirmDeleteAction} className={`flex-1 py-4 text-sm font-black transition-colors focus:outline-none cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'text-orange-600 hover:bg-orange-100 dark:hover:bg-orange-900/20' : 'text-red-600 hover:bg-red-100 dark:hover:bg-red-900/20'}`}>
-    {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : (itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja' ? 'Pasar a Baja' : 'Sí, eliminar')}
-</button>
+                {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : (itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja' ? 'Pasar a Baja' : 'Sí, eliminar')}
+              </button>
             </div>
           </div>
         </div>
