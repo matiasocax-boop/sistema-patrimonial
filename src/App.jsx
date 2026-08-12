@@ -229,7 +229,8 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true); // Arranca en true para consultar rápido
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true); // Arranca bloqueado por seguridad hasta verificar
+  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(true); // Control de carga inicial
   const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -240,7 +241,7 @@ export default function App() {
   const [bienes, setBienes] = useState([]);
   const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
 
-  // EFECTO INICIAL: Consulta obligatoria de mantenimiento apenas abre la app
+  // VERIFICACIÓN DE MANTENIMIENTO INMEDIATA AL ABRIR
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
@@ -248,9 +249,13 @@ export default function App() {
         if (data) {
           setIsMaintenanceMode(data.en_mantenimiento);
           setSystemConfig({ version: data.version_actual, notes: data.notas_actualizacion });
+        } else {
+          setIsMaintenanceMode(false);
         }
       } catch (err) {
-        console.error("Error al verificar mantenimiento", err);
+        setIsMaintenanceMode(false);
+      } finally {
+        setIsCheckingMaintenance(false);
       }
     };
     checkMaintenance();
@@ -1338,6 +1343,30 @@ export default function App() {
       </div>
     </div>
   );
+
+  // PANTALLA DE CARGA INICIAL MIENTRAS VERIFICA EL MANTENIMIENTO
+  if (isCheckingMaintenance) {
+      return (
+          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
+              <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary"></i>
+          </div>
+      );
+  }
+
+  // BLOQUEO ABSOLUTO DE MANTENIMIENTO
+  if (isMaintenanceMode) {
+      return (
+          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+              <div className="w-24 h-24 bg-brand-light dark:bg-brand-primary/20 text-brand-primary rounded-3xl flex items-center justify-center mb-8 animate-pulse shadow-sm">
+                  <i className="fa-solid fa-screwdriver-wrench text-5xl"></i>
+              </div>
+              <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight mb-4">Sistema en Mantenimiento</h1>
+              <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-md mx-auto font-medium leading-relaxed">
+                  {systemConfig.notes || "Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos."}
+              </p>
+          </div>
+      );
+  }
 
   if (!isAuthenticated) {
       return (
