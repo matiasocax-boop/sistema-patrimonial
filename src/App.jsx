@@ -12,6 +12,7 @@ import BienModal from './components/BienModal';
 import FC04Modal from './components/FC04Modal';
 import FC10Modal from './components/FC10Modal';
 import FC11Modal from './components/FC11Modal';
+import localforage from 'localforage';
 import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 
@@ -231,6 +232,13 @@ export default function App() {
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
+  
+  const [bienes, setBienes] = useState([]);
+  const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
 
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
@@ -240,58 +248,6 @@ export default function App() {
       localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let inactivityTimer;
-    const maxInactivityTime = 2 * 60 * 60 * 1000;
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        addToast("Sesión cerrada por inactividad (2 horas sin uso).", "warning");
-        handleLogout();
-      }, maxInactivityTime);
-    };
-    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
-    events.forEach(event => window.addEventListener(event, resetTimer));
-    resetTimer();
-    return () => {
-      clearTimeout(inactivityTimer);
-      events.forEach(event => window.removeEventListener(event, resetTimer));
-    };
-  }, [isAuthenticated, handleLogout]);
-
-  const [isLoading, setIsLoading] = useState(true); 
-  const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
-  const [activeTab, setActiveTab] = useState('dashboard'); 
-  const [dependenciaActual, setDependenciaActual] = useState(DEPENDENCIAS_UNP[0]);
-  
-  const [bienes, setBienes] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [fc04Items, setFc04Items] = useState([]);
-  const [fc10Items, setFc10Items] = useState([]);
-  const [fc11Items, setFc11Items] = useState([]);
-  
-  const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
-
-  const handleAddFC04Item = () => setFc04Items([...fc04Items, { id: Date.now(), cuenta: '', subcuenta: '', analitico1: '', analitico2: '', descripcion: '', rotulo: '', valorUnitario: '', fechaAdquisicion: '', vidaUtil: '' }]);
-  const handleRemoveFC04Item = (id) => setFc04Items(fc04Items.filter(item => item.id !== id));
-  const handleFC04ItemChange = (id, field, value) => setFc04Items(fc04Items.map(item => item.id === id ? { ...item, [field]: value } : item));
-
-  const handleAddFC10Item = () => setFc10Items([...fc10Items, { id: Date.now(), rotulo: '', descripcion: '', valorUnitario: '', estadoConservacion: '' }]);
-  const handleRemoveFC10Item = (id) => setFc10Items(fc10Items.filter(item => item.id !== id));
-  const handleFC10ItemChange = (id, field, value) => {
-      setFc10Items(fc10Items.map(item => {
-          if (item.id === id) {
-              if (field === 'rotulo') {
-                  const matched = bienes.find(b => b.rotulo === value);
-                  if (matched) return { ...item, rotulo: value, descripcion: matched.descripcion, valorUnitario: matched.valorUnitario, estadoConservacion: matched.estadoConservacion, originalId: matched.id };
-              }
-              return { ...item, [field]: value };
-          }
-          return item;
-      }));
-  };
 
   const handleAddFC11Item = () => setFc11Items([...fc11Items, { id: Date.now(), rotulo: '', descripcion: '', valorUnitario: '', estadoConservacion: '' }]);
   const handleRemoveFC11Item = (id) => setFc11Items(fc11Items.filter(item => item.id !== id));
@@ -318,7 +274,6 @@ export default function App() {
   const [filtroFuncionario, setFiltroFuncionario] = useState(''); const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
   const [filtroAnio, setFiltroAnio] = useState(''); const [filtroMes, setFiltroMes] = useState(''); 
   
-  // NUEVOS FILTROS CONTABLES
   const [filtroSubcuenta, setFiltroSubcuenta] = useState(''); 
   const [filtroAnalitico1, setFiltroAnalitico1] = useState(''); 
   const [filtroAnalitico2, setFiltroAnalitico2] = useState('');
@@ -334,7 +289,7 @@ export default function App() {
   const [isBienModalOpen, setIsBienModalOpen] = useState(false); const [bienEditing, setBienEditing] = useState(null);
   const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false); const [fc10TargetBien, setFc10TargetBien] = useState(null); const [fc10Editing, setFc10Editing] = useState(null);
   const [isFC11ModalOpen, setIsFC11ModalOpen] = useState(false); const [fc11TargetBien, setFc11TargetBien] = useState(null); const [fc11Editing, setFc11Editing] = useState(null); const [fc11FormNumber, setFc11FormNumber] = useState('');
-  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); const [fc04Editing, setFc04Editing] = useState(null);
+  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); const [fc04Editing, setFc04Editing] = useState(null); const [fc04Items, setFc04Items] = useState([]); const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
   const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false); const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
   
   const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
@@ -386,8 +341,45 @@ export default function App() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [resBienes, resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
-          fetchAllRows('bens'),
+      setIsLoading(true);
+
+      // --- INICIO OPTIMIZACIÓN: SINCRONIZACIÓN DIFERENCIAL (IndexedDB) ---
+      const cacheBienes = await localforage.getItem('bienes_cache') || [];
+      if (cacheBienes.length > 0) {
+        setBienes(cacheBienes); // Pantalla instantánea
+      }
+
+      let ultimaFecha = '1970-01-01T00:00:00.000Z';
+      if (cacheBienes.length > 0) {
+        const fechas = cacheBienes
+          .filter(b => b.updated_at)
+          .map(b => new Date(b.updated_at).getTime());
+        if (fechas.length > 0) {
+          ultimaFecha = new Date(Math.max(...fechas)).toISOString();
+        }
+      }
+
+      const { data: nuevosBienesData, error: errorBienes } = await supabase
+        .from('bens')
+        .select('id, data, updated_at')
+        .gt('updated_at', ultimaFecha);
+
+      if (!errorBienes && nuevosBienesData && nuevosBienesData.length > 0) {
+        const mapaBienes = new Map(cacheBienes.map(b => [b.id, b]));
+        
+        nuevosBienesData.forEach(item => {
+            const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+            mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
+        });
+        
+        const inventarioFinal = Array.from(mapaBienes.values());
+        await localforage.setItem('bienes_cache', inventarioFinal);
+        setBienes(inventarioFinal);
+      }
+      // --- FIN OPTIMIZACIÓN ---
+
+      // Carga estándar para el resto de tablas
+      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
           fetchAllRows('fc10'),
           fetchAllRows('fc11'),
           fetchAllRows('fc04'),
@@ -407,7 +399,6 @@ export default function App() {
           });
       };
 
-      setBienes(parseDirect(resBienes.data));
       setFc10List(parseDirect(resFc10.data));
       setFc11List(parseDirect(resFc11.data));
       setFc04List(parseDirect(resFc04.data));
@@ -416,7 +407,7 @@ export default function App() {
       
       const parsedUsuarios = parseDirect(resUsuarios.data);
       setUsuariosList(parsedUsuarios);
-      // Leer configuración de mantenimiento
+      
       const resConfig = await supabase.from('configuracion_sistema').select('*').limit(1).single();
       if (resConfig.data) {
           setIsMaintenanceMode(resConfig.data.en_mantenimiento);
@@ -452,21 +443,36 @@ export default function App() {
   useEffect(() => { 
       if (!isAuthenticated) return;
       fetchData(); 
+      
       const subscription = supabase
           .channel('cambios-patrimonio')
-          .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
+          .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
               const { table, eventType, new: newRecord, old: oldRecord } = payload;
-              const parseRecord = (record) => record ? { id: record.id, ...(typeof record.data === 'string' ? JSON.parse(record.data) : record.data) } : null;
+              const parseRecord = (record) => record ? { id: record.id, updated_at: record.updated_at, ...(typeof record.data === 'string' ? JSON.parse(record.data) : record.data) } : null;
               const newItem = parseRecord(newRecord);
               const oldItem = parseRecord(oldRecord);
 
-              const updateState = (setter) => {
+              const updateState = async (setter, isBensTable = false) => {
                   if (eventType === 'INSERT') setter(prev => [newItem, ...prev]);
                   else if (eventType === 'UPDATE') setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
                   else if (eventType === 'DELETE') setter(prev => prev.filter(i => i.id !== oldItem.id));
+
+                  // Mantenimiento del caché en tiempo real para IndexedDB
+                  if (isBensTable) {
+                      const cacheActual = await localforage.getItem('bienes_cache') || [];
+                      let nuevoInventario = [...cacheActual];
+                      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                          const index = nuevoInventario.findIndex(b => b.id === newItem.id);
+                          if (index !== -1) nuevoInventario[index] = newItem;
+                          else nuevoInventario.push(newItem);
+                      } else if (eventType === 'DELETE') {
+                          nuevoInventario = nuevoInventario.filter(b => b.id !== oldItem.id);
+                      }
+                      await localforage.setItem('bienes_cache', nuevoInventario);
+                  }
               };
 
-              if (table === 'bens') updateState(setBienes);
+              if (table === 'bens') await updateState(setBienes, true);
               else if (table === 'fc10') updateState(setFc10List);
               else if (table === 'fc11') updateState(setFc11List);
               else if (table === 'fc04') updateState(setFc04List);
@@ -480,7 +486,6 @@ export default function App() {
                   }
               }
           }).subscribe();
-          
 
       return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]); 
