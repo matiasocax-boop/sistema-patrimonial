@@ -959,6 +959,26 @@ export default function App() {
         }
 
         if (!res.error) {
+            // Actualización instantánea en pantalla sin recargar ni gastar egress extra
+            setBienes(prev => {
+                if (bienEditing) {
+                    return prev.map(b => b.id === bienData.id ? bienData : b);
+                } else {
+                    return [bienData, ...prev];
+                }
+            });
+
+            // Actualizar también la caché local en IndexedDB para mantener consistencia
+            const cacheActual = await localforage.getItem('bienes_cache') || [];
+            let nuevoCache = [...cacheActual];
+            const idxCache = nuevoCache.findIndex(b => b.id === bienData.id);
+            if (idxCache !== -1) {
+                nuevoCache[idxCache] = bienData;
+            } else {
+                nuevoCache.push(bienData);
+            }
+            await localforage.setItem('bienes_cache', nuevoCache);
+
             if (keepOpen) {
                 addToast(`"${rotuloInput}" guardado.`, "success");
                 form.elements['rotulo'].value = '';
