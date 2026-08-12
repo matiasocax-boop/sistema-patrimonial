@@ -249,21 +249,6 @@ export default function App() {
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
   }, []);
 
-  const handleAddFC11Item = () => setFc11Items([...fc11Items, { id: Date.now(), rotulo: '', descripcion: '', valorUnitario: '', estadoConservacion: '' }]);
-  const handleRemoveFC11Item = (id) => setFc11Items(fc11Items.filter(item => item.id !== id));
-  const handleFC11ItemChange = (id, field, value) => {
-      setFc11Items(fc11Items.map(item => {
-          if (item.id === id) {
-              if (field === 'rotulo') {
-                  const matched = bienes.find(b => b.rotulo === value);
-                  if (matched) return { ...item, rotulo: value, descripcion: matched.descripcion, valorUnitario: matched.valorUnitario, estadoConservacion: matched.estadoConservacion, originalId: matched.id };
-              }
-              return { ...item, [field]: value };
-          }
-          return item;
-      }));
-  };
-
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
@@ -343,23 +328,11 @@ export default function App() {
     try {
       setIsLoading(true);
 
-      // --- INICIO OPTIMIZACIÓN: SINCRONIZACIÓN DIFERENCIAL (IndexedDB) ---
       const cacheBienes = await localforage.getItem('bienes_cache') || [];
       if (cacheBienes.length > 0) {
-        setBienes(cacheBienes); // Pantalla instantánea
+        setBienes(cacheBienes);
       }
 
-      let ultimaFecha = '1970-01-01T00:00:00.000Z';
-      if (cacheBienes.length > 0) {
-        const fechas = cacheBienes
-          .filter(b => b.updated_at)
-          .map(b => new Date(b.updated_at).getTime());
-        if (fechas.length > 0) {
-          ultimaFecha = new Date(Math.max(...fechas)).toISOString();
-        }
-      }
-
-      // CORRECCIÓN 1: Paginación para descargar los 1700 bienes sin chocar con el límite
       let todosLosNuevosBienes = [];
       let rangeSize = 1000;
       let from = 0;
@@ -367,11 +340,18 @@ export default function App() {
       let keepFetchingBienes = true;
 
       while (keepFetchingBienes) {
-        const { data: batch, error } = await supabase
-          .from('bens')
-          .select('id, data, updated_at')
-          .gt('updated_at', ultimaFecha)
-          .range(from, to);
+        let query = supabase.from('bens').select('id, data, updated_at');
+        
+        if (cacheBienes.length > 0) {
+            let ultimaFecha = '1970-01-01T00:00:00.000Z';
+            const fechas = cacheBienes.map(b => b.updated_at ? new Date(b.updated_at).getTime() : 0).filter(t => t > 0);
+            if (fechas.length > 0) {
+                ultimaFecha = new Date(Math.max(...fechas)).toISOString();
+                query = query.gt('updated_at', ultimaFecha);
+            }
+        }
+
+        const { data: batch, error } = await query.range(from, to);
 
         if (error || !batch || batch.length === 0) {
           keepFetchingBienes = false;
@@ -388,26 +368,18 @@ export default function App() {
 
       if (todosLosNuevosBienes.length > 0) {
         const mapaBienes = new Map(cacheBienes.map(b => [b.id, b]));
-        
         todosLosNuevosBienes.forEach(item => {
             const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
             mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
         });
-        
         const inventarioFinal = Array.from(mapaBienes.values());
         await localforage.setItem('bienes_cache', inventarioFinal);
         setBienes(inventarioFinal);
       }
-      // --- FIN OPTIMIZACIÓN ---
 
-      // Carga estándar para el resto de tablas
       const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
-          fetchAllRows('fc10'),
-          fetchAllRows('fc11'),
-          fetchAllRows('fc04'),
-          fetchAllRows('estructuras'),
-          fetchAllRows('auditoria'),
-          fetchAllRows('usuarios')
+          fetchAllRows('fc10'), fetchAllRows('fc11'), fetchAllRows('fc04'), 
+          fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios')
       ]);
 
       const parseDirect = (resData) => {
@@ -421,10 +393,8 @@ export default function App() {
           });
       };
 
-      setFc10List(parseDirect(resFc10.data));
-      setFc11List(parseDirect(resFc11.data));
-      setFc04List(parseDirect(resFc04.data));
-      setEstructurasDB(parseDirect(resEstructuras.data));
+      setFc10List(parseDirect(resFc10.data)); setFc11List(parseDirect(resFc11.data));
+      setFc04List(parseDirect(resFc04.data)); setEstructurasDB(parseDirect(resEstructuras.data));
       setNotificaciones(parseDirect(resAuditoria.data));
       
       const parsedUsuarios = parseDirect(resUsuarios.data);
@@ -439,17 +409,14 @@ export default function App() {
           if (lastSeenVersion && lastSeenVersion !== resConfig.data.version_actual && !resConfig.data.en_mantenimiento) {
               setShowChangelog(true);
           }
-          if (!lastSeenVersion) {
-              localStorage.setItem('unp_last_version', resConfig.data.version_actual);
-          }
       }
 
-      // CORRECCIÓN 2: Freno condicional para evitar el bucle infinito
-      if (currentUser) {
-          const freshUser = parsedUsuarios.find(u => u.username === currentUser.username);
+      const localUserStr = localStorage.getItem('current_user');
+      if (localUserStr) {
+          const localUser = JSON.parse(localUserStr);
+          const freshUser = parsedUsuarios.find(u => u.username === localUser.username);
           if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin')) {
-              // Solo se actualiza si NO era admin previamente
-              if (currentUser.role !== 'admin' || currentUser.cargo !== 'admin') {
+              if (localUser.role !== 'admin' || localUser.cargo !== 'admin') {
                   const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
                   setCurrentUser(updatedSessionUser);
                   localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
@@ -464,7 +431,7 @@ export default function App() {
     } finally { 
         setIsLoading(false); 
     }
-  }, [currentUser]);
+  }, []); 
 
   useEffect(() => { 
       if (!isAuthenticated) return;
@@ -483,7 +450,6 @@ export default function App() {
                   else if (eventType === 'UPDATE') setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
                   else if (eventType === 'DELETE') setter(prev => prev.filter(i => i.id !== oldItem.id));
 
-                  // Mantenimiento del caché en tiempo real para IndexedDB
                   if (isBensTable) {
                       const cacheActual = await localforage.getItem('bienes_cache') || [];
                       let nuevoInventario = [...cacheActual];
@@ -506,10 +472,6 @@ export default function App() {
               else if (table === 'configuracion_sistema' && eventType === 'UPDATE') {
                   setIsMaintenanceMode(newItem.en_mantenimiento);
                   setSystemConfig({ version: newItem.version_actual, notes: newItem.notas_actualizacion });
-                  const lastVersion = localStorage.getItem('unp_last_version');
-                  if (lastVersion && lastVersion !== newItem.version_actual && !newItem.en_mantenimiento) {
-                      setShowChangelog(true);
-                  }
               }
           }).subscribe();
 
