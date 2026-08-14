@@ -17,17 +17,17 @@ import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 
 const STYLES = {
-    input: "block w-full rounded-lg border border-zinc-300/80 bg-white py-2.5 px-3.5 text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
-    label: "block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5",
-    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
-    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-darkbg-main border border-zinc-300 dark:border-darkbg-border px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
-    card: "bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden transition-shadow duration-300",
-    modalOverlay: "fixed inset-0 bg-zinc-900/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
-    modalContent: "bg-white dark:bg-darkbg-card rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200/80 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
-    modalHeader: "flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
-    modalBody: "p-6 sm:p-8 overflow-y-auto space-y-8 bg-white dark:bg-darkbg-card custom-scrollbar",
-    modalFooter: "flex justify-end gap-3 px-6 py-5 border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main shrink-0 z-10",
-    sectionTitle: "text-base font-semibold text-zinc-800 dark:text-white mb-5 flex items-center gap-2 border-b border-zinc-100 dark:border-darkbg-border pb-3"
+    input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
+    label: "block text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-2",
+    btnPrimary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-brand-primary px-6 py-3 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50",
+    btnSecondary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-white dark:bg-darkbg-main border-2 border-zinc-200 dark:border-darkbg-border px-5 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
+    card: "bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm hover:shadow-md overflow-hidden transition-all duration-300",
+    modalOverlay: "fixed inset-0 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
+    modalContent: "bg-white dark:bg-darkbg-card rounded-[24px] shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-100 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
+    modalHeader: "flex justify-between items-center px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
+    modalBody: "p-8 overflow-y-auto space-y-8 bg-zinc-50/30 dark:bg-darkbg-card custom-scrollbar",
+    modalFooter: "flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-main shrink-0 z-10",
+    sectionTitle: "text-lg font-black text-zinc-900 dark:text-white mb-6 flex items-center gap-3 border-b border-zinc-100 dark:border-darkbg-border pb-4"
 };
 
 const DEPENDENCIAS_UNP = ["Rectorado", "Facultad de Ciencias Aplicadas", "Facultad de Humanidades y Ciencias de la Educación", "Facultad de Ciencias Contables, Administrativas y Económicas", "Facultad de Derecho, Ciencias Políticas y Sociales", "Facultad de Ciencias Agropecuarias y Desarrollo Rural", "Facultad de Ciencias Biomédicas", "Facultad de Ciencias, Tecnologías y Artes"];
@@ -238,7 +238,40 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // --- INICIO MEJORAS DE RED E INACTIVIDAD ---
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); addToast("Conexión a la red restablecida.", "success"); };
+    const handleOffline = () => { setIsOnline(false); addToast("Sin conexión. Operando en modo local.", "warning"); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { 
+        window.removeEventListener('online', handleOnline); 
+        window.removeEventListener('offline', handleOffline); 
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let inactivityTimer;
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        handleLogout();
+        addToast("Sesión cerrada por inactividad prolongada (35 min).", "warning");
+      }, 35 * 60 * 1000);
+    };
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keypress', resetTimer);
+    resetTimer(); 
+    return () => {
+      clearTimeout(inactivityTimer);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keypress', resetTimer);
+    };
+  }, [isAuthenticated, handleLogout]);
+  // --- FIN MEJORAS DE RED E INACTIVIDAD ---
   const [funcionariosDB, setFuncionariosDB] = useState([]);
   const [ubicacionesDB, setUbicacionesDB] = useState([]);
   const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
@@ -357,10 +390,11 @@ export default function App() {
     try {
       setIsLoading(true);
 
+      // Limpieza de notificaciones con más de 2 días
+      const dosDiasAtras = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from('auditoria').delete().lt('updated_at', dosDiasAtras);
+
       const cacheBienes = await localforage.getItem('bienes_cache') || [];
-      if (cacheBienes.length > 0) {
-        setBienes(cacheBienes);
-      }
 
       let todosLosNuevosBienes = [];
       let rangeSize = 1000;
@@ -1499,12 +1533,23 @@ export default function App() {
       <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
       
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+        
+        {/* Banner de sin conexión (FUERA del map) */}
+        {!isOnline && (
+          <div className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-amber-500 text-white transition-all animate-slide-up mb-2">
+            <i className="fa-solid fa-wifi-slash text-lg"></i>
+            <span className="flex-1">Sin conexión a red (Modo Local)</span>
+          </div>
+        )}
+
+        {/* Bucle de notificaciones (toasts) */}
         {toasts.map(t => (
           <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
             <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
             <span className="flex-1">{t.message}</span>
           </div>
         ))}
+        
       </div>
 
       {isProcessing.active && (
