@@ -940,7 +940,6 @@ export default function App() {
           
           if (row.length >= 8) {
             const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); 
-            // CORRECCIÓN 2: Validación estricta contra base de datos y duplicados internos en el mismo CSV
             const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase()); 
             const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
             
@@ -962,7 +961,7 @@ export default function App() {
                 ubicacion: '', 
                 hasFC10: false, 
                 hasQR: false, 
-                estadoConservacion: 'Bueno' 
+                estadoConservacion: 'Muy bueno' 
             });
           }
         }
@@ -1024,7 +1023,7 @@ export default function App() {
         return; 
     }
     
-    const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
+    const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
     
     try { 
         let res;
@@ -1132,7 +1131,7 @@ export default function App() {
               if (isBaja) { 
                   if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); 
               } else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { 
-                  newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' }); 
+                  newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Muy bueno' }); 
               }
           }
           if (newBienes.length > 0) { 
@@ -1217,7 +1216,6 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
-                // CORRECCIÓN 1: Si el bien ya estaba De Baja, lo eliminamos físicamente de la base de datos
                 if (item.estadoConservacion === 'De Baja') {
                     res = await supabase.from('bens').delete().eq('id', id);
                 } else {
@@ -1234,7 +1232,6 @@ export default function App() {
                 if (type === 'bien') {
                     if (item.estadoConservacion === 'De Baja') {
                         setBienes(prev => prev.filter(b => b.id !== id));
-                        // Actualizar caché local también
                         const cacheActual = await localforage.getItem('bienes_cache') || [];
                         await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== id));
                     } else {
@@ -2350,7 +2347,6 @@ export default function App() {
         </div>
       )}
 
-      {/* CORRECCIÓN 3: Se pasa correctamente bienEditing y fechaAdquisicion al modal */}
       {isBienModalOpen && (
           <BienModal 
               setIsBienModalOpen={setIsBienModalOpen}
@@ -2367,7 +2363,6 @@ export default function App() {
           />
       )}
 
-      {/* CORRECCIÓN 4: Modal de confirmación para cerrar sesión */}
       {showLogoutConfirm && (
         <div className={STYLES.modalOverlay}>
           <div className={STYLES.modalContent + " max-w-sm !rounded-[32px]"}>
