@@ -229,19 +229,19 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true); // Arranca bloqueado por seguridad hasta verificar
-  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(true); // Control de carga inicial
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true);
+  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(true);
   const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   const [bienes, setBienes] = useState([]);
   const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
 
-  // VERIFICACIÓN DE MANTENIMIENTO INMEDIATA AL ABRIR
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
@@ -268,6 +268,8 @@ export default function App() {
       setIsAuthenticated(false); setCurrentUser(null); 
       localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
       setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
+      setShowLogoutConfirm(false);
+      addToast("Sesión cerrada correctamente", "info");
   }, []);
 
   const [fc10List, setFc10List] = useState([]); 
@@ -348,6 +350,7 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
+      addToast("Sincronización inteligente local activa (Egress optimizado)", "info");
 
       const cacheBienes = await localforage.getItem('bienes_cache') || [];
       if (cacheBienes.length > 0) {
@@ -930,13 +933,37 @@ export default function App() {
         const text = decodeText(buffer);
         const lines = text.split(/\r?\n/); if (lines.length < 2) { addToast("El archivo CSV está vacío o mal formateado.", "warning"); setIsProcessing({active:false, text:''}); return; }
         const delimiter = lines[0].includes(';') ? ';' : ','; const newBienes = []; let duplicatesSkipped = 0;
+        
         for (let i = 1; i < lines.length; i++) {
           const line = String(lines[i]).trim(); if (!line) continue; const row = []; let inQuotes = false; let val = "";
           for (let char of line) { if (char === '"') inQuotes = !inQuotes; else if (char === delimiter && !inQuotes) { row.push(val); val = ""; } else val += char; } row.push(val);
+          
           if (row.length >= 8) {
-            const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase()); const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
+            const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); 
+            // CORRECCIÓN 2: Validación estricta contra base de datos y duplicados internos en el mismo CSV
+            const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase()); 
+            const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
+            
             if (isDuplicateDB || isDuplicateCSV) { duplicatesSkipped++; continue; }
-            newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: String(row[0]||'').replace(/"/g, ''), subcuenta: String(row[1]||'').replace(/"/g, ''), analitico1: String(row[2]||'').replace(/"/g, ''), analitico2: String(row[3]||'').replace(/"/g, ''), descripcion: String(row[4]||'').replace(/"/g, ''), fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), rotulo: rotuloCSV, valorUnitario: String(row[7]||'').replace(/"/g, ''), vidaUtil: String(row[8]||'').replace(/"/g, ''), funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Bueno' });
+            
+            newBienes.push({ 
+                id: generateId(), 
+                dependencia: dependenciaActual, 
+                cuenta: String(row[0]||'').replace(/"/g, ''), 
+                subcuenta: String(row[1]||'').replace(/"/g, ''), 
+                analitico1: String(row[2]||'').replace(/"/g, ''), 
+                analitico2: String(row[3]||'').replace(/"/g, ''), 
+                descripcion: String(row[4]||'').replace(/"/g, ''), 
+                fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), 
+                rotulo: rotuloCSV, 
+                valorUnitario: String(row[7]||'').replace(/"/g, ''), 
+                vidaUtil: String(row[8]||'').replace(/"/g, ''), 
+                funcionario: '', 
+                ubicacion: '', 
+                hasFC10: false, 
+                hasQR: false, 
+                estadoConservacion: 'Bueno' 
+            });
           }
         }
         if (newBienes.length > 0) { 
@@ -945,9 +972,9 @@ export default function App() {
                 await supabase.from('bens').insert(payloadNewBienes);
                 await fetchData(); 
                 setActiveTab('inventario'); 
-                addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron por duplicados.` : ''}`, "success"); 
+                addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success"); 
             } catch (error) { addToast("Error al subir a la BD.", "error"); } 
-        } else { addToast("No se detectaron bienes válidos.", "warning"); }
+        } else { addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning"); }
         setIsProcessing({ active: false, text: '' });
       }; reader.readAsArrayBuffer(file); e.target.value = null;
     }, 100);
@@ -1190,6 +1217,7 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
+                // CORRECCIÓN 1: Si el bien ya estaba De Baja, lo eliminamos físicamente de la base de datos
                 if (item.estadoConservacion === 'De Baja') {
                     res = await supabase.from('bens').delete().eq('id', id);
                 } else {
@@ -1206,6 +1234,9 @@ export default function App() {
                 if (type === 'bien') {
                     if (item.estadoConservacion === 'De Baja') {
                         setBienes(prev => prev.filter(b => b.id !== id));
+                        // Actualizar caché local también
+                        const cacheActual = await localforage.getItem('bienes_cache') || [];
+                        await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== id));
                     } else {
                         setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
                     }
@@ -1344,7 +1375,6 @@ export default function App() {
     </div>
   );
 
-  // PANTALLA DE CARGA INICIAL MIENTRAS VERIFICA EL MANTENIMIENTO
   if (isCheckingMaintenance) {
       return (
           <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
@@ -1353,7 +1383,6 @@ export default function App() {
       );
   }
 
-  // BLOQUEO ABSOLUTO DE MANTENIMIENTO
   if (isMaintenanceMode) {
       return (
           <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
@@ -1404,7 +1433,7 @@ export default function App() {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={setDependenciaActual} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={handleLogout} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={setDependenciaActual} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -2321,6 +2350,7 @@ export default function App() {
         </div>
       )}
 
+      {/* CORRECCIÓN 3: Se pasa correctamente bienEditing y fechaAdquisicion al modal */}
       {isBienModalOpen && (
           <BienModal 
               setIsBienModalOpen={setIsBienModalOpen}
@@ -2335,6 +2365,27 @@ export default function App() {
               ubicacionesUnicas={ubicacionesUnicas}
               STYLES={STYLES}
           />
+      )}
+
+      {/* CORRECCIÓN 4: Modal de confirmación para cerrar sesión */}
+      {showLogoutConfirm && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-sm !rounded-[32px]"}>
+            <div className="p-8 text-center bg-white dark:bg-darkbg-card">
+              <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-brand-light dark:bg-brand-primary/20 mb-6 ring-4 ring-brand-primary/10 text-brand-primary">
+                <i className="fa-solid fa-right-from-bracket text-3xl"></i>
+              </div>
+              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-3">¿Cerrar Sesión?</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed mb-4">
+                Está a punto de salir de su cuenta actual. Deberá ingresar sus credenciales nuevamente para acceder.
+              </p>
+            </div>
+            <div className="flex border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main">
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-4 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors border-r border-zinc-100 dark:border-darkbg-border focus:outline-none cursor-pointer">Cancelar</button>
+              <button onClick={handleLogout} className="flex-1 py-4 text-sm font-black text-brand-primary hover:bg-brand-light/50 transition-colors focus:outline-none cursor-pointer">Sí, salir</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {resolucionBaja && (
@@ -2403,7 +2454,7 @@ export default function App() {
                     ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
                     : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
                     ? 'El bien pasará a estado "De Baja". No se eliminará de la base de datos todavía.'
-                    : 'Esta acción no se puede deshacer. El registro será borrado permanentemente.'}
+                    : 'Esta acción eliminará físicamente este bien del servidor de forma permanente.'}
               </p>
               
               {itemToDelete.type === 'usuario' && itemToDelete.cargo === 'admin' && (
