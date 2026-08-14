@@ -239,6 +239,13 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
+  // Estados para Maestros (Funcionarios y Ubicaciones)
+  const [funcionariosDB, setFuncionariosDB] = useState([]);
+  const [ubicacionesDB, setUbicacionesDB] = useState([]);
+  const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
+  const [maestroEditing, setMaestroEditing] = useState(null);
+  const [tipoMaestro, setTipoMaestro] = useState('funcionario'); // 'funcionario' o 'ubicacion'
+
   const [bienes, setBienes] = useState([]);
   const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
 
@@ -350,7 +357,6 @@ export default function App() {
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
-      addToast("Sincronización inteligente local activa (Egress optimizado)", "info");
 
       const cacheBienes = await localforage.getItem('bienes_cache') || [];
       if (cacheBienes.length > 0) {
@@ -401,9 +407,10 @@ export default function App() {
         setBienes(inventarioFinal);
       }
 
-      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
+      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFunc, resUbi] = await Promise.all([ 
           fetchAllRows('fc10'), fetchAllRows('fc11'), fetchAllRows('fc04'), 
-          fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios')
+          fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios'),
+          fetchAllRows('funcionarios'), fetchAllRows('ubicaciones')
       ]);
 
       const parseDirect = (resData) => {
@@ -417,9 +424,13 @@ export default function App() {
           });
       };
 
-      setFc10List(parseDirect(resFc10.data)); setFc11List(parseDirect(resFc11.data));
-      setFc04List(parseDirect(resFc04.data)); setEstructurasDB(parseDirect(resEstructuras.data));
+      setFc10List(parseDirect(resFc10.data)); 
+      setFc11List(parseDirect(resFc11.data));
+      setFc04List(parseDirect(resFc04.data)); 
+      setEstructurasDB(parseDirect(resEstructuras.data));
       setNotificaciones(parseDirect(resAuditoria.data));
+      setFuncionariosDB(parseDirect(resFunc.data));
+      setUbicacionesDB(parseDirect(resUbi.data));
       
       const parsedUsuarios = parseDirect(resUsuarios.data);
       setUsuariosList(parsedUsuarios);
@@ -493,6 +504,8 @@ export default function App() {
               else if (table === 'fc11') updateState(setFc11List);
               else if (table === 'fc04') updateState(setFc04List);
               else if (table === 'auditoria') updateState(setNotificaciones);
+              else if (table === 'funcionarios') updateState(setFuncionariosDB);
+              else if (table === 'ubicaciones') updateState(setUbicacionesDB);
               else if (table === 'configuracion_sistema' && eventType === 'UPDATE') {
                   setIsMaintenanceMode(newItem.en_mantenimiento);
                   setSystemConfig({ version: newItem.version_actual, notes: newItem.notas_actualizacion });
@@ -569,9 +582,52 @@ export default function App() {
     e.target.value = null; 
   };
 
-  const funcionariosConDatos = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { const nombreSeguro = String(fc.funcionarioNombre).trim(); if(!map.has(normalizeStr(nombreSeguro))) { map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); } } }); return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); }, [fc10List]);
-  const funcionariosUnicos = useMemo(() => { const funcMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && String(b.funcionario).trim() !== "").forEach(b => { const val = String(b.funcionario).trim(); const key = normalizeStr(val); if(!funcMap.has(key)) funcMap.set(key, val); }); return Array.from(funcMap.values()).sort(); }, [bienes, dependenciaActual]);
-  const ubicacionesUnicas = useMemo(() => { const ubiMap = new Map(); bienes.filter(b => b.dependencia === dependenciaActual && b.ubicacion && String(b.ubicacion).trim() !== "").forEach(b => { const val = String(b.ubicacion).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); fc10List.filter(fc => fc.dependencia === dependenciaActual && fc.entregadoLugar).forEach(fc => { const val = String(fc.entregadoLugar).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); }); return Array.from(ubiMap.values()).sort(); }, [bienes, fc10List, dependenciaActual]);
+  // Listas extendidas uniendo historial y datos maestros de la nueva tabla
+  const funcionariosConDatos = useMemo(() => { 
+      const map = new Map(); 
+      // Primero agregar de la tabla de maestros funcionariosDB
+      funcionariosDB.forEach(f => {
+          if (f.nombre) map.set(normalizeStr(f.nombre), { nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' });
+      });
+      // Luego complementar con el historial existente
+      fc10List.forEach(fc => { 
+          if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { 
+              const nombreSeguro = String(fc.funcionarioNombre).trim(); 
+              if(!map.has(normalizeStr(nombreSeguro))) { 
+                  map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); 
+              } 
+          } 
+      }); 
+      return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); 
+  }, [fc10List, funcionariosDB]);
+
+  const funcionariosUnicos = useMemo(() => { 
+      const funcMap = new Map(); 
+      funcionariosDB.forEach(f => { if(f.nombre) funcMap.set(normalizeStr(f.nombre), f.nombre); });
+      bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && String(b.funcionario).trim() !== "").forEach(b => { 
+          const val = String(b.funcionario).trim(); 
+          const key = normalizeStr(val); 
+          if(!funcMap.has(key)) funcMap.set(key, val); 
+      }); 
+      return Array.from(funcMap.values()).sort(); 
+  }, [bienes, dependenciaActual, funcionariosDB]);
+
+  const ubicacionesUnicas = useMemo(() => { 
+      const ubiMap = new Map(); 
+      ubicacionesDB.forEach(u => { if(u.nombre) ubiMap.set(normalizeStr(u.nombre), u.nombre); });
+      bienes.filter(b => b.dependencia === dependenciaActual && b.ubicacion && String(b.ubicacion).trim() !== "").forEach(b => { 
+          const val = String(b.ubicacion).trim(); 
+          const key = normalizeStr(val); 
+          if(!ubiMap.has(key)) ubiMap.set(key, val); 
+      }); 
+      fc10List.filter(fc => fc.dependencia === dependenciaActual && fc.entregadoLugar).forEach(fc => { 
+          const val = String(fc.entregadoLugar).trim(); 
+          const key = normalizeStr(val); 
+          if(!ubiMap.has(key)) ubiMap.set(key, val); 
+      }); 
+      return Array.from(ubiMap.values()).sort(); 
+  }, [bienes, fc10List, dependenciaActual, ubicacionesDB]);
+
   const aniosUnicos = useMemo(() => { const years = bienes.filter(b => b.dependencia === dependenciaActual && b.fechaAdquisicion).map(b => parseDateInfo(b.fechaAdquisicion).year).filter(y => y && !isNaN(parseInt(y))); return [...new Set(years)].sort((a, b) => b - a); }, [bienes, dependenciaActual]);
   
   const subcuentasUnicas = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.subcuenta||'').trim() !== '').map(b => String(b.subcuenta).trim()))].sort(), [bienes, dependenciaActual]);
@@ -1006,6 +1062,47 @@ export default function App() {
     }
   };
 
+  // Guardar Datos Maestros (Funcionarios / Ubicaciones)
+  const saveMaestro = async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData.entries());
+      const table = tipoMaestro === 'funcionario' ? 'funcionarios' : 'ubicaciones';
+
+      try {
+          let res;
+          const payload = { id: maestroEditing ? maestroEditing.id : generateId(), data };
+          if (maestroEditing) {
+              res = await supabase.from(table).update(payload).eq('id', maestroEditing.id);
+          } else {
+              res = await supabase.from(table).insert([payload]);
+          }
+
+          if (!res.error) {
+              addToast(maestroEditing ? "Registro actualizado" : "Registro creado con éxito", "success");
+              setIsMaestroModalOpen(false);
+              setMaestroEditing(null);
+              fetchData();
+          } else {
+              addToast("Error al guardar en el servidor", "error");
+          }
+      } catch (err) {
+          addToast("Error de conexión", "error");
+      }
+  };
+
+  const deleteMaestro = async (tipo, id) => {
+      const table = tipo === 'funcionario' ? 'funcionarios' : 'ubicaciones';
+      const { error } = await supabase.from(table).delete().eq('id', id);
+      if (!error) {
+          addToast("Registro eliminado", "success");
+          fetchData();
+      } else {
+          addToast("Error al eliminar", "error");
+      }
+  };
+
    const saveBien = async (e, keepOpen = false) => {
     if(e) e.preventDefault(); 
     if (isSaving) return;
@@ -1168,7 +1265,7 @@ export default function App() {
     try { 
         let res;
         if (fc10Editing) {
-            res = await supabase.from('fc10').update(payloadFC10).eq('id', fcData.id);
+            res = await supabase.from('fc10').update(payloadFC10).eq('id', fc10Data.id);
         } else {
             res = await supabase.from('fc10').insert([payloadFC10]);
         }
@@ -1216,6 +1313,7 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
+                // CORRECCIÓN BLINDADA DE BAJA: Si ya está De Baja o el usuario confirma, borramos de la base de datos definitivamente
                 if (item.estadoConservacion === 'De Baja') {
                     res = await supabase.from('bens').delete().eq('id', id);
                 } else {
@@ -1435,6 +1533,101 @@ export default function App() {
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
                 
+                {activeTab === 'maestros' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-address-book text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Gestión de Datos Maestros</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Administre la lista oficial de funcionarios (con C.I. y cargo) y ubicaciones</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button onClick={() => { setTipoMaestro('funcionario'); setMaestroEditing(null); setIsMaestroModalOpen(true); }} className={STYLES.btnPrimary}>
+                          <i className="fa-solid fa-user-plus"></i> Nuevo Funcionario
+                        </button>
+                        <button onClick={() => { setTipoMaestro('ubicacion'); setMaestroEditing(null); setIsMaestroModalOpen(true); }} className={STYLES.btnSecondary}>
+                          <i className="fa-solid fa-location-plus"></i> Nueva Ubicación
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Tabla de Funcionarios */}
+                      <div className={`${STYLES.card} p-6 flex flex-col`}>
+                        <h3 className="text-base font-bold text-zinc-800 dark:text-white mb-4 flex items-center gap-2">
+                            <i className="fa-solid fa-users text-brand-primary"></i> Funcionarios Registrados ({funcionariosDB.length})
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-xs">
+                            <thead className="border-b border-zinc-200 dark:border-darkbg-border text-zinc-400 uppercase">
+                              <tr>
+                                <th className="py-2 px-3">Nombre</th>
+                                <th className="py-2 px-3">C.I.</th>
+                                <th className="py-2 px-3">Cargo</th>
+                                <th className="py-2 px-3 text-right">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border">
+                              {funcionariosDB.map(f => (
+                                <tr key={f.id} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover">
+                                  <td className="py-3 px-3 font-bold text-zinc-900 dark:text-white">{f.nombre}</td>
+                                  <td className="py-3 px-3 font-mono">{formatCI(f.doc)}</td>
+                                  <td className="py-3 px-3 text-zinc-500">{f.cargo || '-'}</td>
+                                  <td className="py-3 px-3 text-right space-x-2">
+                                    <button onClick={() => { setTipoMaestro('funcionario'); setMaestroEditing(f); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteMaestro('funcionario', f.id)} className="text-zinc-400 hover:text-red-500"><i className="fa-solid fa-trash"></i></button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {funcionariosDB.length === 0 && (
+                                <tr><td colSpan="4" className="text-center py-6 text-zinc-400 italic">No hay funcionarios maestros.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Tabla de Ubicaciones */}
+                      <div className={`${STYLES.card} p-6 flex flex-col`}>
+                        <h3 className="text-base font-bold text-zinc-800 dark:text-white mb-4 flex items-center gap-2">
+                            <i className="fa-solid fa-building text-brand-primary"></i> Ubicaciones Operativas ({ubicacionesDB.length})
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-left text-xs">
+                            <thead className="border-b border-zinc-200 dark:border-darkbg-border text-zinc-400 uppercase">
+                              <tr>
+                                <th className="py-2 px-3">Nombre / Oficina</th>
+                                <th className="py-2 px-3">Descripción</th>
+                                <th className="py-2 px-3 text-right">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-darkbg-border">
+                              {ubicacionesDB.map(u => (
+                                <tr key={u.id} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover">
+                                  <td className="py-3 px-3 font-bold text-zinc-900 dark:text-white">{u.nombre}</td>
+                                  <td className="py-3 px-3 text-zinc-500">{u.descripcion || '-'}</td>
+                                  <td className="py-3 px-3 text-right space-x-2">
+                                    <button onClick={() => { setTipoMaestro('ubicacion'); setMaestroEditing(u); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteMaestro('ubicacion', u.id)} className="text-zinc-400 hover:text-red-500"><i className="fa-solid fa-trash"></i></button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {ubicacionesDB.length === 0 && (
+                                <tr><td colSpan="3" className="text-center py-6 text-zinc-400 italic">No hay ubicaciones maestras.</td></tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'aprobaciones' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
@@ -1606,6 +1799,10 @@ export default function App() {
 
                                 <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
                                     <i className="fa-solid fa-file-import text-emerald-500"></i> Importar CSV
+                                </button>
+
+                                <button onClick={() => setActiveTab('maestros')} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:text-brand-primary shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
+                                    <i className="fa-solid fa-address-book text-brand-primary"></i> Maestros
                                 </button>
 
                                 <div className="relative inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:text-sky-600 dark:hover:border-sky-500 dark:hover:text-sky-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer overflow-hidden">
@@ -2253,6 +2450,51 @@ export default function App() {
           />
       )}
 
+      {/* Modal para Crear / Editar Datos Maestros (Funcionarios / Ubicaciones) */}
+      {isMaestroModalOpen && (
+          <div className={STYLES.modalOverlay}>
+              <div className={STYLES.modalContent + " max-w-md"}>
+                  <div className={STYLES.modalHeader}>
+                      <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+                          {maestroEditing ? 'Editar' : 'Nuevo'} {tipoMaestro === 'funcionario' ? 'Funcionario' : 'Ubicación'}
+                      </h2>
+                      <button onClick={() => setIsMaestroModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover"><i className="fa-solid fa-xmark"></i></button>
+                  </div>
+                  <form onSubmit={saveMaestro}>
+                      <div className={STYLES.modalBody}>
+                          <div className="space-y-4">
+                              <div>
+                                  <label className={STYLES.label}>Nombre {tipoMaestro === 'funcionario' ? 'y Apellido' : 'de la Oficina/Área'}</label>
+                                  <input type="text" name="nombre" required defaultValue={maestroEditing?.nombre || ''} className={STYLES.input} placeholder={tipoMaestro === 'funcionario' ? "Ej. Juan Pérez" : "Ej. Laboratorio 01"} />
+                              </div>
+                              {tipoMaestro === 'funcionario' ? (
+                                  <>
+                                      <div>
+                                          <label className={STYLES.label}>Cédula de Identidad (C.I.)</label>
+                                          <input type="text" name="doc" defaultValue={maestroEditing?.doc || ''} className={STYLES.input} placeholder="Ej. 1.234.567" />
+                                      </div>
+                                      <div>
+                                          <label className={STYLES.label}>Cargo</label>
+                                          <input type="text" name="cargo" defaultValue={maestroEditing?.cargo || ''} className={STYLES.input} placeholder="Ej. Asistente Administrativo" />
+                                      </div>
+                                  </>
+                              ) : (
+                                  <div>
+                                      <label className={STYLES.label}>Descripción / Edificio</label>
+                                      <input type="text" name="descripcion" defaultValue={maestroEditing?.descripcion || ''} className={STYLES.input} placeholder="Ej. Planta Baja - Edificio Central" />
+                                  </div>
+                              )}
+                          </div>
+                      </div>
+                      <div className={STYLES.modalFooter}>
+                          <button type="button" onClick={() => setIsMaestroModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
+                          <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar</button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
       {isUsuarioModalOpen && isAdmin && (
         <div className={STYLES.modalOverlay}>
           <div className={STYLES.modalContent + " max-w-lg"}>
@@ -2448,7 +2690,7 @@ export default function App() {
                 {itemToDelete.type === 'requestBaja' 
                     ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
                     : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
-                    ? 'El bien pasará a estado "De Baja". No se eliminará de la base de datos todavía.'
+                    ? 'El bien pasará a estado "De Baja". Podrá eliminarlo definitivamente volviendo a hacer clic en eliminar.'
                     : 'Esta acción eliminará físicamente este bien del servidor de forma permanente.'}
               </p>
               
