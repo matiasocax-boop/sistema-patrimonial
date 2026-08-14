@@ -1848,124 +1848,134 @@ export default function App() {
                 )}
 
                 {activeTab === 'inventario' && (
-                    <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                      <div className="bg-white dark:bg-darkbg-card p-5 sm:p-6 rounded-xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-5 shrink-0">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-darkbg-border">
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-sm">
-                              <i className="fa-solid fa-boxes-stacked text-lg"></i>
-                            </div>
-                            <div>
-                              <h2 className="text-xl font-bold text-zinc-900 dark:text-white tracking-tight">
-                                  Directorio Patrimonial
-                              </h2>
-                              <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos</p>
-                            </div>
-                          </div>
+    <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+      
+      {/* 1. CABECERA Y ACCIONES PRINCIPALES UNIFICADAS */}
+      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-xs space-y-5 shrink-0 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary"></div>
+        
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border/60">
+          <div className="flex items-center gap-4 pl-2">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-xs">
+              <i className="fa-solid fa-boxes-stacked text-xl"></i>
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  Directorio Patrimonial
+              </h2>
+              <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos institucionales</p>
+            </div>
+          </div>
 
-                          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " shadow-sm shrink-0"}>
-                              <i className="fa-solid fa-plus"></i> Añadir Registro
-                          </button>
-                        </div>
+          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !rounded-xl !px-6 !py-3 shadow-sm shrink-0"}>
+              <i className="fa-solid fa-plus text-sm"></i> Añadir Registro
+          </button>
+        </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mr-1">Datos:</span>
-                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary + " !py-2 !px-3"}>
-                                <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
-                            </button>
-                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary + " !py-2 !px-3"}>
-                                <i className="fa-solid fa-file-import text-brand-primary"></i> Importar CSV
-                            </button>
-                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary + " !py-2 !px-3"}>
-                                <i className="fa-solid fa-download text-sky-500"></i> Exportar CSV
-                            </button>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mr-1">Salidas:</span>
-                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary + " !py-2 !px-3"}>
-                                <i className="fa-solid fa-file-zipper text-purple-500"></i> Lote QRs
-                            </button>
-                            <button onClick={openFC03Modal} className={STYLES.btnSecondary + " !py-2 !px-3"}>
-                                <i className="fa-solid fa-print text-amber-500"></i> Reporte FC-03
-                            </button>
-                          </div>
-                        </div>
-                      </div>
+        {/* Barra de Herramientas de Datos y Salidas con Tarjetas sutiles */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Datos</span>
+            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                <i className="fa-solid fa-file-excel text-emerald-500 text-sm"></i> Plantilla
+            </button>
+            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                <i className="fa-solid fa-file-import text-brand-primary text-sm"></i> Importar CSV
+            </button>
+            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                <i className="fa-solid fa-download text-sky-500 text-sm"></i> Exportar CSV
+            </button>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Salidas</span>
+            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                <i className="fa-solid fa-file-zipper text-purple-500 text-sm"></i> Lote QRs
+            </button>
+            <button onClick={openFC03Modal} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                <i className="fa-solid fa-print text-amber-500 text-sm"></i> Reporte FC-03
+            </button>
+          </div>
+        </div>
+      </div>
 
-                      <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
-                        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
-                          <div className="w-full xl:w-96 shrink-0 relative">
-                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-                            <input 
-                              type="text" 
-                              placeholder="Buscar rótulo, cuenta, responsable..." 
-                              className="block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/50 py-3 pl-11 pr-9 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-2xs" 
-                              value={searchInput} 
-                              onChange={(e) => setSearchInput(e.target.value)} 
-                            />
-                            {searchInput && (
-                              <button onClick={() => setSearchInput('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                                <i className="fa-solid fa-circle-xmark text-xs"></i>
-                              </button>
-                            )}
-                          </div>
+      {/* 2. PANEL DE BÚSQUEDA Y FILTROS PROFESIONAL */}
+      <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
+        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
+          
+          {/* Buscador Principal Mejorado */}
+          <div className="w-full xl:w-96 shrink-0 relative">
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+            <input 
+              type="text" 
+              placeholder="Buscar por rótulo, cuenta, responsable..." 
+              className="block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/60 py-3.5 pl-11 pr-9 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-2xs" 
+              value={searchInput} 
+              onChange={(e) => setSearchInput(e.target.value)} 
+            />
+            {searchInput && (
+              <button onClick={() => setSearchInput('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                <i className="fa-solid fa-circle-xmark text-xs"></i>
+              </button>
+            )}
+          </div>
 
-                          <div className="w-full flex flex-wrap items-center gap-2.5 justify-start xl:justify-end">
-                            <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
-                            <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
-                            <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
-                            <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
-                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
-                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
-                            <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
-                            
-                            <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-zinc-800 text-white border-zinc-900 dark:bg-white dark:text-black' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
-                              <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-red-400' : 'text-zinc-400'}`}></i> Bajas
-                            </button>
-                          </div>
-                        </div>
-                        
-                        {hasFilters && (
-                            <div className="pt-3 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
-                              <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mr-1">Filtros activos:</span>
-                              {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroSubcuenta && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroSubcuenta('')}>Subcta: {filtroSubcuenta} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroAnalitico1 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico1('')}>An.1: {filtroAnalitico1} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroAnalitico2 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico2('')}>An.2: {filtroAnalitico2} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-800 px-2.5 py-1 text-xs font-bold text-white cursor-pointer hover:bg-zinc-700 transition-colors shadow-2xs" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
-                              {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-                              <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
-                            </div>
-                        )}
-                      </div>
+          {/* Grid de Filtros Compactos */}
+          <div className="w-full flex flex-wrap items-center gap-2 justify-start xl:justify-end">
+            <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
+            <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
+            <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
+            <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
+            <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
+            <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
+            <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
+            
+            <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
+              <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-white' : 'text-rose-500'}`}></i> Bajas
+            </button>
+          </div>
+        </div>
+        
+        {hasFilters && (
+            <div className="pt-3.5 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">Filtros activos:</span>
+              {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroSubcuenta && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroSubcuenta('')}>Subcta: {filtroSubcuenta} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroAnalitico1 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico1('')}>An.1: {filtroAnalitico1} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroAnalitico2 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico2('')}>An.2: {filtroAnalitico2} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-bold text-white cursor-pointer hover:bg-rose-700 transition-colors shadow-2xs" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
+              {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+              <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1.5 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
+            </div>
+        )}
+      </div>
 
-                      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
-                          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                            <table className="min-w-full text-left">
-                              <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                                <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                  <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
-                                  <th className="px-4 py-3.5">Localización y Custodio</th>
-                                  <th className="px-4 py-3.5">Condición Física</th>
-                                  <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                                {paginatedBienes.map(b => (
-                                  <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        {renderPagination()}
-                      </div>
-                    </div>
-                )}
+      {/* 3. TABLA DE DATOS */}
+      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
+          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+            <table className="min-w-full text-left">
+              <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                  <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
+                  <th className="px-4 py-3.5">Localización y Custodio</th>
+                  <th className="px-4 py-3.5">Condición Física</th>
+                  <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                {paginatedBienes.map(b => (
+                  <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        {renderPagination()}
+      </div>
+    </div>
+)}
 
                 {activeTab === 'fc04' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
