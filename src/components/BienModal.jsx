@@ -53,10 +53,20 @@ export default function BienModal({
                           <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3"><span className="text-zinc-400 text-sm">Años</span></div>
                         </div>
                       </div>
-                      <div><label className={STYLES.label}>Valor (Gs.)</label><input required name="valorUnitario" defaultValue={formatCurrency(bienEditing?.valorUnitario)} onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} className={`${STYLES.input} text-right font-semibold`} /></div>
+                      <div>
+                        <label className={STYLES.label}>Valor (Gs.)</label>
+                        <input 
+                            required 
+                            name="valorUnitario" 
+                            defaultValue={bienEditing?.valorUnitario ? formatCurrency(bienEditing.valorUnitario) : ''} 
+                            onChange={(e)=>{e.target.value=formatCurrency(e.target.value.replace(/\D/g, ''))}} 
+                            className={`${STYLES.input} text-right font-semibold`} 
+                            placeholder="0"
+                        />
+                      </div>
                       <div>
                         <label className={STYLES.label}>Condición</label>
-                        <select required name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || "Bueno"} className={STYLES.input}>
+                        <select required name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || "Muy bueno"} className={STYLES.input}>
                             {ESTADOS_CONSERVACION.map(e=><option key={e} value={e}>{e}</option>)}
                         </select>
                       </div>
