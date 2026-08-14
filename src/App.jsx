@@ -239,7 +239,6 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
-  // Estados para Maestros (Funcionarios y Ubicaciones)
   const [funcionariosDB, setFuncionariosDB] = useState([]);
   const [ubicacionesDB, setUbicacionesDB] = useState([]);
   const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
@@ -1309,7 +1308,6 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
-                // FLUJO BLINDADO DE BAJA: Si el bien ya está De Baja, borrado físico total de la BD. Si no, pasa a De Baja.
                 if (item.estadoConservacion === 'De Baja') {
                     res = await supabase.from('bens').delete().eq('id', id);
                 } else {
@@ -1533,18 +1531,19 @@ export default function App() {
                 
                 {activeTab === 'maestros' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                      <div className="flex items-center gap-4 pl-2">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-xs">
                           <i className="fa-solid fa-address-book text-xl"></i>
                         </div>
                         <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Gestión de Datos Maestros</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Administre la lista oficial de funcionarios (con C.I. y cargo) y ubicaciones</p>
+                          <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Gestión de Datos Maestros</h2>
+                          <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Administre la lista oficial de funcionarios (con C.I. y cargo) y ubicaciones</p>
                         </div>
                       </div>
                       
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap gap-2.5">
                         <button onClick={() => { setTipoMaestro('funcionario'); setMaestroEditing(null); setIsMaestroModalOpen(true); }} className={STYLES.btnPrimary}>
                           <i className="fa-solid fa-user-plus"></i> Nuevo Funcionario
                         </button>
@@ -2031,7 +2030,7 @@ export default function App() {
                                     <div>
                                         <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Activos ({fc.bienesSnapshot?.length || 0})</p>
                                         <div className="flex flex-wrap gap-1.5">
-                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
+                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
                                           {fc.bienesSnapshot?.length > 3 && <span className="text-xs font-bold text-brand-primary self-center ml-1">+{fc.bienesSnapshot.length - 3}</span>}
                                         </div>
                                     </div>
