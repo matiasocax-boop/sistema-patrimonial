@@ -17,11 +17,11 @@ import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 
 const STYLES = {
-    input: "block w-full rounded-lg border border-zinc-300/80 bg-white py-2.5 px-3.5 text-zinc-800 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
+    input: "block w-full rounded-xl border border-zinc-300/80 bg-white py-2.5 px-3.5 text-zinc-800 shadow-xs placeholder:text-zinc-400 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
     label: "block text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5",
-    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-lg bg-brand-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
-    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-lg bg-white dark:bg-darkbg-main border border-zinc-300 dark:border-darkbg-border px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
-    card: "bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden transition-shadow duration-300",
+    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-xs disabled:opacity-50",
+    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-300 dark:border-darkbg-border px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-xs disabled:opacity-50",
+    card: "bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-xs overflow-hidden transition-shadow duration-300",
     modalOverlay: "fixed inset-0 bg-zinc-900/40 dark:bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
     modalContent: "bg-white dark:bg-darkbg-card rounded-2xl shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-200/80 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
     modalHeader: "flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
@@ -32,7 +32,6 @@ const STYLES = {
 
 const DEPENDENCIAS_UNP = ["Rectorado", "Facultad de Ciencias Aplicadas", "Facultad de Humanidades y Ciencias de la Educación", "Facultad de Ciencias Contables, Administrativas y Económicas", "Facultad de Derecho, Ciencias Políticas y Sociales", "Facultad de Ciencias Agropecuarias y Desarrollo Rural", "Facultad de Ciencias Biomédicas", "Facultad de Ciencias, Tecnologías y Artes"];
 const ESTADOS_CONSERVACION = ["Muy bueno", "Bueno", "Regular", "Malo", "Inutilizable", "De Baja"];
-const MOTIVOS_FC11 = ["Traspaso", "Préstamo", "Inservible", "Faltante"];
 const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "Baja" }, { id: "T", nombre: "Traspaso" }, { id: "C/D", nombre: "Compra o Donación" }];
 
 const formatCurrency = (value) => { if (!value) return "0"; const number = parseInt(value.toString().replace(/\D/g, ''), 10); return isNaN(number) ? "0" : new Intl.NumberFormat('es-PY').format(number); };
@@ -72,20 +71,9 @@ const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
 
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 4;
-
         const headerHeight = 220;
         ctx.fillStyle = '#f8f9fa';
         ctx.fillRect(0, 0, canvas.width, headerHeight);
-
-        ctx.beginPath();
-        ctx.moveTo(0, headerHeight);
-        ctx.lineTo(canvas.width, headerHeight);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#cccccc';
-        ctx.stroke();
 
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
@@ -111,33 +99,16 @@ const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
         ctx.fillText('DPTO. DE BIENES PATRIMONIALES', textX, 175, textSpace);
         
         ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        
         const rotuloText = bien.rotulo || 'S/R';
-        let codigoFontSize = 72;
-        if (rotuloText.length > 12) codigoFontSize = 60;
-        if (rotuloText.length > 16) codigoFontSize = 50;
-
-        ctx.font = `900 ${codigoFontSize}px Arial`;
+        ctx.font = `900 60px Arial`;
         ctx.fillText(rotuloText, canvas.width / 2, headerHeight + 80, canvas.width - 60);
-
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = '#555555';
-        ctx.fillText('CÓDIGO PATRIMONIAL', canvas.width / 2, headerHeight + 25);
 
         const qrDataUrl = await generateSimpleQR(bien);
         const qrImg = new Image();
         qrImg.crossOrigin = "Anonymous";
         qrImg.onload = () => {
             const qrSize = 560;
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 5;
             ctx.drawImage(qrImg, (canvas.width - qrSize) / 2, headerHeight + 140, qrSize, qrSize);
-            
-            ctx.shadowColor = 'transparent';
-
             const footerY = canvas.height - 240;
             const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
             
@@ -148,48 +119,16 @@ const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
 
             ctx.fillStyle = '#333333';
             ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
             ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, canvas.width / 2, footerY + 20);
-
-            ctx.beginPath();
-            ctx.moveTo(40, footerY + 80);
-            ctx.lineTo(canvas.width - 40, footerY + 80);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.stroke();
 
             ctx.fillStyle = '#cc0000';
             ctx.font = '900 36px Arial';
             ctx.fillText('PROPIEDAD DE LA UNP', canvas.width / 2, footerY + 130);
-
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 26px Arial';
-            ctx.fillText('Bienes del Estado Paraguayo', canvas.width / 2, footerY + 180);
-            
-            ctx.font = 'italic 18px Arial';
-            ctx.fillStyle = '#888888';
-            const today = new Date().toLocaleDateString('es-PY');
-            ctx.fillText(`Emitido: ${today}`, canvas.width / 2, footerY + 220);
-
-            if (appLogoStr) {
-                const logoImg = new Image();
-                logoImg.crossOrigin = "Anonymous";
-                logoImg.onload = () => {
-                    ctx.drawImage(logoImg, logoPadding, (headerHeight - logoSize) / 2, logoSize, logoSize); 
-                    resolve(canvas.toDataURL('image/png'));
-                };
-                logoImg.onerror = () => resolve(canvas.toDataURL('image/png'));
-                logoImg.src = appLogoStr;
-            } else {
-                resolve(canvas.toDataURL('image/png'));
-            }
+            resolve(canvas.toDataURL('image/png'));
         };
         qrImg.src = qrDataUrl;
     });
 };
-
-const getPlaceholderLogo = () => { const canvas = document.createElement('canvas'); canvas.width = 200; canvas.height = 200; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,200,200); ctx.fillStyle = '#121212'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('LOGO', 100, 115); ctx.lineWidth = 4; ctx.strokeRect(0,0,200,200); return canvas.toDataURL('image/png'); };
 
 function SkeletonLoader() { 
     return (
@@ -239,6 +178,41 @@ export default function App() {
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
+  // Estado de Red (Online / Offline)
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+      const handleOnline = () => { setIsOnline(true); addToast("Conexión a la red restablecida", "success"); };
+      const handleOffline = () => { setIsOnline(false); addToast("Sin conexión a internet. Operando en modo local.", "warning"); };
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      return () => {
+          window.removeEventListener('online', handleOnline);
+          window.removeEventListener('offline', handleOffline);
+      };
+  }, []);
+
+  // Cierre de sesión por inactividad (35 min)
+  useEffect(() => {
+      if (!isAuthenticated) return;
+      let inactivityTimer;
+      const resetTimer = () => {
+          clearTimeout(inactivityTimer);
+          inactivityTimer = setTimeout(() => {
+              handleLogout();
+              addToast("Sesión cerrada por inactividad prolongada (35 min).", "warning");
+          }, 35 * 60 * 1000);
+      };
+      window.addEventListener('mousemove', resetTimer);
+      window.addEventListener('keypress', resetTimer);
+      resetTimer();
+      return () => {
+          clearTimeout(inactivityTimer);
+          window.removeEventListener('mousemove', resetTimer);
+          window.removeEventListener('keypress', resetTimer);
+      };
+  }, [isAuthenticated, handleLogout]);
+
   const [funcionariosDB, setFuncionariosDB] = useState([]);
   const [ubicacionesDB, setUbicacionesDB] = useState([]);
   const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
@@ -251,7 +225,7 @@ export default function App() {
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
-        const { data, error } = await supabase.from('configuracion_sistema').select('*').limit(1).single();
+        const { data } = await supabase.from('configuracion_sistema').select('*').limit(1).single();
         if (data) {
           setIsMaintenanceMode(data.en_mantenimiento);
           setSystemConfig({ version: data.version_actual, notes: data.notas_actualizacion });
@@ -270,14 +244,6 @@ export default function App() {
   useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
   useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
 
-  const handleLogout = useCallback(() => { 
-      setIsAuthenticated(false); setCurrentUser(null); 
-      localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
-      setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
-      setShowLogoutConfirm(false);
-      addToast("Sesión cerrada correctamente", "info");
-  }, []);
-
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
@@ -292,9 +258,12 @@ export default function App() {
   const [filtroAnalitico1, setFiltroAnalitico1] = useState(''); 
   const [filtroAnalitico2, setFiltroAnalitico2] = useState('');
 
-  const [filtroQR, setFiltroQR] = useState('ALL'); const [filtroFC10, setFiltroFC10] = useState('ALL'); const [filtroEstado, setFiltroEstado] = useState('ALL');
+  const [filtroQR, setFiltroQR] = useState('ALL'); 
+  const [filtroFC10, setFiltroFC10] = useState('ALL'); 
+  const [filtroEstado, setFiltroEstado] = useState('ALL');
+  const [filtroDisponibilidad, setFiltroDisponibilidad] = useState('ALL');
   
-  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
+  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || filtroDisponibilidad !== 'ALL' || searchInput);
 
   useEffect(() => { const timer = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 300); return () => clearTimeout(timer); }, [searchInput]);
   const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 10;
@@ -325,42 +294,55 @@ export default function App() {
   const todasDependencias = DEPENDENCIAS_UNP;
   const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
 
-  const fetchAllRows = async (tableName) => {
-    let allData = [];
-    let rangeSize = 1000;
-    let from = 0;
-    let to = rangeSize - 1;
-    let keepFetching = true;
-
-    while (keepFetching) {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .range(from, to);
-
-      if (error || !data || data.length === 0) {
-        keepFetching = false;
-      } else {
-        allData = [...allData, ...data];
-        if (data.length < rangeSize) {
-          keepFetching = false;
-        } else {
-          from += rangeSize;
-          to += rangeSize;
-        }
+  // Reintentos automáticos y caché persistente de 24 horas
+  const fetchWithRetry = async (fn, retries = 3, delay = 1000) => {
+      try { return await fn(); } 
+      catch (err) {
+          if (retries <= 0) throw err;
+          await new Promise(res => setTimeout(res, delay));
+          return fetchWithRetry(fn, retries - 1, delay * 2);
       }
-    }
-    return { data: allData };
+  };
+
+  const fetchAllRows = async (tableName) => {
+    return await fetchWithRetry(async () => {
+        let allData = [];
+        let rangeSize = 1000;
+        let from = 0;
+        let to = rangeSize - 1;
+        let keepFetching = true;
+        while (keepFetching) {
+          const { data, error } = await supabase.from(tableName).select('*').range(from, to);
+          if (error) throw error;
+          if (!data || data.length === 0) keepFetching = false;
+          else {
+            allData = [...allData, ...data];
+            if (data.length < rangeSize) keepFetching = false;
+            else { from += rangeSize; to += rangeSize; }
+          }
+        }
+        return { data: allData };
+    });
   };
 
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      const cacheBienes = await localforage.getItem('bienes_cache') || [];
-      if (cacheBienes.length > 0) {
-        setBienes(cacheBienes);
+      // Limpieza automática de notificaciones mayores a 2 días para proteger los 500 MB
+      const dosDiasAtras = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from('auditoria').delete().lt('updated_at', dosDiasAtras);
+
+      // Control de caducidad de Caché (24h)
+      const cacheMeta = await localforage.getItem('cache_timestamp');
+      const ahora = Date.now();
+      let cacheBienes = await localforage.getItem('bienes_cache') || [];
+      if (cacheMeta && (ahora - cacheMeta > 24 * 60 * 60 * 1000)) {
+          cacheBienes = [];
+          await localforage.removeItem('bienes_cache');
       }
+
+      if (cacheBienes.length > 0) setBienes(cacheBienes);
 
       let todosLosNuevosBienes = [];
       let rangeSize = 1000;
@@ -370,28 +352,20 @@ export default function App() {
 
       while (keepFetchingBienes) {
         let query = supabase.from('bens').select('id, data, updated_at');
-        
         if (cacheBienes.length > 0) {
-            let ultimaFecha = '1970-01-01T00:00:00.000Z';
             const fechas = cacheBienes.map(b => b.updated_at ? new Date(b.updated_at).getTime() : 0).filter(t => t > 0);
             if (fechas.length > 0) {
-                ultimaFecha = new Date(Math.max(...fechas)).toISOString();
+                const ultimaFecha = new Date(Math.max(...fechas)).toISOString();
                 query = query.gt('updated_at', ultimaFecha);
             }
         }
-
         const { data: batch, error } = await query.range(from, to);
-
-        if (error || !batch || batch.length === 0) {
-          keepFetchingBienes = false;
-        } else {
+        if (error) throw error;
+        if (!batch || batch.length === 0) keepFetchingBienes = false;
+        else {
           todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
-          if (batch.length < rangeSize) {
-            keepFetchingBienes = false;
-          } else {
-            from += rangeSize;
-            to += rangeSize;
-          }
+          if (batch.length < rangeSize) keepFetchingBienes = false;
+          else { from += rangeSize; to += rangeSize; }
         }
       }
 
@@ -403,6 +377,7 @@ export default function App() {
         });
         const inventarioFinal = Array.from(mapaBienes.values());
         await localforage.setItem('bienes_cache', inventarioFinal);
+        await localforage.setItem('cache_timestamp', Date.now());
         setBienes(inventarioFinal);
       }
 
@@ -434,11 +409,10 @@ export default function App() {
       const parsedUsuarios = parseDirect(resUsuarios.data);
       setUsuariosList(parsedUsuarios);
       
-      const resConfig = await supabase.from('configuracion_sistema').select('*').limit(1).single();
+      const resConfig = await fetchWithRetry(async () => await supabase.from('configuracion_sistema').select('*').limit(1).single());
       if (resConfig.data) {
           setIsMaintenanceMode(resConfig.data.en_mantenimiento);
           setSystemConfig({ version: resConfig.data.version_actual, notes: resConfig.data.notas_actualizacion });
-          
           const lastSeenVersion = localStorage.getItem('unp_last_version');
           if (lastSeenVersion && lastSeenVersion !== resConfig.data.version_actual && !resConfig.data.en_mantenimiento) {
               setShowChangelog(true);
@@ -457,7 +431,6 @@ export default function App() {
               }
           }
       }
-
       setDbError(false);
     } catch (error) { 
         console.error("Error crítico de datos:", error);
@@ -470,7 +443,6 @@ export default function App() {
   useEffect(() => { 
       if (!isAuthenticated) return;
       fetchData(); 
-      
       const subscription = supabase
           .channel('cambios-patrimonio')
           .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
@@ -514,62 +486,39 @@ export default function App() {
       return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]); 
   
-  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
+  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setFiltroDisponibilidad('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
   
   const handleLogin = async (e) => { 
     e.preventDefault(); 
     try {
-        const { data: usuario, error } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('username', loginUser)
-            .single();
-
+        const { data: usuario, error } = await supabase.from('usuarios').select('*').eq('username', loginUser).single();
         if (error || !usuario || usuario.password !== loginPass) {
             setLoginError(true);
             addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
             return;
         }
-
-        const userSession = {
-            ...usuario,
-            role: usuario.cargo === 'admin' ? 'admin' : 'user'
-        };
-
+        const userSession = { ...usuario, role: usuario.cargo === 'admin' ? 'admin' : 'user' };
         localStorage.setItem('is_logged_in', 'true'); 
         localStorage.setItem('current_user', JSON.stringify(userSession)); 
-        
         setLoginError(false); 
         setCurrentUser(userSession); 
         setIsAuthenticated(true); 
-        
         addToast(`Bienvenido, ${usuario.nombre}`, "success"); 
-    } catch (error) {
-        setLoginError(true);
-        addToast("Error al conectar con la base de datos", "error");
-    }
+    } catch (error) { setLoginError(true); addToast("Error al conectar con la base de datos", "error"); }
   };
   
   const handleLogoUpload = (e) => { 
-    const file = e.target.files[0]; 
-    if (!file) return; 
+    const file = e.target.files[0]; if (!file) return; 
     const reader = new FileReader(); 
     reader.onload = (event) => { 
         const img = new Image(); 
         img.onload = () => { 
-            const canvas = document.createElement('canvas'); 
-            const maxSize = 300; 
-            let width = img.width; 
-            let height = img.height; 
-            if (width > height) { 
-                if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
-            } else { 
-                if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
-            } 
-            canvas.width = width; 
-            canvas.height = height; 
-            const ctx = canvas.getContext('2d'); 
-            ctx.drawImage(img, 0, 0, width, height); 
+            const canvas = document.createElement('canvas'); const maxSize = 300; 
+            let width = img.width; let height = img.height; 
+            if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } } 
+            else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } } 
+            canvas.width = width; canvas.height = height; 
+            const ctx = canvas.getContext('2d'); ctx.drawImage(img, 0, 0, width, height); 
             const compressedLogo = canvas.toDataURL('image/webp', 0.85); 
             localStorage.setItem('logoOficial', compressedLogo); 
             setAppLogo(compressedLogo); 
@@ -577,21 +526,16 @@ export default function App() {
         }; 
         img.src = event.target.result; 
     }; 
-    reader.readAsDataURL(file); 
-    e.target.value = null; 
+    reader.readAsDataURL(file); e.target.value = null; 
   };
 
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
-      funcionariosDB.forEach(f => {
-          if (f.nombre) map.set(normalizeStr(f.nombre), { nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' });
-      });
+      funcionariosDB.forEach(f => { if (f.nombre) map.set(normalizeStr(f.nombre), { nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' }); });
       fc10List.forEach(fc => { 
           if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { 
               const nombreSeguro = String(fc.funcionarioNombre).trim(); 
-              if(!map.has(normalizeStr(nombreSeguro))) { 
-                  map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); 
-              } 
+              if(!map.has(normalizeStr(nombreSeguro))) { map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: fc.funcionarioDoc || '', cargo: fc.funcionarioCargo || '' }); } 
           } 
       }); 
       return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); 
@@ -601,9 +545,7 @@ export default function App() {
       const funcMap = new Map(); 
       funcionariosDB.forEach(f => { if(f.nombre) funcMap.set(normalizeStr(f.nombre), f.nombre); });
       bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && String(b.funcionario).trim() !== "").forEach(b => { 
-          const val = String(b.funcionario).trim(); 
-          const key = normalizeStr(val); 
-          if(!funcMap.has(key)) funcMap.set(key, val); 
+          const val = String(b.funcionario).trim(); const key = normalizeStr(val); if(!funcMap.has(key)) funcMap.set(key, val); 
       }); 
       return Array.from(funcMap.values()).sort(); 
   }, [bienes, dependenciaActual, funcionariosDB]);
@@ -612,26 +554,19 @@ export default function App() {
       const ubiMap = new Map(); 
       ubicacionesDB.forEach(u => { if(u.nombre) ubiMap.set(normalizeStr(u.nombre), u.nombre); });
       bienes.filter(b => b.dependencia === dependenciaActual && b.ubicacion && String(b.ubicacion).trim() !== "").forEach(b => { 
-          const val = String(b.ubicacion).trim(); 
-          const key = normalizeStr(val); 
-          if(!ubiMap.has(key)) ubiMap.set(key, val); 
-      }); 
-      fc10List.filter(fc => fc.dependencia === dependenciaActual && fc.entregadoLugar).forEach(fc => { 
-          const val = String(fc.entregadoLugar).trim(); 
-          const key = normalizeStr(val); 
-          if(!ubiMap.has(key)) ubiMap.set(key, val); 
+          const val = String(b.ubicacion).trim(); const key = normalizeStr(val); if(!ubiMap.has(key)) ubiMap.set(key, val); 
       }); 
       return Array.from(ubiMap.values()).sort(); 
-  }, [bienes, fc10List, dependenciaActual, ubicacionesDB]);
+  }, [bienes, dependenciaActual, ubicacionesDB]);
 
   const aniosUnicos = useMemo(() => { const years = bienes.filter(b => b.dependencia === dependenciaActual && b.fechaAdquisicion).map(b => parseDateInfo(b.fechaAdquisicion).year).filter(y => y && !isNaN(parseInt(y))); return [...new Set(years)].sort((a, b) => b - a); }, [bienes, dependenciaActual]);
-  
   const subcuentasUnicas = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.subcuenta||'').trim() !== '').map(b => String(b.subcuenta).trim()))].sort(), [bienes, dependenciaActual]);
   const analiticos1Unicos = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.analitico1||'').trim() !== '').map(b => String(b.analitico1).trim()))].sort(), [bienes, dependenciaActual]);
   const analiticos2Unicos = useMemo(() => [...new Set(bienes.filter(b => b.dependencia === dependenciaActual && String(b.analitico2||'').trim() !== '').map(b => String(b.analitico2).trim()))].sort(), [bienes, dependenciaActual]);
 
-  const stats = useMemo(() => { const depBienes = bienes.filter(b => b.dependencia === dependenciaActual && b.estadoConservacion !== 'De Baja'); const totalItems = depBienes.length; const totalValue = depBienes.reduce((acc, curr) => acc + (parseInt(curr.valorUnitario) || 0), 0); const withFc10 = depBienes.filter(b => b.hasFC10).length; const withQR = depBienes.filter(b => b.hasQR).length; const estados = { bueno: depBienes.filter(b => b.estadoConservacion === 'Bueno' || b.estadoConservacion === 'Muy bueno').length, regular: depBienes.filter(b => b.estadoConservacion === 'Regular').length, malo: depBienes.filter(b => b.estadoConservacion === 'Malo' || b.estadoConservacion === 'Inutilizable').length }; const percFC10 = totalItems === 0 ? 0 : (withFc10 / totalItems) * 100; const percQR = totalItems === 0 ? 0 : (withQR / totalItems) * 100; const cuentasCounts = {}; depBienes.forEach(b => { if (b.cuenta) cuentasCounts[b.cuenta] = (cuentasCounts[b.cuenta] || 0) + 1; }); const topCuentas = Object.entries(cuentasCounts).sort((a, b) => b[1] - a[1]).slice(0, 3); return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas }; }, [bienes, dependenciaActual]);
-  const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
+  const stats = useMemo(() => { const depBienes = bienes.filter(b => b.dependencia === dependenciaActual && b.estadoConservacion !== 'De Baja'); const totalItems = depBienes.length; const totalValue = depBienes.reduce((acc, curr) => acc + (parseInt(curr.valorUnitario) || 0), 0); const withFc10 = depBienes.filter(b => b.hasFC10).length; const withQR = depBienes.filter(b => b.hasQR).length; return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10: totalItems === 0 ? 0 : (withFc10 / totalItems) * 100, percQR: totalItems === 0 ? 0 : (withQR / totalItems) * 100 }; }, [bienes, dependenciaActual]);
+  
+  const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear)) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; fc10List.filter(fc => fc.dependencia === dependenciaActual).forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) asigCurrentMonth++; else if (year === yearOfPrevMonth && month === prevMonth) asigPreviousMonth++; } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
   
   const filteredBienes = useMemo(() => { 
     let filtered = bienes.filter(b => b.dependencia === dependenciaActual); 
@@ -645,12 +580,11 @@ export default function App() {
     if (filtroEstado !== 'ALL') filtered = filtered.filter(b => b.estadoConservacion === filtroEstado); 
     if (filtroQR === 'YES') filtered = filtered.filter(b => b.hasQR === true); 
     if (filtroQR === 'NO') filtered = filtered.filter(b => b.hasQR !== true); 
-    if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
-    if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
+    if (filtroDisponibilidad === 'DISPONIBLE') filtered = filtered.filter(b => !b.hasFC10);
+    if (filtroDisponibilidad === 'ASIGNADO') filtered = filtered.filter(b => b.hasFC10);
     if (searchTerm) { const term = String(searchTerm).toLowerCase(); filtered = filtered.filter(b => String(b.rotulo || '').toLowerCase().includes(term) || String(b.descripcion || '').toLowerCase().includes(term) || String(b.cuenta || '').toLowerCase().includes(term) || String(b.ubicacion || '').toLowerCase().includes(term) || String(b.funcionario || '').toLowerCase().includes(term) ); } 
-    filtered.sort((a, b) => { const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; const numA = getSuffixNum(a.rotulo); const numB = getSuffixNum(b.rotulo); if (numA !== numB) return numA - numB; return String(a.rotulo || '').localeCompare(String(b.rotulo || '')); }); 
     return filtered; 
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroDisponibilidad, searchTerm]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
@@ -658,323 +592,12 @@ export default function App() {
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
-  
   const solicitudesBaja = useMemo(() => { return bienes.filter(b => b.solicitudBaja === true && b.dependencia === dependenciaActual); }, [bienes, dependenciaActual]);
 
   const handleDownloadLabelPNG = async (bien) => { setIsProcessing({ active: true, text: 'Generando Etiqueta...' }); setTimeout(async () => { try { const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if (dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`); addToast("Etiqueta descargada con éxito", "success"); } } catch (e) { addToast("Error al generar la etiqueta", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
   const handleDownloadSimpleQR = async (bien) => { setIsProcessing({ active: true, text: 'Procesando imagen QR...' }); try { const dataUrl = await generateSimpleQR(bien); if(dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `QR_${cleanRotulo}.png`); addToast("Código QR simple descargado", "success"); } } catch (e) { addToast("Error al descargar el QR", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } };
   const handleBulkLabelPNGZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Generando Lote de Etiquetas...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP de etiquetas generado", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
   const handleBulkSimpleQRZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Comprimiendo ZIP de QRs simples...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`QRs_Simples_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateSimpleQR(bien); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP generado con éxito", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
-
-  const handleGenerateFC04PDF = (fc) => {
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
-    setIsProcessing({ active: true, text: 'Generando PDF FC-04...' });
-    setTimeout(() => {
-      try {
-        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
-        let finalY = 62;
-        if (fc.sinMovimiento) { doc.setFontSize(16); doc.setTextColor(100, 100, 100); doc.text("NO SE REGISTRA MOVIMIENTO ESTE MES", pageWidth / 2, finalY + 30, { align: 'center' }); finalY += 60; } 
-        else { 
-            const tableRows = fc.bienesSnapshot.map(b => [b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', b.rotulo || '-', b.descripcion || '-', formatCurrency(b.valorUnitario), formatDateText(b.fechaAdquisicion) || '-', b.vidaUtil || '-']); 
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "Analítico 1", "Analítico 2", "Rótulo / Código", "Descripción del Bien", "Valor Unitario (Gs.)", "Fecha Adquisición", "Vida Útil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
-        }
-        if (!fc.sinMovimiento && fc.bienesSnapshot?.length > 0) { doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 0, 0); doc.text(`Cantidad Total de Bienes: ${fc.bienesSnapshot.length}`, 14, finalY); finalY += 10; }
-        if (finalY > pageHeight - 45) { doc.addPage(); finalY = 40; }
-        let firmasY = finalY + 25; doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(pageWidth / 4 - 30, firmasY, pageWidth / 4 + 30, firmasY); doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.text("Director Administrativo", pageWidth / 4, firmasY + 5, { align: 'center' }); doc.line(pageWidth * 0.75 - 30, firmasY, pageWidth * 0.75 + 30, firmasY); doc.text("Jefe de Bienes Patrimoniales", pageWidth * 0.75, firmasY + 5, { align: 'center' });
-        const cleanDepName = fc.dependencia.replace(/\s+/g, '_'); doc.save(`FC04_${cleanDepName}_${fc.mes}-${fc.anio}.pdf`); addToast("Reporte PDF FC-04 generado", "success");
-      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
-    }, 100);
-  };
-
-  const handleGenerateFC11PDF = (fcsData) => {
-    const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
-    if (fcs.length === 0) return addToast("No hay datos para generar FC-11", "warning");
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
-    setIsProcessing({ active: true, text: 'Generando PDF FC-11...' });
-    const todayStr = new Date().toISOString().split('T')[0];
-    setTimeout(() => {
-      try {
-        const fc = fcs[0]; const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); const dateParts = (fc.fecha || '').split('-'); let formattedDate = ''; if(dateParts.length === 3) { const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]; formattedDate = `Pilar, ${dateParts[2]} de ${months[parseInt(dateParts[1])-1]} de ${dateParts[0]}`; }
-        const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
-        for(let i = 0; i < 3; i++) {
-            if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
-            doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`Nº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
-            let finalY = 54; doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [`Dependencia Remitente: ${fc.dependenciaRemitente || ''} ${fc.areaRemitente ? '- ' + fc.areaRemitente : ''}`.trim()], [`Dependencia Destinataria: ${fc.dependenciaDestinataria || ''} ${fc.areaDestinataria ? '- ' + fc.areaDestinataria : ''}`.trim()] ], styles: { fontSize: 10, cellPadding: 4, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fontStyle: 'bold', fillColor: [248, 249, 250] } }); finalY = doc.lastAutoTable.finalY + 6;
-            const tableRows = fcs.map(item => { const b = item.bienSnapshot || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (item.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO' ]; });
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 32 }, 1: { halign: 'center', cellWidth: 26 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 12 } } }); finalY = doc.lastAutoTable.finalY + 8;
-            doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes Trasladados: ${fcs.length}`, 14, finalY); finalY += 10;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "bold"); doc.text("Motivo o circunstancia del movimiento:", 14, finalY); finalY += 8; const motivos = ["Traspaso", "Préstamo", "Inservible", "Faltante"]; let startX = 20; doc.setFont("helvetica", "normal");
-            motivos.forEach((m) => { doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.rect(startX, finalY - 3, 4, 4); if (fc.motivo === m) { doc.setFont("helvetica", "bold"); doc.text("X", startX + 0.9, finalY + 0.4); doc.setFont("helvetica", "normal"); } doc.text(m, startX + 6, finalY + 0.4); startX += 40; }); finalY += 10;
-            if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "bold"); doc.text("Observaciones:", 14, finalY); finalY += 6; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' });
-            if (finalY > pageHeight - 65) { doc.addPage(); finalY = 30;} else { finalY += 35; }
-            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(14, finalY, 70, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Jefe de Dependencia Remitente", 42, finalY + 5, { align: 'center' }); doc.line(78, finalY, 138, finalY); doc.text("Jefe de Dependencia Destinataria", 108, finalY + 5, { align: 'center' }); doc.line(146, finalY, 202, finalY); doc.text("Jefe Dpto. Bienes Patrimoniales", 174, finalY + 5, { align: 'center' });
-            let pieY = pageHeight - 15; doc.setFont("helvetica", "normal"); doc.text("Distribución: Original para el Departamento de Bienes Patrimoniales, Copias para dependencia remitente y destinataria.", 14, pieY);
-        }
-        const cleanFormNum = (fc.numeroFormulario || 'S-N').replace(/[^a-zA-Z0-9]/g, '-'); doc.save(`FC11_Traslado_${cleanFormNum}_${todayStr}.pdf`); addToast("Reporte FC-11 generado", "success");
-      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
-    }, 100);
-  };
-
-  const buildFC10PDFDoc = (fcs, bienesAListar) => {
-        const fc = fcs[0]; 
-        const { jsPDF } = window.jspdf; 
-        const doc = new jsPDF('p', 'mm', pdfPaperSize); 
-        const pageWidth = doc.internal.pageSize.width; 
-        const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); 
-        const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]; 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const fechaDocumento = fc.entregadoFecha || fc.fechaGeneracion || todayStr; 
-        let gYear = "2024", gMonth = "01";
-        if (fechaDocumento && fechaDocumento.includes('-')) {
-            const parts = fechaDocumento.split('-');
-            gYear = parts[0];
-            gMonth = parts[1];
-        }
-        const copias = ['ORIGINAL', 'DUPLICADO'];
-        for(let i = 0; i < 2; i++) {
-            if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE RESPONSABILIDAD INDIVIDUAL FC-10", pageWidth / 2, 38, { align: 'center' });
-            doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-            doc.setFontSize(10); doc.text(`PERIODO DE ELABORACIÓN: ${monthNames[parseInt(gMonth)-1] || ''} ${gYear}`, pageWidth / 2, 45, { align: 'center' });
-            let finalY = 52;
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '1. DATOS DE LA DEPENDENCIA ORGANIZACIONAL', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }, { content: 'CÓDIGO', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] } }], [`Institución (Entidad): UNIVERSIDAD NACIONAL DE PILAR`, `28`], [`Unidad Jerárquica: ${fc.unidad || ''}`, `${fc.unidadCod || ''}`], [`Repartición Administrativa: ${fc.reparticion || ''}`, `${fc.reparticionCod || ''}`], [`Dependencia Específica: ${fc.dependenciaOrg || ''}`, `${fc.dependenciaCod || ''}`], [`Área o Departamento: ${fc.area || ''}`, `${fc.areaCod || ''}`] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '2. DATOS DEL FUNCIONARIO RESPONSABLE', colSpan: 2, styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }], ["Nombre y Apellido:", fc.funcionarioNombre || ''], ["Cédula de Identidad N°:", formatCI(fc.funcionarioDoc || '')], ["Cargo que desempeña:", fc.funcionarioCargo || ''] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 0: { cellWidth: 65, fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
-            const tableRows = fcs.map((fcItem, idx) => { const b = bienesAListar[idx] || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (fcItem.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO', formatCurrency(fcItem.valorTotal || b.valorUnitario) ]; });
-            const totalGral = fcs.reduce((acc, fcItem, idx) => { const v = String(fcItem.valorTotal || bienesAListar[idx]?.valorUnitario || 0).replace(/\D/g, ''); return acc + (parseInt(v, 10) || 0); }, 0); tableRows.push([{content: `TOTAL GENERAL (${fcs.length} bienes)`, colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatCurrency(totalGral), styles: {fontStyle: 'bold', halign: 'right'}}]);
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR", "Valor Unitario (Gs.)"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 30 }, 1: { halign: 'center', cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 22 }, 5: { halign: 'center', cellWidth: 9 }, 6: { halign: 'right', fontStyle: 'bold', cellWidth: 28 } } }); finalY = doc.lastAutoTable.finalY + 4;
-            if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.text("Observaciones:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' }); finalY += 6;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, head: [["TIPO DE MOVIMIENTO", "LUGAR", "FECHA", "RECEPTOR (Solo si es devolución)"]], body: [ ["ENTREGA", fc.entregadoLugar || '-', formatDateText(fc.entregadoFecha) || '-', ''], ["DEVOLUCIÓN", fc.devolucionLugar || '', formatDateText(fc.devolucionFecha) || '', fc.devolucionReceptor ? `${fc.devolucionReceptor} - ${fc.devolucionCargoReceptor}` : ''] ], styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, halign: 'center' }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] }, columnStyles: { 0: { fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 8;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.text("Con la firma del presente documento, el funcionario asume la total responsabilidad por la tenencia, uso y debida conservación del bien patrimonial detallado. Asimismo, se obliga a informar al Departamento de Bienes Patrimoniales sobre su renuncia, traslado o desvinculación del cargo, así como reportar inmediatamente cualquier daño, pérdida o hurto del bien asignado para su gestión, en estricto cumplimiento del Manual de Normas y Procedimientos para la Administración, Uso, Custodia, Clasificación y Contabilización de los Bienes del Estado del Ministerio de Economía y Finanzas.", 14, finalY, { maxWidth: pageWidth - 28, align: 'justify', lineHeightFactor: 1.5 });
-            if (finalY > pageHeight - 60) { doc.addPage(); finalY = 30; } else { finalY += 35; }
-            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(20, finalY, 90, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Firma del Funcionario Responsable", 55, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text(`Aclaración: ${fc.funcionarioNombre || ''}`, 20, finalY + 10); doc.text(`C.I.: ${formatCI(fc.funcionarioDoc || '')}`, 20, finalY + 15);
-            doc.line(120, finalY, 190, finalY); doc.setFont("helvetica", "bold"); doc.text("Visto Bueno (Jefe Inmediato)", 155, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text("Aclaración:", 120, finalY + 10);
-        }
-        return { doc, fechaDocumento, fc };
-  };
-
-  const handleGenerateFC10PDF = (fcsData, bienesData) => {
-    const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
-    const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
-    if (fcs.length === 0) return addToast("No hay datos para generar FC-10", "warning");
-
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
-    setIsProcessing({ active: true, text: 'Generando PDF FC-10...' });
-    
-    setTimeout(() => {
-      try {
-        const { doc, fechaDocumento, fc } = buildFC10PDFDoc(fcs, bienesAListar);
-        const cleanFunc = (fc.funcionarioNombre || 'SR').replace(/\s+/g, '_'); 
-        doc.save(`FC10_Asignacion_${cleanFunc}_${fechaDocumento}.pdf`); 
-        addToast("Reporte PDF FC-10 generado", "success");
-      } catch(e) { 
-        console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); 
-      } finally { 
-        setIsProcessing({ active: false, text: '' }); 
-      }
-    }, 100);
-  };
-
-  const handleExportFC10CSV = () => {
-    const fcsAnuales = fc10List.filter(fc => {
-        if (fc.dependencia !== dependenciaActual) return false;
-        const genDate = fc.entregadoFecha || fc.fechaGeneracion || '';
-        const devDate = fc.devolucionFecha || '';
-        const [gYear] = genDate.split('-');
-        let matchDev = false;
-        if (devDate) {
-            const [dYear] = devDate.split('-');
-            matchDev = (dYear === fc10Year);
-        }
-        return (gYear === fc10Year) || matchDev;
-    }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime());
-
-    if (fcsAnuales.length === 0) return addToast(`No hay datos FC-10 para el año ${fc10Year}`, "warning");
-    
-    setIsProcessing({ active: true, text: 'Generando Excel...' });
-    setTimeout(() => {
-      let csvContent = "\uFEFF"; 
-      csvContent += "Fecha Asignacion;Dependencia;Unidad;Reparticion;Area;Funcionario;C.I.;Cargo;Rotulo;Descripcion;Cuenta Contable;Estado Fisico;Valor (Gs.);Fecha Devolucion;Observaciones\n";
-      
-      fcsAnuales.forEach(fc => {
-          const b = bienes.find(bien => bien.id === fc.bienId) || {};
-          const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-');
-          const row = [
-              formatDateText(fc.entregadoFecha || fc.fechaGeneracion),
-              fc.dependencia, fc.unidad || '-', fc.reparticion || '-', fc.area || '-',
-              fc.funcionarioNombre, formatCI(fc.funcionarioDoc), fc.funcionarioCargo,
-              b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`, cuentaFull || '-',
-              fc.estadoConservacion, (fc.valorTotal || b.valorUnitario || 0),
-              fc.devolucionFecha ? formatDateText(fc.devolucionFecha) : 'Vigente',
-              `"${(fc.observaciones || '').replace(/"/g, '""')}"`
-          ];
-          csvContent += row.join(';') + "\n";
-      });
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      if (window.saveAs) window.saveAs(blob, `Reporte_FC10_${dependenciaActual.replace(/\s+/g, '_')}_${fc10Year}.csv`);
-      setIsProcessing({ active: false, text: '' });
-      addToast(`Reporte Excel FC-10 (${fc10Year}) descargado`, "success");
-    }, 100);
-  };
-
-  const handleExportFC11CSV = () => {
-    const fcsAnuales11 = fc11List.filter(fc => {
-        const rem = fc.dependenciaRemitente || fc.remitente || '';
-        const dest = fc.dependenciaDestinataria || fc.destinatario || '';
-        if (rem !== dependenciaActual && dest !== dependenciaActual) return false;
-        const [year] = String(fc.fecha || '').split('-');
-        return year === fc10Year;
-    }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
-
-    if (fcsAnuales11.length === 0) return addToast(`No hay datos FC-11 para el año ${fc10Year}`, "warning");
-    
-    setIsProcessing({ active: true, text: 'Generando Excel...' });
-    setTimeout(() => {
-      let csvContent = "\uFEFF";
-      csvContent += "N Formulario;Fecha;Dep. Remitente;Area Remitente;Dep. Destinataria;Area Destinataria;Rotulo Bien;Descripcion Bien;Estado Fisico;Motivo;Observaciones\n";
-      
-      fcsAnuales11.forEach(fc => {
-          const b = fc.bienSnapshot || {};
-          const row = [
-              fc.numeroFormulario, formatDateText(fc.fecha),
-              fc.dependenciaRemitente || fc.remitente, fc.areaRemitente || '-',
-              fc.dependenciaDestinataria || fc.destinatario, fc.areaDestinataria || '-',
-              b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
-              fc.estadoConservacion || b.estadoConservacion, fc.motivo,
-              `"${(fc.observaciones || '').replace(/"/g, '""')}"`
-          ];
-          csvContent += row.join(';') + "\n";
-      });
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      if (window.saveAs) window.saveAs(blob, `Reporte_FC11_${dependenciaActual.replace(/\s+/g, '_')}_${fc10Year}.csv`);
-      setIsProcessing({ active: false, text: '' });
-      addToast(`Reporte Excel FC-11 (${fc10Year}) descargado`, "success");
-    }, 100);
-  };
-
-  const openFC03Modal = () => {
-      setFc03Config({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
-      setIsFC03ModalOpen(true);
-  };
-
-  const executeGenerateFC03 = () => {
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
-    let bienesToPrint = filteredBienes;
-
-    if (fc03Config.tipoFiltro === 'ubicacion' && fc03Config.filtroValor) {
-        bienesToPrint = bienesToPrint.filter(b => normalizeStr(b.ubicacion) === normalizeStr(fc03Config.filtroValor));
-    } else if (fc03Config.tipoFiltro === 'funcionario' && fc03Config.filtroValor) {
-        bienesToPrint = bienesToPrint.filter(b => normalizeStr(b.funcionario) === normalizeStr(fc03Config.filtroValor));
-    }
-
-    if (bienesToPrint.length === 0) return addToast("No se encontraron bienes para los filtros aplicados.", "warning");
-    setIsProcessing({ active: true, text: 'Generando Inventario FC-03...' }); const todayStr = new Date().toISOString().split('T')[0];
-    
-    setTimeout(() => {
-      try {
-        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); 
-        
-        const tableRows = bienesToPrint.map(b => [
-            b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', 
-            b.rotulo || '-', b.descripcion || '-', 
-            b.dependencia || '-', b.ubicacion || '-', b.funcionario || 'Sin Asignar',
-            formatDateText(b.fechaAdquisicion) || '-', formatCurrency(b.valorUnitario), getEstadoAbbr(b.estadoConservacion)
-        ]);
-        
-        doc.autoTable({ 
-            startY: 55, margin: { top: 55, bottom: 30, left: 10, right: 10 }, theme: 'grid', 
-            head: [["Cta.", "Sub.", "An.1", "An.2", "Rótulo", "Descripción", "Dependencia", "Ubicación", "Funcionario Asignado", "Adquisición", "Valor (Gs.)", "Est."]], 
-            body: tableRows, rowPageBreak: 'avoid',
-            styles: { fontSize: 7, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, 
-            headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, 
-            alternateRowStyles: { fillColor: [250, 252, 253] },
-            columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center', fontStyle: 'bold' }, 9: { halign: 'center' }, 10: { halign: 'right' }, 11: { halign: 'center', fontStyle: 'bold' } },
-            didDrawPage: function(data) {
-                doc.addImage(logoImg, 'PNG', 14, 10, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 16, { align: 'center' }); 
-                doc.setFontSize(11); doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.text("Hoja N°: " + doc.internal.getCurrentPageInfo().pageNumber, pageWidth - 14, 16, { align: 'right' });
-                
-                doc.setFont("helvetica", "bold"); doc.text("Entidad:", 14, 38); doc.setFont("helvetica", "normal"); doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 30, 38);
-                doc.setFont("helvetica", "bold"); doc.text("Dependencia:", 180, 38); doc.setFont("helvetica", "normal"); doc.text(dependenciaActual.toUpperCase(), 208, 38);
-                
-                let filtroText = "INVENTARIO GENERAL DE LA DEPENDENCIA";
-                if(fc03Config.tipoFiltro === 'ubicacion') filtroText = `UBICACIÓN: ${fc03Config.filtroValor.toUpperCase()}`;
-                if(fc03Config.tipoFiltro === 'funcionario') filtroText = `RESPONSABLE: ${fc03Config.filtroValor.toUpperCase()}`;
-                
-                doc.setFont("helvetica", "bold"); doc.text("Filtro de Inventario:", 14, 44); doc.setFont("helvetica", "normal"); doc.text(filtroText, 48, 44);
-            }
-        });
-        
-        let finalY = doc.lastAutoTable.finalY + 10; if (finalY > pageHeight - 55) { doc.addPage(); finalY = 20; }
-        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes en el Reporte: ${bienesToPrint.length}`, 14, finalY); finalY += 8;
-        doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text("Estado de Conservación:", 14, finalY); doc.setFont("helvetica", "normal"); doc.text("MB: Muy bueno, B: Bueno, R: Regular, M: Malo, I: Inutilizable, DB: De Baja", 52, finalY); finalY += 15;
-        if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
-        doc.setFont("helvetica", "bold"); doc.setTextColor(100, 100, 100); doc.text("Información de Emisión:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text("Documento oficial generado por el Sistema Integrado de Gestión Patrimonial UNP.", 14, finalY); finalY += 4; doc.text(`Elaborado por: ${currentUser?.nombre || 'Usuario'} (${currentUser?.cargo || 'Funcionario'}).`, 14, finalY);
-        doc.setTextColor(0, 0, 0); doc.text("Lugar y Fecha: " + fc03Config.lugar + ", " + todayStr.split('-').reverse().join('-'), pageWidth - 14, finalY, { align: 'right' });
-        
-        const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
-        const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
-        doc.save(`FC03_${cleanDepName}_${descFiltro}_${todayStr}.pdf`); 
-        addToast("Reporte Inventario generado", "success");
-      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsFC03ModalOpen(false); }
-    }, 100);
-  };
-
-  const toggleQR = async (bien) => { 
-    const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
-    setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
-    try { 
-        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
-        addToast(`Estado QR actualizado`, "success"); 
-    } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
-  };
-  
-  const handleDownloadTemplateCSV = () => {
-      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida Útil (Años)\n" +
-                          "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
-                          ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Masiva_Bienes.csv");
-      addToast("Plantilla Excel (CSV) base descargada", "success");
-  };
-
-  const handleExportInventarioCSV = () => {
-      if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
-      setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
-      setTimeout(() => {
-          let csvContent = "\uFEFFCuenta;Subcuenta;Analitico 1;Analitico 2;Rotulo;Descripcion;Dependencia;Ubicacion;Funcionario;Fecha Adquisicion;Valor Unitario (Gs.);Estado Conservacion;Vida Util;Tiene FC10;Tiene QR\n";
-          filteredBienes.forEach(b => {
-              const row = [
-                  b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-',
-                  b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
-                  b.dependencia || '-', b.ubicacion || '-', b.funcionario || '-',
-                  formatDateText(b.fechaAdquisicion) || '-', b.valorUnitario || '0',
-                  b.estadoConservacion || '-', b.vidaUtil || '-',
-                  b.hasFC10 ? 'SI' : 'NO', b.hasQR ? 'SI' : 'NO'
-              ];
-              csvContent += row.join(';') + "\n";
-          });
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          if (window.saveAs) window.saveAs(blob, `Reporte_Inventario_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-          setIsProcessing({ active: false, text: '' });
-          addToast("Reporte Excel descargado exitosamente", "success");
-      }, 100);
-  };
 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]; if (!file) return; setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
@@ -998,29 +621,14 @@ export default function App() {
             if (isDuplicateDB || isDuplicateCSV) { duplicatesSkipped++; continue; }
             
             newBienes.push({ 
-                id: generateId(), 
-                dependencia: dependenciaActual, 
-                cuenta: String(row[0]||'').replace(/"/g, ''), 
-                subcuenta: String(row[1]||'').replace(/"/g, ''), 
-                analitico1: String(row[2]||'').replace(/"/g, ''), 
-                analitico2: String(row[3]||'').replace(/"/g, ''), 
-                descripcion: String(row[4]||'').replace(/"/g, ''), 
-                fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), 
-                rotulo: rotuloCSV, 
-                valorUnitario: String(row[7]||'').replace(/"/g, ''), 
-                vidaUtil: String(row[8]||'').replace(/"/g, ''), 
-                funcionario: '', 
-                ubicacion: '', 
-                hasFC10: false, 
-                hasQR: false, 
-                estadoConservacion: 'Muy bueno' 
+                id: generateId(), dependencia: dependenciaActual, cuenta: String(row[0]||'').replace(/"/g, ''), subcuenta: String(row[1]||'').replace(/"/g, ''), analitico1: String(row[2]||'').replace(/"/g, ''), analitico2: String(row[3]||'').replace(/"/g, ''), descripcion: String(row[4]||'').replace(/"/g, ''), fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), rotulo: rotuloCSV, valorUnitario: String(row[7]||'').replace(/"/g, ''), vidaUtil: String(row[8]||'').replace(/"/g, ''), funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Muy bueno' 
             });
           }
         }
         if (newBienes.length > 0) { 
             try { 
                 const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
-                await supabase.from('bens').insert(payloadNewBienes);
+                await fetchWithRetry(async () => await supabase.from('bens').insert(payloadNewBienes));
                 await fetchData(); 
                 setActiveTab('inventario'); 
                 addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success"); 
@@ -1035,27 +643,18 @@ export default function App() {
     e.preventDefault();
     const f = new FormData(e.target);
     const userData = Object.fromEntries(f.entries());
-    
     try {
-        let res;
         if (usuarioEditing) {
             const updateData = { nombre: userData.nombre, cargo: userData.cargo };
             if (userData.password) updateData.password = userData.password;
-            res = await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
+            await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
         } else {
-            res = await supabase.from('usuarios').insert([userData]);
+            await supabase.from('usuarios').insert([userData]);
         }
-        
-        if (!res.error) {
-            addToast(usuarioEditing ? "Usuario actualizado" : "Usuario creado", "success");
-            setIsUsuarioModalOpen(false);
-            fetchData();
-        } else {
-            addToast(res.error.message || "Error al procesar la solicitud", "error");
-        }
-    } catch (error) {
-        addToast("Error de conexión.", "error");
-    }
+        addToast(usuarioEditing ? "Usuario actualizado" : "Usuario creado", "success");
+        setIsUsuarioModalOpen(false);
+        fetchData();
+    } catch (error) { addToast("Error de conexión.", "error"); }
   };
 
   const saveMaestro = async (e) => {
@@ -1066,42 +665,27 @@ export default function App() {
       const table = tipoMaestro === 'funcionario' ? 'funcionarios' : 'ubicaciones';
 
       try {
-          let res;
           const payload = { id: maestroEditing ? maestroEditing.id : generateId(), data };
-          if (maestroEditing) {
-              res = await supabase.from(table).update(payload).eq('id', maestroEditing.id);
-          } else {
-              res = await supabase.from(table).insert([payload]);
-          }
+          if (maestroEditing) await supabase.from(table).update(payload).eq('id', maestroEditing.id);
+          else await supabase.from(table).insert([payload]);
 
-          if (!res.error) {
-              addToast(maestroEditing ? "Registro actualizado" : "Registro creado con éxito", "success");
-              setIsMaestroModalOpen(false);
-              setMaestroEditing(null);
-              fetchData();
-          } else {
-              addToast("Error al guardar en el servidor", "error");
-          }
-      } catch (err) {
-          addToast("Error de conexión", "error");
-      }
+          addToast(maestroEditing ? "Registro actualizado" : "Registro creado con éxito", "success");
+          setIsMaestroModalOpen(false);
+          setMaestroEditing(null);
+          fetchData();
+      } catch (err) { addToast("Error de conexión", "error"); }
   };
 
   const deleteMaestro = async (tipo, id) => {
       const table = tipo === 'funcionario' ? 'funcionarios' : 'ubicaciones';
       const { error } = await supabase.from(table).delete().eq('id', id);
-      if (!error) {
-          addToast("Registro eliminado", "success");
-          fetchData();
-      } else {
-          addToast("Error al eliminar", "error");
-      }
+      if (!error) { addToast("Registro eliminado", "success"); fetchData(); } 
+      else { addToast("Error al eliminar", "error"); }
   };
 
-   const saveBien = async (e, keepOpen = false) => {
+  const saveBien = async (e, keepOpen = false) => {
     if(e) e.preventDefault(); 
     if (isSaving) return;
-
     const form = bienFormRef.current;
     if (!form || !form.reportValidity()) return;
 
@@ -1109,299 +693,90 @@ export default function App() {
     const formData = new FormData(form); 
     const rotuloInput = formData.get('rotulo').trim(); 
     const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && (!bienEditing || b.id !== bienEditing.id)); 
-    if (isDuplicate) { 
-        addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); 
-        setIsSaving(false);
-        return; 
-    }
+    if (isDuplicate) { addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); setIsSaving(false); return; }
     
     const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
     
     try { 
-        let res;
         const payload = { id: bienData.id, data: bienData };
-        if (bienEditing) {
-            res = await supabase.from('bens').update(payload).eq('id', bienData.id);
+        if (bienEditing) await supabase.from('bens').update(payload).eq('id', bienData.id);
+        else await supabase.from('bens').insert([payload]);
+
+        setBienes(prev => bienEditing ? prev.map(b => b.id === bienData.id ? bienData : b) : [bienData, ...prev]);
+        const cacheActual = await localforage.getItem('bienes_cache') || [];
+        const idxCache = cacheActual.findIndex(b => b.id === bienData.id);
+        if (idxCache !== -1) cacheActual[idxCache] = bienData; else cacheActual.push(bienData);
+        await localforage.setItem('bienes_cache', cacheActual);
+
+        if (keepOpen) {
+            addToast(`"${rotuloInput}" guardado.`, "success");
+            form.elements['rotulo'].value = '';
+            form.elements['descripcion'].value = '';
+            if(form.elements['hasQR']) form.elements['hasQR'].checked = false;
+            form.elements['rotulo'].focus();
+            setBienEditing(null);
         } else {
-            res = await supabase.from('bens').insert([payload]);
+            setIsBienModalOpen(false); 
+            addToast("Bien guardado exitosamente", "success"); 
         }
-
-        if (!res.error) {
-            setBienes(prev => {
-                if (bienEditing) {
-                    return prev.map(b => b.id === bienData.id ? bienData : b);
-                } else {
-                    return [bienData, ...prev];
-                }
-            });
-
-            const cacheActual = await localforage.getItem('bienes_cache') || [];
-            let nuevoCache = [...cacheActual];
-            const idxCache = nuevoCache.findIndex(b => b.id === bienData.id);
-            if (idxCache !== -1) {
-                nuevoCache[idxCache] = bienData;
-            } else {
-                nuevoCache.push(bienData);
-            }
-            await localforage.setItem('bienes_cache', nuevoCache);
-
-            if (keepOpen) {
-                addToast(`"${rotuloInput}" guardado.`, "success");
-                form.elements['rotulo'].value = '';
-                form.elements['descripcion'].value = '';
-                if(form.elements['hasQR']) form.elements['hasQR'].checked = false;
-                form.elements['rotulo'].focus();
-                setBienEditing(null);
-            } else {
-                setIsBienModalOpen(false); 
-                addToast("Bien guardado exitosamente", "success"); 
-            }
-        } else {
-            addToast("Error al guardar en el servidor.", "error");
-        }
-    } catch (e) { 
-        addToast("Error al guardar.", "error"); 
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const saveFC11 = async (e) => {
-    e.preventDefault(); 
-    const f = new FormData(e.target); 
-    const fc11Data = { id: fc11Editing ? fc11Editing.id : generateId(), numeroFormulario: f.get('numeroFormulario'), fecha: f.get('fecha'), dependenciaRemitente: dependenciaActual, areaRemitente: f.get('areaRemitente'), dependenciaDestinataria: f.get('dependenciaDestinataria'), areaDestinataria: f.get('areaDestinataria'), motivo: f.get('motivo'), estadoConservacion: f.get('estadoConservacion'), observaciones: f.get('observaciones'), bienId: fc11TargetBien.id, bienSnapshot: fc11TargetBien, tipoRegistro: 'FC11' }; 
-    const esMovimientoInterno = fc11Data.dependenciaRemitente === fc11Data.dependenciaDestinataria; 
-    const updatedBien = { ...fc11TargetBien, dependencia: fc11Data.dependenciaDestinataria, estadoConservacion: fc11Data.estadoConservacion, hasFC10: false, funcionario: esMovimientoInterno ? fc11TargetBien.funcionario : '', ubicacion: esMovimientoInterno ? fc11TargetBien.ubicacion : '' };
-    const payloadFC11 = { id: fc11Data.id, data: fc11Data };
-
-    try {
-      let res;
-      if (fc11Editing) {
-          res = await supabase.from('fc11').update(payloadFC11).eq('id', fc11Data.id);
-      } else {
-          res = await supabase.from('fc11').insert([payloadFC11]);
-      }
-      if (res?.error) throw res.error;
-
-      const openFc10 = fc10List.find(fc => fc.bienId === fc11TargetBien.id && !fc.devolucionFecha); 
-      if (openFc10) { 
-          const closedFc10 = { ...openFc10, devolucionFecha: new Date().toISOString().split('T')[0], devolucionLugar: "Traslado FC-11", devolucionReceptor: "Sistema" }; 
-          await supabase.from('fc10').update({ data: closedFc10 }).eq('id', closedFc10.id);
-          setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); 
-      }
-
-      await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
-      
-      if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
-      if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
-      fetchData();
-    } catch (error) { console.error(error); addToast("Error al registrar FC-11.", "error"); }
-  };
-
-  const saveFC04 = async (e) => {
-    e.preventDefault(); 
-    const f = new FormData(e.target); 
-    const fc04Data = { id: fc04Editing ? fc04Editing.id : generateId(), dependencia: dependenciaActual, mes: f.get('mes'), anio: f.get('anio'), origenMovimiento: f.get('origenMovimiento'), sinMovimiento: fc04SinMovimiento, bienesSnapshot: fc04SinMovimiento ? [] : fc04Items, fechaRegistro: new Date().toISOString(), tipoRegistro: 'FC04' };
-    const payloadFC04 = { id: fc04Data.id, data: fc04Data };
-
-    try {
-      let res;
-      if (fc04Editing) {
-          res = await supabase.from('fc04').update(payloadFC04).eq('id', fc04Data.id);
-      } else {
-          res = await supabase.from('fc04').insert([payloadFC04]);
-      }
-      if (res?.error) throw res.error;
-
-      if (!fc04SinMovimiento && fc04Items.length > 0) {
-          const isBaja = fc04Data.origenMovimiento === 'B'; 
-          const newBienes = []; 
-          const updatedBienes = [];
-          
-          for (const item of fc04Items) {
-              const existingBien = bienes.find(b => b.rotulo.toLowerCase() === item.rotulo.toLowerCase() && b.dependencia === dependenciaActual);
-              if (isBaja) { 
-                  if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); 
-              } else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { 
-                  newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Muy bueno' }); 
-              }
-          }
-          if (newBienes.length > 0) { 
-              const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
-              await supabase.from('bens').insert(payloadNewBienes);
-              setBienes(prev => [...newBienes, ...prev]); 
-              addToast(`${newBienes.length} bienes inyectados.`, "success"); 
-          }
-          if (updatedBienes.length > 0) { 
-              for (const b of updatedBienes) {
-                  await supabase.from('bens').update({ data: b }).eq('id', b.id);
-              }
-              setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
-              addToast(`${updatedBienes.length} bajas registradas.`, "success"); 
-          }
-      }
-      if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
-      fetchData();
-      addToast("Expediente FC-04 guardado", "success");
-    } catch (error) { console.error(error); addToast("Error guardando FC-04.", "error"); }
-  };
-
-  const saveFC10 = async (e) => {
-    e.preventDefault(); 
-    const formData = new FormData(e.target); 
-    const orgDataToSave = { unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod') }; 
-    localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); 
-    
-    const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: orgDataToSave.unidad, unidadCod: orgDataToSave.unidadCod, reparticion: orgDataToSave.reparticion, reparticionCod: orgDataToSave.reparticionCod, dependenciaOrg: orgDataToSave.dependenciaOrg, dependenciaCod: orgDataToSave.dependenciaCod, area: orgDataToSave.area, areaCod: orgDataToSave.areaCod, funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: formData.get('valorTotal').replace(/\./g, ''), observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; 
-    const isDevuelto = !!fcData.devolucionFecha; 
-    const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
-    const payloadFC10 = { id: fcData.id, data: fcData };
-
-    try { 
-        let res;
-        if (fc10Editing) {
-            res = await supabase.from('fc10').update(payloadFC10).eq('id', fcData.id);
-        } else {
-            res = await supabase.from('fc10').insert([payloadFC10]);
-        }
-        if (res?.error) throw res.error;
-
-        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
-
-        const checkAndAddStructure = async (name, code, tipo) => { 
-            if (name && code) { 
-                try { 
-                    const nameUpper = name.toUpperCase(); 
-                    const exists = estructurasDB.find(item => item.nombre.toUpperCase() === nameUpper && item.tipoEstructura === tipo); 
-                    if (!exists) { 
-                        const newStruct = { id: generateId(), nombre: nameUpper, codigo: code, tipoRegistro: 'ESTRUCTURA', tipoEstructura: tipo }; 
-                        setEstructurasDB(prev => [...prev, newStruct]); 
-                        await supabase.from('estructuras').insert([{ id: newStruct.id, data: newStruct }]); 
-                    } 
-                } catch(err) {}
-            } 
-        }; 
-        await checkAndAddStructure(orgDataToSave.unidad, orgDataToSave.unidadCod, 'unidad'); await checkAndAddStructure(orgDataToSave.reparticion, orgDataToSave.reparticionCod, 'reparticion'); await checkAndAddStructure(orgDataToSave.dependenciaOrg, orgDataToSave.dependenciaCod, 'dependencia'); await checkAndAddStructure(orgDataToSave.area, orgDataToSave.areaCod, 'area'); 
-        
-        setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
-        setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
-        setIsFC10ModalOpen(false); 
-        fetchData();
-        addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
-    } catch (error) { console.error(error); addToast("Error al guardar.", "error"); }
+    } catch (e) { addToast("Error al guardar.", "error"); } finally { setIsSaving(false); }
   };
 
   const confirmDeleteAction = async () => {
     if (!itemToDelete) return; 
     const { type, id, username, item } = itemToDelete;
-    
     try { 
-        let res = { error: null };
-        
         if (type === 'requestBaja') {
             const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
-            res = await supabase.from('bens').update({ data: updatedBien }).eq('id', id);
-            if (!res.error) {
-                setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
-                addToast("Solicitud de baja enviada a revisión.", "warning");
-            }
-        }
-        else {
+            await supabase.from('bens').update({ data: updatedBien }).eq('id', id);
+            
+            const notifAdmin = { id: generateId(), tipoRegistro: 'NOTIFICACION', usuarioDestino: 'admin', titulo: 'Nueva Solicitud de Baja', mensaje: `El usuario ${currentUser?.username} solicitó la baja del bien ${item.rotulo}`, leido: false, fecha: new Date().toISOString(), bienId: id };
+            await supabase.from('auditoria').insert([{ id: notifAdmin.id, data: notifAdmin }]);
+            
+            setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
+            addToast("Solicitud de baja enviada a revisión del Administrador.", "warning");
+        } else {
             if (type === 'bien') {
-                if (item.estadoConservacion === 'De Baja') {
-                    res = await supabase.from('bens').delete().eq('id', id);
-                } else {
-                    const updatedItem = { ...item, estadoConservacion: 'De Baja' };
-                    res = await supabase.from('bens').update({ data: updatedItem }).eq('id', id);
-                }
-            }
-            else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
-            else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
-            else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
-            else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
+                if (item.estadoConservacion === 'De Baja') await supabase.from('bens').delete().eq('id', id);
+                else await supabase.from('bens').update({ data: { ...item, estadoConservacion: 'De Baja' } }).eq('id', id);
+            } else if (type === 'fc10') await supabase.from('fc10').delete().eq('id', id);
+              else if (type === 'fc11') await supabase.from('fc11').delete().eq('id', id);
+              else if (type === 'fc04') await supabase.from('fc04').delete().eq('id', id);
+              else if (type === 'usuario') await supabase.from('usuarios').delete().eq('username', username);
 
-            if (!res.error) {
-                if (type === 'bien') {
-                    if (item.estadoConservacion === 'De Baja') {
-                        setBienes(prev => prev.filter(b => b.id !== id));
-                        const cacheActual = await localforage.getItem('bienes_cache') || [];
-                        await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== id));
-                    } else {
-                        setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
-                        const cacheActual = await localforage.getItem('bienes_cache') || [];
-                        await localforage.setItem('bienes_cache', cacheActual.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
-                    }
-                }
-                else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
-                
-                addToast(type === 'bien' && item.estadoConservacion !== 'De Baja' ? "Bien pasado a estado de baja" : "Registro eliminado permanentemente", "success"); 
-            } else {
-                addToast(res.error.message || "No se pudo completar en el servidor.", "error");
+            if (type === 'bien' && item.estadoConservacion === 'De Baja') {
+                setBienes(prev => prev.filter(b => b.id !== id));
+            } else if (type === 'bien') {
+                setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
             }
+            fetchData();
+            addToast("Acción completada con éxito", "success");
         }
-        fetchData();
-    } catch (e) { 
-        addToast("Error de red al procesar la solicitud.", "error");
-    } finally {
-        setItemToDelete(null); 
-    }
+    } catch (e) { addToast("Error en la operación", "error"); } finally { setItemToDelete(null); }
   };
   
   const submitResolucionBaja = async (e) => {
       e.preventDefault();
       const { bien, accion } = resolucionBaja;
       setIsProcessing({ active: true, text: 'Procesando resolución...' });
-
       try {
-          const updatedBien = { 
-              ...bien, 
-              solicitudBaja: false, 
-              estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
-          };
-
-          const res = await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
+          const updatedBien = { ...bien, solicitudBaja: false, estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion };
+          await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
           
-          if (!res.error) {
-              setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
-              
-              if (bien.bajaSolicitadaPor) {
-                  const notif = {
-                      id: generateId(),
-                      tipoRegistro: 'NOTIFICACION',
-                      usuarioDestino: bien.bajaSolicitadaPor,
-                      titulo: accion === 'aprobar' ? 'Solicitud de Baja Aprobada' : 'Solicitud de Baja Rechazada',
-                      mensaje: accion === 'aprobar' 
-                          ? `La solicitud de baja para el bien "${bien.rotulo}" fue aprobada. ${motivoResolucion ? 'Observaciones: ' + motivoResolucion : ''}`
-                          : `Se rechaza la eliminación del bien "${bien.rotulo}". Motivo: ${motivoResolucion}`,
-                      leido: false,
-                      fecha: new Date().toISOString(),
-                      bienId: bien.id,
-                      accion: accion
-                  };
-                  await supabase.from('auditoria').insert([{ id: notif.id, data: notif }]);
-                  setNotificaciones(prev => [notif, ...prev]);
-              }
-              
-              addToast(accion === 'aprobar' ? "Baja aprobada exitosamente." : "Solicitud rechazada.", "success");
+          if (bien.bajaSolicitadaPor) {
+              const notif = { id: generateId(), tipoRegistro: 'NOTIFICACION', usuarioDestino: bien.bajaSolicitadaPor, titulo: accion === 'aprobar' ? 'Baja Aprobada' : 'Baja Rechazada', mensaje: `La solicitud para el bien "${bien.rotulo}" fue ${accion === 'aprobar' ? 'aprobada' : 'rechazada'}.`, leido: false, fecha: new Date().toISOString() };
+              await supabase.from('auditoria').insert([{ id: notif.id, data: notif }]);
           }
-      } catch (e) { 
-          addToast("Error al procesar la resolución.", "error"); 
-      } finally {
-          setIsProcessing({ active: false, text: '' });
-          setResolucionBaja(null);
-      }
+          setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
+          addToast(accion === 'aprobar' ? "Baja aprobada" : "Solicitud rechazada", "success");
+      } catch (e) { addToast("Error al procesar", "error"); } finally { setIsProcessing({ active: false, text: '' }); setResolucionBaja(null); }
   };
 
   const markAsRead = async (notif) => {
       if(notif.leido) return;
       const updated = {...notif, leido: true};
       setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
-      try { 
-          await supabase.from('auditoria').update({ data: updated }).eq('id', notif.id);
-      } catch(e) {}
+      await supabase.from('auditoria').update({ data: updated }).eq('id', notif.id);
   };
 
   const openResolucionModal = (bien, accion) => { setResolucionBaja({ bien, accion }); setMotivoResolucion(''); };
@@ -1423,35 +798,12 @@ export default function App() {
       } 
   };
 
-  const handleScanSuccess = (decodedText) => {
-      setIsScannerOpen(false);
-      let codigoLimpio = decodedText;
-      if (decodedText.includes('CÓDIGO:')) {
-          const partes = decodedText.split('CTA:')[0];
-          codigoLimpio = partes.replace('CÓDIGO:', '').trim();
-      }
-      addToast(`Bien escaneado: ${codigoLimpio}`, "success");
-      setSearchInput(codigoLimpio);
-      setActiveTab('inventario');
-  };
-
-  useEffect(() => {
-      if (isScannerOpen) {
-          setTimeout(() => {
-              if (window.Html5Qrcode) {
-                  const html5QrCode = new window.Html5Qrcode("reader");
-                  window.html5QrCode = html5QrCode;
-                  
-                  html5QrCode.start(
-                      { facingMode: "environment" },
-                      { fps: 10, qrbox: { width: 250, height: 250 } },
-                      (decodedText) => { html5QrCode.stop().then(() => { handleScanSuccess(decodedText); }).catch(() => { handleScanSuccess(decodedText); }); },
-                      (errorMessage) => {}
-                  ).catch(err => { addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error"); setIsScannerOpen(false); });
-              }
-          }, 300);
-      }
-  }, [isScannerOpen]);
+  const saludoBienvenida = useMemo(() => {
+      const hora = new Date().getHours();
+      if (hora < 12) return "¡Buenos días";
+      if (hora < 19) return "¡Buenas tardes";
+      return "¡Buenas noches";
+  }, []);
 
   const misNotificaciones = useMemo(() => { return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [notificaciones, currentUser]);
   const unreadCount = misNotificaciones.filter(n => !n.leido).length;
@@ -1466,42 +818,23 @@ export default function App() {
     </div>
   );
 
-  if (isCheckingMaintenance) {
-      return (
-          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
-              <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary"></i>
-          </div>
-      );
-  }
-
-  if (isMaintenanceMode) {
-      return (
-          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-              <div className="w-24 h-24 bg-brand-light dark:bg-brand-primary/20 text-brand-primary rounded-3xl flex items-center justify-center mb-8 animate-pulse shadow-sm">
-                  <i className="fa-solid fa-screwdriver-wrench text-5xl"></i>
-              </div>
-              <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight mb-4">Sistema en Mantenimiento</h1>
-              <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-md mx-auto font-medium leading-relaxed">
-                  {systemConfig.notes || "Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos."}
-              </p>
-          </div>
-      );
-  }
-
-  if (!isAuthenticated) {
-      return (
-          <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />
-      );
-  }
+  if (isCheckingMaintenance) return <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center"><i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary"></i></div>;
+  if (isMaintenanceMode) return <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center"><h1 className="text-3xl font-black mb-4">Sistema en Mantenimiento</h1><p>{systemConfig.notes || "Intente nuevamente más tarde."}</p></div>;
+  if (!isAuthenticated) return <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />;
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base">
       <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
       
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none">
+        {!isOnline && (
+            <div className="pointer-events-auto flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500 text-white text-xs font-bold shadow-lg animate-bounce">
+                <i className="fa-solid fa-wifi-slash"></i> Sin conexión a red (Modo Local)
+            </div>
+        )}
         {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
-            <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
+          <div key={t.id} className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-2xl shadow-xl text-xs font-bold bg-zinc-900 text-white transition-all animate-slide-up border border-zinc-800">
+            <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-emerald-400' : t.type === 'error' ? 'fa-circle-exclamation text-rose-400' : 'fa-triangle-exclamation text-amber-400'} text-base`}></i>
             <span className="flex-1">{t.message}</span>
           </div>
         ))}
@@ -1513,33 +846,42 @@ export default function App() {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
+
       <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
-          {dbError && (
-            <div className="flex items-center justify-center gap-x-6 bg-red-50 px-6 py-2.5 sm:px-3.5 border-b border-red-200 dark:bg-red-900/30 dark:border-red-900/50 shadow-sm z-50">
-              <p className="text-sm leading-6 text-red-700 dark:text-red-400 font-medium">
-                <i className="fa-solid fa-wifi mr-2"></i> Error de sincronización con Supabase. Verifique su conexión.
-              </p>
-            </div>
-          )}
-
           <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={setDependenciaActual} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col space-y-6">
                 
+                {/* Pantalla de Bienvenida personalizada */}
+                <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center font-black">
+                            {currentUser?.nombre?.[0] || 'U'}
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Funcionario'} 👋</h3>
+                            <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary font-bold">{dependenciaActual}</span></p>
+                        </div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado
+                    </div>
+                </div>
+
                 {activeTab === 'maestros' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-600"></div>
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary"></div>
                       <div className="flex items-center gap-4 pl-2">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 shadow-xs">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary shadow-xs">
                           <i className="fa-solid fa-address-book text-xl"></i>
                         </div>
                         <div>
                           <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Gestión de Datos Maestros</h2>
-                          <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Administre la lista oficial de funcionarios (con C.I. y cargo) y ubicaciones</p>
+                          <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Administre la lista oficial precargada de funcionarios y ubicaciones operativas</p>
                         </div>
                       </div>
                       
@@ -1581,7 +923,7 @@ export default function App() {
                                 </tr>
                               ))}
                               {funcionariosDB.length === 0 && (
-                                <tr><td colSpan="4" className="text-center py-6 text-zinc-400 italic">No hay funcionarios maestros.</td></tr>
+                                <tr><td colSpan="4" className="text-center py-6 text-zinc-400 italic">No hay funcionarios maestros precargados.</td></tr>
                               )}
                             </tbody>
                           </table>
@@ -1613,7 +955,7 @@ export default function App() {
                                 </tr>
                               ))}
                               {ubicacionesDB.length === 0 && (
-                                <tr><td colSpan="3" className="text-center py-6 text-zinc-400 italic">No hay ubicaciones maestras.</td></tr>
+                                <tr><td colSpan="3" className="text-center py-6 text-zinc-400 italic">No hay ubicaciones maestras precargadas.</td></tr>
                               )}
                             </tbody>
                           </table>
@@ -1810,8 +1152,9 @@ export default function App() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <div className={`${STYLES.card} flex flex-col`}>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4 flex items-center justify-between">
                           <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Estado de Regularización</h2>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Metas institucionales</span>
                         </div>
                         <div className="flex flex-1 flex-col sm:flex-row items-center justify-around p-8 gap-8">
                           <div className="flex-1 w-full flex justify-center"><DonutChart percentage={stats.percFC10} colorClass="text-green-500" textClass="text-zinc-900 dark:text-white" icon="fa-file-contract" label="Cobertura FC-10" subtext={`${stats.withFc10} de ${stats.totalItems}`} /></div>
@@ -1848,134 +1191,134 @@ export default function App() {
                 )}
 
                 {activeTab === 'inventario' && (
-    <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-      
-      {/* 1. CABECERA Y ACCIONES PRINCIPALES UNIFICADAS */}
-      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-xs space-y-5 shrink-0 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary"></div>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border/60">
-          <div className="flex items-center gap-4 pl-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-xs">
-              <i className="fa-solid fa-boxes-stacked text-xl"></i>
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                  Directorio Patrimonial
-              </h2>
-              <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos institucionales</p>
-            </div>
-          </div>
+                    <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                      
+                      {/* Cabecera estilizada del Directorio Patrimonial */}
+                      <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-xs space-y-5 shrink-0 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary"></div>
+                        
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-zinc-100 dark:border-darkbg-border/60">
+                          <div className="flex items-center gap-4 pl-2">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-xs">
+                              <i className="fa-solid fa-boxes-stacked text-xl"></i>
+                            </div>
+                            <div>
+                              <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                                  Directorio Patrimonial
+                              </h2>
+                              <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión integral e inventario consolidado de activos institucionales</p>
+                            </div>
+                          </div>
 
-          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !rounded-xl !px-6 !py-3 shadow-sm shrink-0"}>
-              <i className="fa-solid fa-plus text-sm"></i> Añadir Registro
-          </button>
-        </div>
+                          <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !rounded-xl !px-6 !py-3 shadow-sm shrink-0"}>
+                              <i className="fa-solid fa-plus text-sm"></i> Añadir Registro
+                          </button>
+                        </div>
 
-        {/* Barra de Herramientas de Datos y Salidas con Tarjetas sutiles */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Datos</span>
-            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
-                <i className="fa-solid fa-file-excel text-emerald-500 text-sm"></i> Plantilla
-            </button>
-            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
-                <i className="fa-solid fa-file-import text-brand-primary text-sm"></i> Importar CSV
-            </button>
-            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
-                <i className="fa-solid fa-download text-sky-500 text-sm"></i> Exportar CSV
-            </button>
-          </div>
-          
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Salidas</span>
-            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
-                <i className="fa-solid fa-file-zipper text-purple-500 text-sm"></i> Lote QRs
-            </button>
-            <button onClick={openFC03Modal} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
-                <i className="fa-solid fa-print text-amber-500 text-sm"></i> Reporte FC-03
-            </button>
-          </div>
-        </div>
-      </div>
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Datos</span>
+                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                                <i className="fa-solid fa-file-excel text-emerald-500 text-sm"></i> Plantilla
+                            </button>
+                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                                <i className="fa-solid fa-file-import text-brand-primary text-sm"></i> Importar CSV
+                            </button>
+                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                                <i className="fa-solid fa-download text-sky-500 text-sm"></i> Exportar CSV
+                            </button>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2.5">
+                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Salidas</span>
+                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                                <i className="fa-solid fa-file-zipper text-purple-500 text-sm"></i> Lote QRs
+                            </button>
+                            <button onClick={openFC03Modal} className={STYLES.btnSecondary + " !rounded-xl !py-2 !px-3.5 !text-xs !font-bold"}>
+                                <i className="fa-solid fa-print text-amber-500 text-sm"></i> Reporte FC-03
+                            </button>
+                          </div>
+                        </div>
+                      </div>
 
-      {/* 2. PANEL DE BÚSQUEDA Y FILTROS PROFESIONAL */}
-      <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
-        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
-          
-          {/* Buscador Principal Mejorado */}
-          <div className="w-full xl:w-96 shrink-0 relative">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-            <input 
-              type="text" 
-              placeholder="Buscar por rótulo, cuenta, responsable..." 
-              className="block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/60 py-3.5 pl-11 pr-9 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-2xs" 
-              value={searchInput} 
-              onChange={(e) => setSearchInput(e.target.value)} 
-            />
-            {searchInput && (
-              <button onClick={() => setSearchInput('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer">
-                <i className="fa-solid fa-circle-xmark text-xs"></i>
-              </button>
-            )}
-          </div>
+                      {/* Panel de Búsqueda y Filtros */}
+                      <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
+                        <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
+                          <div className="w-full xl:w-96 shrink-0 relative">
+                            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+                            <input 
+                              type="text" 
+                              placeholder="Buscar por rótulo, cuenta, responsable..." 
+                              className="block w-full rounded-xl border border-zinc-200/80 bg-zinc-50/60 py-3.5 pl-11 pr-9 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-xs font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-2xs" 
+                              value={searchInput} 
+                              onChange={(e) => setSearchInput(e.target.value)} 
+                            />
+                            {searchInput && (
+                              <button onClick={() => setSearchInput('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer">
+                                <i className="fa-solid fa-circle-xmark text-xs"></i>
+                              </button>
+                            )}
+                          </div>
 
-          {/* Grid de Filtros Compactos */}
-          <div className="w-full flex flex-wrap items-center gap-2 justify-start xl:justify-end">
-            <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
-            <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
-            <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
-            <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
-            <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
-            <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
-            <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
-            
-            <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
-              <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-white' : 'text-rose-500'}`}></i> Bajas
-            </button>
-          </div>
-        </div>
-        
-        {hasFilters && (
-            <div className="pt-3.5 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">Filtros activos:</span>
-              {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroSubcuenta && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroSubcuenta('')}>Subcta: {filtroSubcuenta} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroAnalitico1 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico1('')}>An.1: {filtroAnalitico1} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroAnalitico2 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroAnalitico2('')}>An.2: {filtroAnalitico2} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-bold text-white cursor-pointer hover:bg-rose-700 transition-colors shadow-2xs" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
-              {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
-              <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1.5 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
-            </div>
-        )}
-      </div>
+                          <div className="w-full flex flex-wrap items-center gap-2 justify-start xl:justify-end">
+                            <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
+                            <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
+                            <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
+                            <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
+                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
+                            <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
+                            <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
+                            
+                            <select 
+                                className="rounded-xl border border-zinc-200/80 bg-white px-3.5 py-2.5 text-xs font-bold text-zinc-700 shadow-2xs outline-none cursor-pointer dark:bg-darkbg-main dark:border-darkbg-border dark:text-zinc-300"
+                                value={filtroDisponibilidad}
+                                onChange={e => { setFiltroDisponibilidad(e.target.value); setCurrentPage(1); }}
+                            >
+                                <option value="ALL">Disponibilidad (Todos)</option>
+                                <option value="DISPONIBLE">Disponibles (Sin FC-10)</option>
+                                <option value="ASIGNADO">Asignados (Con FC-10)</option>
+                            </select>
 
-      {/* 3. TABLA DE DATOS */}
-      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
-          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-            <table className="min-w-full text-left">
-              <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                  <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
-                  <th className="px-4 py-3.5">Localización y Custodio</th>
-                  <th className="px-4 py-3.5">Condición Física</th>
-                  <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                {paginatedBienes.map(b => (
-                  <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        {renderPagination()}
-      </div>
-    </div>
-)}
+                            <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-2xs'}`}>
+                              <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-white' : 'text-rose-500'}`}></i> Bajas
+                            </button>
+                          </div>
+                        </div>
+                        
+                        {hasFilters && (
+                            <div className="pt-3.5 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
+                              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1">Filtros activos:</span>
+                              {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              {filtroDisponibilidad !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-2xs" onClick={() => setFiltroDisponibilidad('ALL')}>{filtroDisponibilidad} <i className="fa-solid fa-xmark text-zinc-400"></i></span>}
+                              <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-3 py-1.5 rounded-lg hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer">Limpiar Filtros</button>
+                            </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
+                          <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                            <table className="min-w-full text-left">
+                              <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                                <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                  <th className="py-3.5 pl-6 pr-4">Identificación y Descripción</th>
+                                  <th className="px-4 py-3.5">Localización y Custodio</th>
+                                  <th className="px-4 py-3.5">Condición Física</th>
+                                  <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                                {paginatedBienes.map(b => (
+                                  <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        {renderPagination()}
+                      </div>
+                    </div>
+                )}
 
                 {activeTab === 'fc04' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
@@ -2717,7 +2060,8 @@ export default function App() {
           </div>
         </div>
       )}
-    {showChangelog && (
+
+      {showChangelog && (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden"}>
                 <div className="bg-brand-primary p-8 text-center relative overflow-hidden">
