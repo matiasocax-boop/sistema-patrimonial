@@ -244,7 +244,7 @@ export default function App() {
   const [ubicacionesDB, setUbicacionesDB] = useState([]);
   const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
   const [maestroEditing, setMaestroEditing] = useState(null);
-  const [tipoMaestro, setTipoMaestro] = useState('funcionario'); // 'funcionario' o 'ubicacion'
+  const [tipoMaestro, setTipoMaestro] = useState('funcionario');
 
   const [bienes, setBienes] = useState([]);
   const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
@@ -582,14 +582,11 @@ export default function App() {
     e.target.value = null; 
   };
 
-  // Listas extendidas uniendo historial y datos maestros de la nueva tabla
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
-      // Primero agregar de la tabla de maestros funcionariosDB
       funcionariosDB.forEach(f => {
           if (f.nombre) map.set(normalizeStr(f.nombre), { nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' });
       });
-      // Luego complementar con el historial existente
       fc10List.forEach(fc => { 
           if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { 
               const nombreSeguro = String(fc.funcionarioNombre).trim(); 
@@ -1062,7 +1059,6 @@ export default function App() {
     }
   };
 
-  // Guardar Datos Maestros (Funcionarios / Ubicaciones)
   const saveMaestro = async (e) => {
       e.preventDefault();
       const form = e.target;
@@ -1265,7 +1261,7 @@ export default function App() {
     try { 
         let res;
         if (fc10Editing) {
-            res = await supabase.from('fc10').update(payloadFC10).eq('id', fc10Data.id);
+            res = await supabase.from('fc10').update(payloadFC10).eq('id', fcData.id);
         } else {
             res = await supabase.from('fc10').insert([payloadFC10]);
         }
@@ -1313,7 +1309,7 @@ export default function App() {
         }
         else {
             if (type === 'bien') {
-                // CORRECCIÓN BLINDADA DE BAJA: Si ya está De Baja o el usuario confirma, borramos de la base de datos definitivamente
+                // FLUJO BLINDADO DE BAJA: Si el bien ya está De Baja, borrado físico total de la BD. Si no, pasa a De Baja.
                 if (item.estadoConservacion === 'De Baja') {
                     res = await supabase.from('bens').delete().eq('id', id);
                 } else {
@@ -1334,6 +1330,8 @@ export default function App() {
                         await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== id));
                     } else {
                         setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
+                        const cacheActual = await localforage.getItem('bienes_cache') || [];
+                        await localforage.setItem('bienes_cache', cacheActual.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
                     }
                 }
                 else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
@@ -1557,7 +1555,6 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Tabla de Funcionarios */}
                       <div className={`${STYLES.card} p-6 flex flex-col`}>
                         <h3 className="text-base font-bold text-zinc-800 dark:text-white mb-4 flex items-center gap-2">
                             <i className="fa-solid fa-users text-brand-primary"></i> Funcionarios Registrados ({funcionariosDB.length})
@@ -1579,8 +1576,8 @@ export default function App() {
                                   <td className="py-3 px-3 font-mono">{formatCI(f.doc)}</td>
                                   <td className="py-3 px-3 text-zinc-500">{f.cargo || '-'}</td>
                                   <td className="py-3 px-3 text-right space-x-2">
-                                    <button onClick={() => { setTipoMaestro('funcionario'); setMaestroEditing(f); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary"><i className="fa-solid fa-pen"></i></button>
-                                    <button onClick={() => deleteMaestro('funcionario', f.id)} className="text-zinc-400 hover:text-red-500"><i className="fa-solid fa-trash"></i></button>
+                                    <button onClick={() => { setTipoMaestro('funcionario'); setMaestroEditing(f); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary cursor-pointer"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteMaestro('funcionario', f.id)} className="text-zinc-400 hover:text-red-500 cursor-pointer"><i className="fa-solid fa-trash"></i></button>
                                   </td>
                                 </tr>
                               ))}
@@ -1592,7 +1589,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Tabla de Ubicaciones */}
                       <div className={`${STYLES.card} p-6 flex flex-col`}>
                         <h3 className="text-base font-bold text-zinc-800 dark:text-white mb-4 flex items-center gap-2">
                             <i className="fa-solid fa-building text-brand-primary"></i> Ubicaciones Operativas ({ubicacionesDB.length})
@@ -1612,8 +1608,8 @@ export default function App() {
                                   <td className="py-3 px-3 font-bold text-zinc-900 dark:text-white">{u.nombre}</td>
                                   <td className="py-3 px-3 text-zinc-500">{u.descripcion || '-'}</td>
                                   <td className="py-3 px-3 text-right space-x-2">
-                                    <button onClick={() => { setTipoMaestro('ubicacion'); setMaestroEditing(u); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary"><i className="fa-solid fa-pen"></i></button>
-                                    <button onClick={() => deleteMaestro('ubicacion', u.id)} className="text-zinc-400 hover:text-red-500"><i className="fa-solid fa-trash"></i></button>
+                                    <button onClick={() => { setTipoMaestro('ubicacion'); setMaestroEditing(u); setIsMaestroModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary cursor-pointer"><i className="fa-solid fa-pen"></i></button>
+                                    <button onClick={() => deleteMaestro('ubicacion', u.id)} className="text-zinc-400 hover:text-red-500 cursor-pointer"><i className="fa-solid fa-trash"></i></button>
                                   </td>
                                 </tr>
                               ))}
@@ -2035,7 +2031,7 @@ export default function App() {
                                     <div>
                                         <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Activos ({fc.bienesSnapshot?.length || 0})</p>
                                         <div className="flex flex-wrap gap-1.5">
-                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
+                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
                                           {fc.bienesSnapshot?.length > 3 && <span className="text-xs font-bold text-brand-primary self-center ml-1">+{fc.bienesSnapshot.length - 3}</span>}
                                         </div>
                                     </div>

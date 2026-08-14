@@ -38,6 +38,7 @@ export default function Sidebar({
                         { id: 'fc10', label: 'Asignaciones (FC-10)', icon: 'fa-file-signature' },
                         { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast' },
                         ...(isAdmin ? [
+                            { id: 'maestros', label: 'Datos Maestros', icon: 'fa-address-book' },
                             { id: 'aprobaciones', label: 'Aprobaciones', icon: 'fa-check-to-slot' },
                             { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear' }
                         ] : []),
