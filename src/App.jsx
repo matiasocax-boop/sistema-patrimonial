@@ -1038,25 +1038,27 @@ export default function App() {
                 doc.setFontSize(8); doc.setFont("helvetica", "bold");
                 doc.text("F.C. - 03", 10, 29);
                 
-                // Cuadro del Encabezado (Ampliando la altura a 36mm para que respire el texto)
+                // Cuadro del Encabezado (Altura total de 36mm)
                 doc.setDrawColor(0); doc.setLineWidth(0.2);
                 doc.rect(10, 31, pageWidth - 20, 36); 
                 
-                // Lineas Horizontales mejor espaciadas (cada 7.2mm)
+                // Lineas Horizontales de la sección izquierda y centro (cada 7.2mm)
                 doc.line(10, 38.2, 140, 38.2);
                 doc.line(10, 45.4, 140, 45.4);
                 doc.line(10, 52.6, 140, 52.6);
                 doc.line(10, 59.8, 140, 59.8);
                 
-                // Lineas Verticales del cuadro
+                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar)
+                doc.line(195, 43, pageWidth - 10, 43); // Debajo de BIENES
+                doc.line(195, 55, pageWidth - 10, 55); // Debajo de Fecha
+
+                // Lineas Verticales principales del cuadro
                 doc.line(42, 31, 42, 67); 
                 doc.line(140, 31, 140, 67); 
                 doc.line(195, 31, 195, 67); 
-                doc.line(195, 47, pageWidth - 10, 47);
-                doc.line(195, 57, pageWidth - 10, 57);
-                doc.line(242, 47, 242, 67);
+                doc.line(242, 43, 242, 67); // Divide etiqueta de Fecha/Lugar de su valor
 
-                // Textos del cuadro: Izquierda (Verticalmente centrados)
+                // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
                 doc.text("UNIDAD JERÁRQUICA", 12, 42.7);
@@ -1068,11 +1070,11 @@ export default function App() {
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
                 doc.text(dependenciaActual.toUpperCase(), 44, 42.7, { maxWidth: 94 });
-                doc.text(repText, 44, 49.1, { maxWidth: 94 });
+                doc.text(repText, 44, 49.9, { maxWidth: 94 });
                 doc.text(dependenciaActual.toUpperCase(), 44, 57.1, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 64.3, { maxWidth: 94 });
 
-                // Textos del cuadro: Centro (Estado y Conservación)
+                // Textos del cuadro: Centro (Estado de Conservación)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 42.7);
@@ -1080,24 +1082,25 @@ export default function App() {
                 doc.text("R..........Regular", 142, 57.1);
                 doc.text("M.........Malo", 142, 64.3);
 
+                // Textos del cuadro: Derecha (Bienes - Espaciado limpio sin solapamientos)
                 doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 41.5);
-                doc.text("F.......Faltante", 197, 44.5);
-                doc.text("C...... Conforme", 197, 46.2); // Ubicado perfectamente en su celda superior
+                doc.text("NR.... No Registrado", 197, 39.5);
+                doc.text("F.......Faltante", 197, 41.5);
+                doc.text("C...... Conforme", 197, 42.7);
 
-                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar alineados)
+                // Textos del cuadro: Derecha (Fecha y Lugar alineados con celdas limpias)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
-                doc.text("Fecha", 245, 52); 
+                doc.text("Fecha", 197, 50); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 258, 52);
+                doc.text(todayStr, 245, 50);
                 
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 245, 62); 
+                doc.text("Lugar", 197, 61); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 258, 62);
+                doc.text(fc03Config.lugar.toUpperCase(), 245, 61);
 
                 // --- FIRMAS OFICIALES AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 18; 
