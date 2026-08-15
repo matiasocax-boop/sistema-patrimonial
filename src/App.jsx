@@ -1069,7 +1069,9 @@ export default function App() {
                 doc.text(dependenciaActual.toUpperCase(), 44, 43.9);
                 doc.text(repText, 44, 50.3);
                 doc.text(dependenciaActual.toUpperCase(), 44, 56.7);
-                doc.text(`${repText} (Resp: ${funcText})`, 44, 63.1);
+                
+                // CORRECCIÓN 1: Límite de ancho (maxWidth: 94) para que no pise la línea vertical
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 63.1, { maxWidth: 94 });
 
                 // Textos del cuadro: Centro (Estado y Bienes)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 37.5);
@@ -1088,9 +1090,16 @@ export default function App() {
                 // Textos del cuadro: Derecha (Páginas, Fecha, Lugar)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 37.5);
-                doc.text("Fecha", 197, 52); doc.setFont("helvetica", "normal"); doc.text(todayStr, 243, 52);
+                
+                // CORRECCIÓN 2: Coordenadas X movidas a 242 (dentro del último recuadro)
+                doc.text("Fecha", 242, 51.5); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(todayStr, 255, 51.5);
+                
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 197, 61.5); doc.setFont("helvetica", "normal"); doc.text(fc03Config.lugar.toUpperCase(), 243, 61.5);
+                doc.text("Lugar", 242, 61.5); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(fc03Config.lugar.toUpperCase(), 255, 61.5);
 
                 // --- FIRMAS IMPRESAS AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 20; 
@@ -1117,15 +1126,22 @@ export default function App() {
                 doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 5);
                 doc.setTextColor(0);
             }
-        });
+        }); // <-- Aquí se cierra el autoTable
         
+        // --- AQUÍ SE GUARDA EL PDF (No debes borrar esto) ---
         const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
         doc.save(`FC03_${cleanDepName}_${descFiltro}_${todayStr}.pdf`); 
         addToast("Reporte Inventario Oficial generado", "success");
-      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsFC03ModalOpen(false); }
+      } catch(e) { 
+        console.error(e); 
+        addToast("Error PDF: " + (e.message || "Desconocido"), "error"); 
+      } finally { 
+        setIsProcessing({ active: false, text: '' }); 
+        setIsFC03ModalOpen(false); 
+      }
     }, 100);
-  };
+  }; // <-- Aquí se cierra toda la función executeGenerateFC03
 
   const toggleQR = async (bien) => { 
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
