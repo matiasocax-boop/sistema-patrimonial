@@ -1025,7 +1025,7 @@ export default function App() {
             styles: { fontSize: 6, cellPadding: 1, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
             headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', textColor: [0,0,0], lineWidth: 0.3 }, 
             didDrawPage: function(data) {
-                // Logo y Títulos Oficiales perfectamente distribuidos
+                // Logo y Títulos Oficiales
                 doc.addImage(logoImg, 'PNG', 12, 6, 18, 18); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(12); 
                 doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 11, { align: 'center' }); 
@@ -1034,69 +1034,70 @@ export default function App() {
                 doc.setFontSize(10.5); 
                 doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); 
                 
-                // Cuadro del Encabezado limpio
+                // Etiqueta F.C. - 03
                 doc.setFontSize(8); doc.setFont("helvetica", "bold");
                 doc.text("F.C. - 03", 10, 29);
                 
+                // Cuadro del Encabezado (Ampliando la altura a 36mm para que respire el texto)
                 doc.setDrawColor(0); doc.setLineWidth(0.2);
-                doc.rect(10, 31, pageWidth - 20, 34); 
+                doc.rect(10, 31, pageWidth - 20, 36); 
                 
-                // Lineas Horizontales
-                doc.line(10, 37.8, 140, 37.8);
-                doc.line(10, 44.6, 140, 44.6);
-                doc.line(10, 51.4, 140, 51.4);
-                doc.line(10, 58.2, 140, 58.2);
+                // Lineas Horizontales mejor espaciadas (cada 7.2mm)
+                doc.line(10, 38.2, 140, 38.2);
+                doc.line(10, 45.4, 140, 45.4);
+                doc.line(10, 52.6, 140, 52.6);
+                doc.line(10, 59.8, 140, 59.8);
                 
-                // Lineas Verticales
-                doc.line(42, 31, 42, 65); 
-                doc.line(140, 31, 140, 65); 
-                doc.line(195, 31, 195, 65); 
-                doc.line(195, 44.6, pageWidth - 10, 44.6);
-                doc.line(195, 54.2, pageWidth - 10, 54.2);
-                doc.line(242, 44.6, 242, 65);
+                // Lineas Verticales del cuadro
+                doc.line(42, 31, 42, 67); 
+                doc.line(140, 31, 140, 67); 
+                doc.line(195, 31, 195, 67); 
+                doc.line(195, 47, pageWidth - 10, 47);
+                doc.line(195, 57, pageWidth - 10, 57);
+                doc.line(242, 47, 242, 67);
 
-                // Textos del cuadro: Izquierda
+                // Textos del cuadro: Izquierda (Verticalmente centrados)
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
-                doc.text("UNIDAD JERÁRQUICA", 12, 42.3);
-                doc.text("REPARTICIÓN", 12, 49.1);
-                doc.text("DEPENDENCIA", 12, 55.9);
-                doc.text("ÁREA", 12, 62.7);
+                doc.text("UNIDAD JERÁRQUICA", 12, 42.7);
+                doc.text("REPARTICIÓN", 12, 49.9);
+                doc.text("DEPENDENCIA", 12, 57.1);
+                doc.text("ÁREA", 12, 64.3);
 
-                // Valores del cuadro: Izquierda (Con control de ancho maxWidth para evitar solapamientos)
+                // Valores del cuadro: Izquierda
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
-                doc.text(dependenciaActual.toUpperCase(), 44, 42.3, { maxWidth: 94 });
+                doc.text(dependenciaActual.toUpperCase(), 44, 42.7, { maxWidth: 94 });
                 doc.text(repText, 44, 49.1, { maxWidth: 94 });
-                doc.text(dependenciaActual.toUpperCase(), 44, 55.9, { maxWidth: 94 });
-                doc.text(`${repText} (Resp: ${funcText})`, 44, 62.7, { maxWidth: 94 });
+                doc.text(dependenciaActual.toUpperCase(), 44, 57.1, { maxWidth: 94 });
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 64.3, { maxWidth: 94 });
 
-                // Textos del cuadro: Centro (Estado y Bienes)
+                // Textos del cuadro: Centro (Estado y Conservación)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("MB........Muy Bueno", 142, 42.3);
-                doc.text("B..........Bueno", 142, 49.1);
-                doc.text("R..........Regular", 142, 55.9);
-                doc.text("M.........Malo", 142, 62.7);
+                doc.text("MB........Muy Bueno", 142, 42.7);
+                doc.text("B..........Bueno", 142, 49.9);
+                doc.text("R..........Regular", 142, 57.1);
+                doc.text("M.........Malo", 142, 64.3);
 
                 doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 42.3);
-                doc.text("F.......Faltante", 197, 49.1);
-                doc.text("C...... Conforme", 197, 55.9);
+                doc.text("NR.... No Registrado", 197, 41.5);
+                doc.text("F.......Faltante", 197, 44.5);
+                doc.text("C...... Conforme", 197, 46.2); // Ubicado perfectamente en su celda superior
 
-                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar ajustados a X=245)
+                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar alineados)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
-                doc.text("Fecha", 245, 50); 
+                doc.text("Fecha", 245, 52); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 258, 50);
+                doc.text(todayStr, 258, 52);
                 
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 245, 59.5); 
+                doc.text("Lugar", 245, 62); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 258, 59.5);
+                doc.text(fc03Config.lugar.toUpperCase(), 258, 62);
 
                 // --- FIRMAS OFICIALES AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 18; 
