@@ -1491,7 +1491,12 @@ export default function App() {
 
   const misNotificaciones = useMemo(() => { return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [notificaciones, currentUser]);
   const unreadCount = misNotificaciones.filter(n => !n.leido).length;
-
+  const saludoBienvenida = useMemo(() => {
+    const hora = new Date().getHours();
+    if (hora < 12) return "¡Buenos días";
+    if (hora < 19) return "¡Buenas tardes";
+    return "¡Buenas noches";
+  }, []);
   const renderPagination = () => (
     <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
       <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPerPage + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPerPage, filteredBienes.length)}</span> de {filteredBienes.length}</span>
@@ -1575,7 +1580,21 @@ export default function App() {
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
-                
+            {/* Pantalla de Bienvenida personalizada */}
+                <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm mb-6 shrink-0 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary font-bold text-lg shadow-sm">
+                      {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}</h3>
+                      <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
+                    </div>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado
+                  </div>
+                </div>  
                 {activeTab === 'maestros' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs relative overflow-hidden">
