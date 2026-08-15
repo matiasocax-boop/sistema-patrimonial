@@ -1580,21 +1580,7 @@ export default function App() {
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
-            {/* Pantalla de Bienvenida personalizada */}
-                <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm mb-6 shrink-0 animate-fade-in">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary font-bold text-lg shadow-sm">
-                      {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}</h3>
-                      <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
-                    </div>
-                  </div>
-                  <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado
-                  </div>
-                </div>  
+             
                 {activeTab === 'maestros' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs relative overflow-hidden">
@@ -1830,6 +1816,23 @@ export default function App() {
                 {activeTab === 'dashboard' && (
                   <div className="space-y-8 animate-fade-in">
                     
+                    {/* 1. Pantalla de Bienvenida (SOLO en el Dashboard) */}
+                    <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 animate-fade-in">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary font-bold text-lg shadow-sm">
+                          {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}</h3>
+                          <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
+                        </div>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado
+                      </div>
+                    </div>
+
+                    {/* 2. Tarjetas de Estadísticas Principales */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
                         <StatCard title="Valor Neto" value={isLoading ? '...' : `Gs. ${formatCurrency(stats.totalValue)}`} subtitle="Suma de valuación" icon="fa-sack-dollar" colorClass="text-green-600 dark:text-green-400" bgIconClass="bg-green-100/80 dark:bg-green-900/30" />
@@ -1837,6 +1840,7 @@ export default function App() {
                         <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
                     </div>
 
+                    {/* 3. Accesos Directos */}
                     <div className={`${STYLES.card} p-6 border-l-4 border-l-brand-primary shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden`}>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="flex items-center gap-3">
@@ -1853,19 +1857,15 @@ export default function App() {
                                 <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:text-brand-primary dark:hover:border-brand-primary dark:hover:text-brand-accent shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
                                     <i className="fa-solid fa-calendar-plus text-brand-primary"></i> Ingreso FC-04
                                 </button>
-
                                 <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-purple-500 hover:text-purple-600 dark:hover:border-purple-500 dark:hover:text-purple-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
                                     <i className="fa-solid fa-file-zipper text-purple-500"></i> Paquete QRs
                                 </button>
-
                                 <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
                                     <i className="fa-solid fa-file-import text-emerald-500"></i> Importar CSV
                                 </button>
-
                                 <button onClick={() => setActiveTab('maestros')} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:text-brand-primary shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
                                     <i className="fa-solid fa-address-book text-brand-primary"></i> Maestros
                                 </button>
-
                                 <div className="relative inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:text-sky-600 dark:hover:border-sky-500 dark:hover:text-sky-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer overflow-hidden">
                                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                                     <i className="fa-solid fa-image text-sky-500"></i> Subir Logo
@@ -1874,18 +1874,63 @@ export default function App() {
                         </div>
                     </div>
 
+                    {/* 4. Gráficos Inferiores (Regularización y Tendencias) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      
+                      {/* Estado de Regularización (Nuevas Barras) */}
                       <div className={`${STYLES.card} flex flex-col`}>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4 flex items-center justify-between">
                           <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Estado de Regularización</h2>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:block">Metas de cobertura</span>
                         </div>
-                        <div className="flex flex-1 flex-col sm:flex-row items-center justify-around p-8 gap-8">
-                          <div className="flex-1 w-full flex justify-center"><DonutChart percentage={stats.percFC10} colorClass="text-green-500" textClass="text-zinc-900 dark:text-white" icon="fa-file-contract" label="Cobertura FC-10" subtext={`${stats.withFc10} de ${stats.totalItems}`} /></div>
-                          <div className="hidden sm:block w-px h-24 bg-zinc-200 dark:bg-darkbg-border"></div>
-                          <div className="flex-1 w-full flex justify-center"><DonutChart percentage={stats.percQR} colorClass="text-brand-primary" textClass="text-zinc-900 dark:text-white" icon="fa-qrcode" label="Etiquetado QR" subtext={`${stats.withQR} de ${stats.totalItems}`} /></div>
+                        <div className="flex flex-1 flex-col p-8 gap-7 justify-center">
+                          
+                          {/* Progress Bar 1: FC-10 */}
+                          <div>
+                            <div className="flex justify-between items-end mb-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-sm">
+                                  <i className="fa-solid fa-file-contract text-sm"></i>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-zinc-900 dark:text-white">Cobertura FC-10</p>
+                                  <p className="text-[11px] text-zinc-500 font-medium">{stats.withFc10} de {stats.totalItems} activos</p>
+                                </div>
+                              </div>
+                              <span className="text-2xl font-black text-emerald-500 tracking-tight">{stats.percFC10.toFixed(1)}%</span>
+                            </div>
+                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner">
+                              <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 relative" style={{ width: `${stats.percFC10}%` }}>
+                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar 2: QR */}
+                          <div>
+                            <div className="flex justify-between items-end mb-2.5">
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-sm">
+                                  <i className="fa-solid fa-qrcode text-sm"></i>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-bold text-zinc-900 dark:text-white">Etiquetado QR</p>
+                                  <p className="text-[11px] text-zinc-500 font-medium">{stats.withQR} de {stats.totalItems} activos</p>
+                                </div>
+                              </div>
+                              <span className="text-2xl font-black text-brand-primary tracking-tight">{stats.percQR.toFixed(1)}%</span>
+                            </div>
+                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner">
+                              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 relative" style={{ width: `${stats.percQR}%` }}>
+                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+                              </div>
+                            </div>
+                          </div>
+
                         </div>
                       </div>
 
+                      {/* Tendencias Operativas */}
                       <div className={`${STYLES.card} flex flex-col`}>
                         <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
                           <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Tendencias Operativas</h2>
@@ -1909,6 +1954,7 @@ export default function App() {
                           </div>
                         </div>
                       </div>
+
                     </div>
                   </div>
                 )}
