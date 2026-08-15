@@ -920,7 +920,7 @@ export default function App() {
   const executeGenerateFC03 = () => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     
-    // CORRECCIÓN: Filtramos los bienes "De Baja" para que el monto total sea 100% exacto al Valor Neto del Panel Principal
+    // Filtrar bienes dados de baja para que coincida con el total general del Dashboard
     let bienesToPrint = filteredBienes.filter(b => b.estadoConservacion !== 'De Baja');
     
     let repText = "INVENTARIO GENERAL";
@@ -950,145 +950,177 @@ export default function App() {
 
         let totalValor = 0;
         
+        // 16 Columnas (Formato Oficial + Ubicación/Funcionario)
         const tableRows = bienesToPrint.map(b => {
             const valor = parseInt(String(b.valorUnitario).replace(/\D/g, ''), 10) || 0;
             totalValor += valor;
             return [
-                b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', 
-                b.rotulo || '-', b.descripcion || '-', 
-                b.dependencia || '-', b.ubicacion || '-', b.funcionario || 'Sin Asignar',
-                formatDateText(b.fechaAdquisicion) || '-', formatCurrency(valor), getEstadoAbbr(b.estadoConservacion)
+                b.cuenta || '', b.subcuenta || '', b.analitico1 || '', b.analitico2 || '', 
+                b.descripcion || '', b.ubicacion || '-', b.funcionario || 'Sin Asignar', 
+                formatDateText(b.fechaAdquisicion) || '', b.rotulo || 'S/Rótulo', '1', 
+                formatCurrency(valor), formatCurrency(valor), 'C', getEstadoAbbr(b.estadoConservacion), '', ''
             ];
         });
 
-        // Conversor de números a letras (para los totales en Guaraníes)
         const numeroALetras = (num) => {
             if (num === 0) return 'cero';
             const unidades = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
             const decenas = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciseis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte'];
             const decenas2 = ['', '', 'veinti', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
             const centenas = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
-            
-            const getDecenas = (n) => {
-                if (n < 10) return unidades[n];
-                if (n < 20) return decenas[n - 10];
-                if (n === 20) return 'veinte';
-                if (n < 30) return decenas2[2] + (n % 10 === 0 ? '' : unidades[n % 10]);
-                const u = n % 10;
-                return decenas2[Math.floor(n / 10)] + (u > 0 ? ' y ' + unidades[u] : '');
-            };
-            
-            const getCentenas = (n) => {
-                if (n === 100) return 'cien';
-                const d = n % 100;
-                return centenas[Math.floor(n / 100)] + (d > 0 ? ' ' + getDecenas(d) : '');
-            };
-            
-            const getMiles = (n) => {
-                if (n < 1000) return getCentenas(n);
-                if (n === 1000) return 'mil';
-                const m = Math.floor(n / 1000);
-                const c = n % 1000;
-                return (m === 1 ? '' : getCentenas(m) + ' ') + 'mil' + (c > 0 ? ' ' + getCentenas(c) : '');
-            };
-
-            const getMillones = (n) => {
-                if (n < 1000000) return getMiles(n);
-                if (n === 1000000) return 'un millon';
-                const m = Math.floor(n / 1000000);
-                const rest = n % 1000000;
-                return (m === 1 ? 'un millon' : getMiles(m) + ' millones') + (rest > 0 ? ' ' + getMiles(rest) : '');
-            };
-
-            const getMilMillones = (n) => {
-                if (n < 1000000000) return getMillones(n);
-                const m = Math.floor(n / 1000000000);
-                const rest = n % 1000000000;
-                return (m === 1 ? 'mil millones' : getMiles(m) + ' mil millones') + (rest > 0 ? ' ' + getMillones(rest) : '');
-            };
-
+            const getDecenas = (n) => { if (n < 10) return unidades[n]; if (n < 20) return decenas[n - 10]; if (n === 20) return 'veinte'; if (n < 30) return decenas2[2] + (n % 10 === 0 ? '' : unidades[n % 10]); const u = n % 10; return decenas2[Math.floor(n / 10)] + (u > 0 ? ' y ' + unidades[u] : ''); };
+            const getCentenas = (n) => { if (n === 100) return 'cien'; const d = n % 100; return centenas[Math.floor(n / 100)] + (d > 0 ? ' ' + getDecenas(d) : ''); };
+            const getMiles = (n) => { if (n < 1000) return getCentenas(n); if (n === 1000) return 'mil'; const m = Math.floor(n / 1000); const c = n % 1000; return (m === 1 ? '' : getCentenas(m) + ' ') + 'mil' + (c > 0 ? ' ' + getCentenas(c) : ''); };
+            const getMillones = (n) => { if (n < 1000000) return getMiles(n); if (n === 1000000) return 'un millon'; const m = Math.floor(n / 1000000); const rest = n % 1000000; return (m === 1 ? 'un millon' : getMiles(m) + ' millones') + (rest > 0 ? ' ' + getMiles(rest) : ''); };
+            const getMilMillones = (n) => { if (n < 1000000000) return getMillones(n); const m = Math.floor(n / 1000000000); const rest = n % 1000000000; return (m === 1 ? 'mil millones' : getMiles(m) + ' mil millones') + (rest > 0 ? ' ' + getMillones(rest) : ''); };
             return getMilMillones(num).trim();
         };
 
         const strTotal = formatCurrency(totalValor);
         
-        // Agregar las filas de totales al final de la tabla
         tableRows.push([
-            { content: 'TOTAL GENERAL', colSpan: 10, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
-            { content: strTotal, styles: { halign: 'right', fontStyle: 'bold', fillColor: [240, 240, 240] } },
-            { content: '', styles: { fillColor: [240, 240, 240] } }
+            { content: 'TOTAL', colSpan: 10, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: strTotal, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: strTotal, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: '', colSpan: 4 }
         ]);
         tableRows.push([
-            { content: `SON GUARANIES: ${numeroALetras(totalValor).toLowerCase()}`, colSpan: 12, styles: { fontStyle: 'bold', halign: 'left', cellPadding: 3, fillColor: [248, 249, 250] } }
+            { content: 'TOTAL GENERAL', colSpan: 10, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: strTotal, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: strTotal, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: '', colSpan: 4 }
+        ]);
+        tableRows.push([
+            { content: `SON GUARANIES: ${numeroALetras(totalValor).toLowerCase()}`, colSpan: 16, styles: { fontStyle: 'bold', halign: 'left', cellPadding: 2 } }
         ]);
         
         doc.autoTable({ 
-            startY: 55, 
-            margin: { top: 55, bottom: 45, left: 10, right: 10 }, // Margen inferior ampliado a 45 para proteger las firmas
+            startY: 65, 
+            margin: { top: 65, bottom: 35, left: 10, right: 10 }, 
             theme: 'grid', 
-            head: [["Cta.", "Sub.", "An.1", "An.2", "Rótulo", "Descripción", "Dependencia", "Ubicación", "Funcionario Asignado", "Adquisición", "Valor (Gs.)", "Est."]], 
+            head: [
+                [
+                    { content: 'CUENTA\n(10)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'SUB\nCTA\n(11)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'ESPECIFI-\nCACIÓN (12)', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DESCRIPCIÓN\n(13)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'UBICACIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'FUNCIONARIO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'EN REGISTROS Y/O DOCUMENTO', colSpan: 5, styles: { halign: 'center' } },
+                    { content: 'INVENTARIO\nFISICO', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DIFERENCIA\n(21)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'OBS.\n(22)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+                ],
+                [
+                    { content: 'An. 1', styles: { halign: 'center' } },
+                    { content: 'An. 2', styles: { halign: 'center' } },
+                    { content: 'FECHA\nADQUISI.\n(14)', styles: { halign: 'center' } },
+                    { content: 'ROTULADO\n(15)', styles: { halign: 'center' } },
+                    { content: 'CANT.\n(16)', styles: { halign: 'center' } },
+                    { content: 'VALOR\nUNIT.\n(17)', styles: { halign: 'center' } },
+                    { content: 'VALOR\nTOTAL\n(18)', styles: { halign: 'center' } },
+                    { content: 'BIENES\n(19)', styles: { halign: 'center' } },
+                    { content: 'ESTADO\n(20)', styles: { halign: 'center' } }
+                ]
+            ], 
             body: tableRows, rowPageBreak: 'avoid',
-            styles: { fontSize: 7, cellPadding: 2, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, 
-            headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, 
-            alternateRowStyles: { fillColor: [250, 252, 253] },
-            columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center', fontStyle: 'bold' }, 9: { halign: 'center' }, 10: { halign: 'right' }, 11: { halign: 'center', fontStyle: 'bold' } },
+            styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
+            headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', textColor: [0,0,0], lineWidth: 0.3 }, 
+            columnStyles: { 
+                0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 10, halign: 'center' }, 
+                2: { cellWidth: 10, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 
+                4: { cellWidth: 'auto' }, 5: { cellWidth: 22 }, 6: { cellWidth: 24 }, 
+                7: { cellWidth: 14, halign: 'center' }, 8: { cellWidth: 18, halign: 'center' }, 
+                9: { cellWidth: 10, halign: 'center' }, 10: { cellWidth: 18, halign: 'right' }, 
+                11: { cellWidth: 18, halign: 'right' }, 12: { cellWidth: 11, halign: 'center' }, 
+                13: { cellWidth: 11, halign: 'center' }, 14: { cellWidth: 12, halign: 'center' }, 15: { cellWidth: 12, halign: 'center' }
+            },
             didDrawPage: function(data) {
-                // Logo Original Restaurado
-                doc.addImage(logoImg, 'PNG', 14, 10, 22, 22); 
-                
-                // Títulos Centrales
+                // Logo y Títulos Oficiales
+                doc.addImage(logoImg, 'PNG', 10, 8, 18, 18); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(14); 
-                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 16, { align: 'center' }); 
-                doc.setFontSize(11); 
-                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); 
+                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 14, { align: 'center' }); 
+                doc.setFontSize(10); 
+                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 20, { align: 'center' }); 
                 
-                // Nro de página
-                doc.setFontSize(9); doc.setFont("helvetica", "normal"); 
-                doc.text(`Hoja N°: ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 14, 16, { align: 'right' });
-                
-                // Cabecera Técnica de Dependencias (Limpio y SIN números base)
-                doc.setFontSize(9);
-                doc.setFont("helvetica", "bold"); doc.text("Entidad:", 14, 34); 
-                doc.setFont("helvetica", "normal"); doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 30, 34);
-                
-                doc.setFont("helvetica", "bold"); doc.text("Unidad Jerárquica:", 14, 40); 
-                doc.setFont("helvetica", "normal"); doc.text(dependenciaActual.toUpperCase(), 46, 40);
-
-                doc.setFont("helvetica", "bold"); doc.text("Repartición:", 14, 46); 
-                doc.setFont("helvetica", "normal"); doc.text(repText, 36, 46);
-
-                // Columna derecha del encabezado
-                doc.setFont("helvetica", "bold"); doc.text("Dependencia:", pageWidth / 2, 34); 
-                doc.setFont("helvetica", "normal"); doc.text(dependenciaActual.toUpperCase(), (pageWidth / 2) + 26, 34);
-
-                doc.setFont("helvetica", "bold"); doc.text("Área:", pageWidth / 2, 40); 
-                doc.setFont("helvetica", "normal"); doc.text(`${repText} (Resp: ${funcText})`, (pageWidth / 2) + 12, 40);
-
-                // --- FIRMAS OFICIALES IMPRESAS EN TODAS LAS HOJAS ---
-                const finalY = pageHeight - 25; // Ancla fija en el fondo de la hoja
+                // Cuadro del Encabezado (Diseño Oficial)
                 doc.setDrawColor(0); doc.setLineWidth(0.3);
-                const sigWidth = 65;
+                doc.rect(10, 28, pageWidth - 20, 32); 
                 
-                // Firma Izquierda
+                // Lineas Horizontales del cuadro
+                doc.line(10, 34.4, 140, 34.4);
+                doc.line(10, 40.8, 140, 40.8);
+                doc.line(10, 47.2, 140, 47.2);
+                doc.line(10, 53.6, 140, 53.6);
+                
+                // Lineas Verticales del cuadro
+                doc.line(42, 28, 42, 60); 
+                doc.line(140, 28, 140, 60); 
+                doc.line(195, 28, 195, 60); 
+                doc.line(195, 40.8, pageWidth - 10, 40.8);
+                doc.line(195, 50.4, pageWidth - 10, 50.4);
+                doc.line(240, 40.8, 240, 60);
+
+                // Textos del cuadro: Izquierda
+                doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
+                doc.text("F.C. - 03", 10, 26);
+                doc.text("ENTIDAD", 12, 32.5); doc.text("(1)", 34, 32.5);
+                doc.text("UNIDAD JERARQUICA", 12, 38.9); doc.text("(2)", 34, 38.9);
+                doc.text("REPARTICIÓN", 12, 45.3); doc.text("(3)", 34, 45.3);
+                doc.text("DEPENDENCIA", 12, 51.7); doc.text("(4)", 34, 51.7);
+                doc.text("AREA", 12, 58.1); doc.text("(5)", 34, 58.1);
+
+                // Valores del cuadro: Izquierda
+                doc.setFont("helvetica", "normal");
+                doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 32.5);
+                doc.text(dependenciaActual.toUpperCase(), 44, 38.9);
+                doc.text(repText, 44, 45.3);
+                doc.text(dependenciaActual.toUpperCase(), 44, 51.7);
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 58.1);
+
+                // Textos del cuadro: Centro (Estado y Bienes)
+                doc.setFont("helvetica", "bold"); doc.text("(6) ESTADO DE CONSERVACIÓN", 142, 32.5);
+                doc.setFont("helvetica", "normal");
+                doc.text("MB........Muy Bueno", 142, 38.9);
+                doc.text("B..........Bueno", 142, 45.3);
+                doc.text("R..........Regular", 142, 51.7);
+                doc.text("M.........Malo", 142, 58.1);
+
+                doc.setFont("helvetica", "bold"); doc.text("(7) BIENES", 197, 32.5);
+                doc.setFont("helvetica", "normal");
+                doc.text("NR.... No Registrado", 197, 38.9);
+                doc.text("F.......Faltante", 197, 45.3);
+                doc.text("C...... Conforme", 197, 51.7);
+
+                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar)
+                doc.setFont("helvetica", "bold"); 
+                doc.text(`Hoja N° ___ ${doc.internal.getCurrentPageInfo().pageNumber} ___`, pageWidth - 35, 32.5);
+                doc.text("(8) Fecha", 197, 47); doc.setFont("helvetica", "normal"); doc.text(todayStr, 243, 47);
+                doc.setFont("helvetica", "bold"); 
+                doc.text("(9) Lugar", 197, 56.5); doc.setFont("helvetica", "normal"); doc.text(fc03Config.lugar.toUpperCase(), 243, 56.5);
+
+                // --- FIRMAS IMPRESAS AL PIE DE CADA HOJA ---
+                const finalY = pageHeight - 20; 
+                doc.setDrawColor(0); doc.setLineWidth(0.3);
+                const sigWidth = 60;
+                
+                // Izquierda
                 doc.line(15, finalY, 15 + sigWidth, finalY); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(8); 
                 doc.text("Jefe de Dependencia", 15 + (sigWidth/2), finalY + 4, { align: 'center' });
                 doc.text("(23)", 15 + (sigWidth/2), finalY + 8, { align: 'center' });
                 
-                // Firma Centro
+                // Centro
                 const midX = pageWidth / 2;
                 doc.line(midX - (sigWidth/2), finalY, midX + (sigWidth/2), finalY); 
-                doc.text("Jefe de Bienes Patrimoniales", midX, finalY + 4, { align: 'center' });
+                doc.text("Jefe de Patrimonio", midX, finalY + 4, { align: 'center' });
                 doc.text("(24)", midX, finalY + 8, { align: 'center' });
 
-                // Firma Derecha
+                // Derecha
                 const rightX = pageWidth - 15 - sigWidth;
                 doc.line(rightX, finalY, rightX + sigWidth, finalY); 
-                doc.text("Directora General de Administración y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
-
-                // Lugar y Fecha
-                doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-                doc.text(`Lugar y Fecha: ${fc03Config.lugar}, ${todayStr}`, 14, pageHeight - 8);
+                doc.text("Director Administrativo y Financiero", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
+                doc.text("(25)", rightX + (sigWidth/2), finalY + 8, { align: 'center' });
             }
         });
         
