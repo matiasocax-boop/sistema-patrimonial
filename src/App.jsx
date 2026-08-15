@@ -1444,7 +1444,24 @@ export default function App() {
   const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setIsFC10ModalOpen(true); };
   const openFC11Modal = (bien, fc = null) => { setFc11TargetBien(bien); setFc11Editing(fc); setFc11FormNumber(fc ? fc.numeroFormulario : ''); setIsFC11ModalOpen(true); };
   const openFC04Modal = (fc = null) => { setFc04Editing(fc); if (fc) { setFc04Items(fc.bienesSnapshot || []); setFc04SinMovimiento(fc.sinMovimiento); } else { setFc04Items([]); setFc04SinMovimiento(false); } setIsFC04ModalOpen(true); };
-  
+  // --- INICIO FUNCIONES FALTANTES FC-04 ---
+  const handleAddFC04Item = () => {
+    setFc04Items(prev => [...prev, { 
+      id: generateId(), 
+      cuenta: '', subcuenta: '', analitico1: '', analitico2: '', 
+      rotulo: '', descripcion: '', valorUnitario: '', 
+      fechaAdquisicion: '', vidaUtil: '' 
+    }]);
+  };
+
+  const handleRemoveFC04Item = (id) => {
+    setFc04Items(prev => prev.filter(item => item.id !== id));
+  };
+
+  const handleFC04ItemChange = (id, field, value) => {
+    setFc04Items(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+  };
+  // --- FIN FUNCIONES FALTANTES FC-04 ---
   const handleRowAction = (action, item, extraData) => { 
       switch(action) { 
           case 'toggleQR': toggleQR(item); break; 
