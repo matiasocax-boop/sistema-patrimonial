@@ -920,7 +920,6 @@ export default function App() {
   const executeGenerateFC03 = () => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     
-    // Filtrar bienes dados de baja para que coincida con el total general del Dashboard
     let bienesToPrint = filteredBienes.filter(b => b.estadoConservacion !== 'De Baja');
     
     let repText = "INVENTARIO GENERAL";
@@ -950,7 +949,6 @@ export default function App() {
 
         let totalValor = 0;
         
-        // 16 Columnas (Formato Oficial + Ubicación/Funcionario)
         const tableRows = bienesToPrint.map(b => {
             const valor = parseInt(String(b.valorUnitario).replace(/\D/g, ''), 10) || 0;
             totalValor += valor;
@@ -995,109 +993,104 @@ export default function App() {
         ]);
         
         doc.autoTable({ 
-            startY: 65, 
-            margin: { top: 65, bottom: 35, left: 10, right: 10 }, 
+            startY: 70, 
+            margin: { top: 70, bottom: 35, left: 10, right: 10 }, 
             theme: 'grid', 
             head: [
                 [
-                    { content: 'CUENTA\n(10)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'SUB\nCTA\n(11)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'ESPECIFI-\nCACIÓN (12)', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'DESCRIPCIÓN\n(13)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'CUENTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'SUB\nCTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'ESPECIFICACIÓN', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'UBICACIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'FUNCIONARIO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'EN REGISTROS Y/O DOCUMENTO', colSpan: 5, styles: { halign: 'center' } },
-                    { content: 'INVENTARIO\nFISICO', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'DIFERENCIA\n(21)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'OBS.\n(22)', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
+                    { content: 'INVENTARIO\nFÍSICO', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DIFERENCIA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'OBS.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
                 ],
                 [
                     { content: 'An. 1', styles: { halign: 'center' } },
                     { content: 'An. 2', styles: { halign: 'center' } },
-                    { content: 'FECHA\nADQUISI.\n(14)', styles: { halign: 'center' } },
-                    { content: 'ROTULADO\n(15)', styles: { halign: 'center' } },
-                    { content: 'CANT.\n(16)', styles: { halign: 'center' } },
-                    { content: 'VALOR\nUNIT.\n(17)', styles: { halign: 'center' } },
-                    { content: 'VALOR\nTOTAL\n(18)', styles: { halign: 'center' } },
-                    { content: 'BIENES\n(19)', styles: { halign: 'center' } },
-                    { content: 'ESTADO\n(20)', styles: { halign: 'center' } }
+                    { content: 'FECHA\nADQUISI.', styles: { halign: 'center' } },
+                    { content: 'ROTULADO', styles: { halign: 'center' } },
+                    { content: 'CANT.', styles: { halign: 'center' } },
+                    { content: 'VALOR\nUNIT.', styles: { halign: 'center' } },
+                    { content: 'VALOR\nTOTAL', styles: { halign: 'center' } },
+                    { content: 'BIENES', styles: { halign: 'center' } },
+                    { content: 'ESTADO', styles: { halign: 'center' } }
                 ]
             ], 
             body: tableRows, rowPageBreak: 'avoid',
-            styles: { fontSize: 6.5, cellPadding: 1.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
+            styles: { fontSize: 6, cellPadding: 1, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
             headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', textColor: [0,0,0], lineWidth: 0.3 }, 
-            columnStyles: { 
-                0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 10, halign: 'center' }, 
-                2: { cellWidth: 10, halign: 'center' }, 3: { cellWidth: 10, halign: 'center' }, 
-                4: { cellWidth: 'auto' }, 5: { cellWidth: 22 }, 6: { cellWidth: 24 }, 
-                7: { cellWidth: 14, halign: 'center' }, 8: { cellWidth: 18, halign: 'center' }, 
-                9: { cellWidth: 10, halign: 'center' }, 10: { cellWidth: 18, halign: 'right' }, 
-                11: { cellWidth: 18, halign: 'right' }, 12: { cellWidth: 11, halign: 'center' }, 
-                13: { cellWidth: 11, halign: 'center' }, 14: { cellWidth: 12, halign: 'center' }, 15: { cellWidth: 12, halign: 'center' }
-            },
             didDrawPage: function(data) {
                 // Logo y Títulos Oficiales
-                doc.addImage(logoImg, 'PNG', 10, 8, 18, 18); 
-                doc.setFont("helvetica", "bold"); doc.setFontSize(14); 
-                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 14, { align: 'center' }); 
+                doc.addImage(logoImg, 'PNG', 10, 8, 20, 20); 
+                doc.setFont("helvetica", "bold"); doc.setFontSize(13); 
+                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 12, { align: 'center' }); 
                 doc.setFontSize(10); 
-                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 20, { align: 'center' }); 
+                doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 17, { align: 'center' }); 
+                doc.setFontSize(11); 
+                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 23, { align: 'center' }); 
                 
-                // Cuadro del Encabezado (Diseño Oficial)
-                doc.setDrawColor(0); doc.setLineWidth(0.3);
-                doc.rect(10, 28, pageWidth - 20, 32); 
+                // Cuadro del Encabezado (Diseño Oficial Limpio)
+                doc.setFontSize(8); doc.setFont("helvetica", "bold");
+                doc.text("F.C. - 03", 10, 31);
+                
+                doc.setDrawColor(0); doc.setLineWidth(0.2);
+                doc.rect(10, 33, pageWidth - 20, 32); 
                 
                 // Lineas Horizontales del cuadro
-                doc.line(10, 34.4, 140, 34.4);
-                doc.line(10, 40.8, 140, 40.8);
-                doc.line(10, 47.2, 140, 47.2);
-                doc.line(10, 53.6, 140, 53.6);
+                doc.line(10, 39.4, 140, 39.4);
+                doc.line(10, 45.8, 140, 45.8);
+                doc.line(10, 52.2, 140, 52.2);
+                doc.line(10, 58.6, 140, 58.6);
                 
                 // Lineas Verticales del cuadro
-                doc.line(42, 28, 42, 60); 
-                doc.line(140, 28, 140, 60); 
-                doc.line(195, 28, 195, 60); 
-                doc.line(195, 40.8, pageWidth - 10, 40.8);
-                doc.line(195, 50.4, pageWidth - 10, 50.4);
-                doc.line(240, 40.8, 240, 60);
+                doc.line(42, 33, 42, 65); 
+                doc.line(140, 33, 140, 65); 
+                doc.line(195, 33, 195, 65); 
+                doc.line(195, 45.8, pageWidth - 10, 45.8);
+                doc.line(195, 55.4, pageWidth - 10, 55.4);
+                doc.line(240, 45.8, 240, 65);
 
                 // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
-                doc.text("F.C. - 03", 10, 26);
-                doc.text("ENTIDAD", 12, 32.5); doc.text("(1)", 34, 32.5);
-                doc.text("UNIDAD JERARQUICA", 12, 38.9); doc.text("(2)", 34, 38.9);
-                doc.text("REPARTICIÓN", 12, 45.3); doc.text("(3)", 34, 45.3);
-                doc.text("DEPENDENCIA", 12, 51.7); doc.text("(4)", 34, 51.7);
-                doc.text("AREA", 12, 58.1); doc.text("(5)", 34, 58.1);
+                doc.text("ENTIDAD", 12, 37.5);
+                doc.text("UNIDAD JERÁRQUICA", 12, 43.9);
+                doc.text("REPARTICIÓN", 12, 50.3);
+                doc.text("DEPENDENCIA", 12, 56.7);
+                doc.text("ÁREA", 12, 63.1);
 
                 // Valores del cuadro: Izquierda
                 doc.setFont("helvetica", "normal");
-                doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 32.5);
-                doc.text(dependenciaActual.toUpperCase(), 44, 38.9);
-                doc.text(repText, 44, 45.3);
-                doc.text(dependenciaActual.toUpperCase(), 44, 51.7);
-                doc.text(`${repText} (Resp: ${funcText})`, 44, 58.1);
+                doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 37.5);
+                doc.text(dependenciaActual.toUpperCase(), 44, 43.9);
+                doc.text(repText, 44, 50.3);
+                doc.text(dependenciaActual.toUpperCase(), 44, 56.7);
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 63.1);
 
                 // Textos del cuadro: Centro (Estado y Bienes)
-                doc.setFont("helvetica", "bold"); doc.text("(6) ESTADO DE CONSERVACIÓN", 142, 32.5);
+                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 37.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("MB........Muy Bueno", 142, 38.9);
-                doc.text("B..........Bueno", 142, 45.3);
-                doc.text("R..........Regular", 142, 51.7);
-                doc.text("M.........Malo", 142, 58.1);
+                doc.text("MB........Muy Bueno", 142, 43.9);
+                doc.text("B..........Bueno", 142, 50.3);
+                doc.text("R..........Regular", 142, 56.7);
+                doc.text("M.........Malo", 142, 63.1);
 
-                doc.setFont("helvetica", "bold"); doc.text("(7) BIENES", 197, 32.5);
+                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 37.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 38.9);
-                doc.text("F.......Faltante", 197, 45.3);
-                doc.text("C...... Conforme", 197, 51.7);
+                doc.text("NR.... No Registrado", 197, 43.9);
+                doc.text("F.......Faltante", 197, 50.3);
+                doc.text("C...... Conforme", 197, 56.7);
 
                 // Textos del cuadro: Derecha (Páginas, Fecha, Lugar)
                 doc.setFont("helvetica", "bold"); 
-                doc.text(`Hoja N° ___ ${doc.internal.getCurrentPageInfo().pageNumber} ___`, pageWidth - 35, 32.5);
-                doc.text("(8) Fecha", 197, 47); doc.setFont("helvetica", "normal"); doc.text(todayStr, 243, 47);
+                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 37.5);
+                doc.text("Fecha", 197, 52); doc.setFont("helvetica", "normal"); doc.text(todayStr, 243, 52);
                 doc.setFont("helvetica", "bold"); 
-                doc.text("(9) Lugar", 197, 56.5); doc.setFont("helvetica", "normal"); doc.text(fc03Config.lugar.toUpperCase(), 243, 56.5);
+                doc.text("Lugar", 197, 61.5); doc.setFont("helvetica", "normal"); doc.text(fc03Config.lugar.toUpperCase(), 243, 61.5);
 
                 // --- FIRMAS IMPRESAS AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 20; 
@@ -1108,19 +1101,21 @@ export default function App() {
                 doc.line(15, finalY, 15 + sigWidth, finalY); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(8); 
                 doc.text("Jefe de Dependencia", 15 + (sigWidth/2), finalY + 4, { align: 'center' });
-                doc.text("(23)", 15 + (sigWidth/2), finalY + 8, { align: 'center' });
                 
                 // Centro
                 const midX = pageWidth / 2;
                 doc.line(midX - (sigWidth/2), finalY, midX + (sigWidth/2), finalY); 
-                doc.text("Jefe de Patrimonio", midX, finalY + 4, { align: 'center' });
-                doc.text("(24)", midX, finalY + 8, { align: 'center' });
+                doc.text("Jefe de Bienes Patrimoniales", midX, finalY + 4, { align: 'center' });
 
                 // Derecha
                 const rightX = pageWidth - 15 - sigWidth;
                 doc.line(rightX, finalY, rightX + sigWidth, finalY); 
-                doc.text("Director Administrativo y Financiero", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
-                doc.text("(25)", rightX + (sigWidth/2), finalY + 8, { align: 'center' });
+                doc.text("Directora General de Administración y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
+
+                // Sello de Sistema
+                doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(100);
+                doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 5);
+                doc.setTextColor(0);
             }
         });
         
