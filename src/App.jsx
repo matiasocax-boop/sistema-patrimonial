@@ -238,40 +238,7 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  // --- INICIO MEJORAS DE RED E INACTIVIDAD ---
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
-  useEffect(() => {
-    const handleOnline = () => { setIsOnline(true); addToast("Conexión a la red restablecida.", "success"); };
-    const handleOffline = () => { setIsOnline(false); addToast("Sin conexión. Operando en modo local.", "warning"); };
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-    return () => { 
-        window.removeEventListener('online', handleOnline); 
-        window.removeEventListener('offline', handleOffline); 
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let inactivityTimer;
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        handleLogout();
-        addToast("Sesión cerrada por inactividad prolongada (35 min).", "warning");
-      }, 35 * 60 * 1000);
-    };
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keypress', resetTimer);
-    resetTimer(); 
-    return () => {
-      clearTimeout(inactivityTimer);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keypress', resetTimer);
-    };
-  }, [isAuthenticated, handleLogout]);
-  // --- FIN MEJORAS DE RED E INACTIVIDAD ---
   const [funcionariosDB, setFuncionariosDB] = useState([]);
   const [ubicacionesDB, setUbicacionesDB] = useState([]);
   const [isMaestroModalOpen, setIsMaestroModalOpen] = useState(false);
@@ -310,6 +277,41 @@ export default function App() {
       setShowLogoutConfirm(false);
       addToast("Sesión cerrada correctamente", "info");
   }, []);
+
+  // --- INICIO MEJORAS DE RED E INACTIVIDAD ---
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); addToast("Conexión a la red restablecida.", "success"); };
+    const handleOffline = () => { setIsOnline(false); addToast("Sin conexión. Operando en modo local.", "warning"); };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { 
+        window.removeEventListener('online', handleOnline); 
+        window.removeEventListener('offline', handleOffline); 
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let inactivityTimer;
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        handleLogout();
+        addToast("Sesión cerrada por inactividad prolongada (35 min).", "warning");
+      }, 35 * 60 * 1000);
+    };
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keypress', resetTimer);
+    resetTimer(); 
+    return () => {
+      clearTimeout(inactivityTimer);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keypress', resetTimer);
+    };
+  }, [isAuthenticated, handleLogout]);
+  // --- FIN MEJORAS DE RED E INACTIVIDAD ---
 
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
