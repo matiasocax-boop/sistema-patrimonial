@@ -993,8 +993,8 @@ export default function App() {
         ]);
         
         doc.autoTable({ 
-            startY: 70, 
-            margin: { top: 70, bottom: 35, left: 10, right: 10 }, 
+            startY: 72, 
+            margin: { top: 72, bottom: 35, left: 10, right: 10 }, 
             theme: 'grid', 
             head: [
                 [
@@ -1025,86 +1025,83 @@ export default function App() {
             styles: { fontSize: 6, cellPadding: 1, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
             headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', textColor: [0,0,0], lineWidth: 0.3 }, 
             didDrawPage: function(data) {
-                // Logo y Títulos Oficiales
-                doc.addImage(logoImg, 'PNG', 10, 8, 20, 20); 
-                doc.setFont("helvetica", "bold"); doc.setFontSize(13); 
-                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 12, { align: 'center' }); 
-                doc.setFontSize(10); 
-                doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 17, { align: 'center' }); 
-                doc.setFontSize(11); 
-                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 23, { align: 'center' }); 
+                // Logo y Títulos Oficiales perfectamente distribuidos
+                doc.addImage(logoImg, 'PNG', 12, 6, 18, 18); 
+                doc.setFont("helvetica", "bold"); doc.setFontSize(12); 
+                doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 11, { align: 'center' }); 
+                doc.setFontSize(9.5); 
+                doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 16, { align: 'center' }); 
+                doc.setFontSize(10.5); 
+                doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); 
                 
-                // Cuadro del Encabezado (Diseño Oficial Limpio)
+                // Cuadro del Encabezado limpio
                 doc.setFontSize(8); doc.setFont("helvetica", "bold");
-                doc.text("F.C. - 03", 10, 31);
+                doc.text("F.C. - 03", 10, 29);
                 
                 doc.setDrawColor(0); doc.setLineWidth(0.2);
-                doc.rect(10, 33, pageWidth - 20, 32); 
+                doc.rect(10, 31, pageWidth - 20, 34); 
                 
-                // Lineas Horizontales del cuadro
-                doc.line(10, 39.4, 140, 39.4);
-                doc.line(10, 45.8, 140, 45.8);
-                doc.line(10, 52.2, 140, 52.2);
-                doc.line(10, 58.6, 140, 58.6);
+                // Lineas Horizontales
+                doc.line(10, 37.8, 140, 37.8);
+                doc.line(10, 44.6, 140, 44.6);
+                doc.line(10, 51.4, 140, 51.4);
+                doc.line(10, 58.2, 140, 58.2);
                 
-                // Lineas Verticales del cuadro
-                doc.line(42, 33, 42, 65); 
-                doc.line(140, 33, 140, 65); 
-                doc.line(195, 33, 195, 65); 
-                doc.line(195, 45.8, pageWidth - 10, 45.8);
-                doc.line(195, 55.4, pageWidth - 10, 55.4);
-                doc.line(240, 45.8, 240, 65);
+                // Lineas Verticales
+                doc.line(42, 31, 42, 65); 
+                doc.line(140, 31, 140, 65); 
+                doc.line(195, 31, 195, 65); 
+                doc.line(195, 44.6, pageWidth - 10, 44.6);
+                doc.line(195, 54.2, pageWidth - 10, 54.2);
+                doc.line(242, 44.6, 242, 65);
 
                 // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
-                doc.text("ENTIDAD", 12, 37.5);
-                doc.text("UNIDAD JERÁRQUICA", 12, 43.9);
-                doc.text("REPARTICIÓN", 12, 50.3);
-                doc.text("DEPENDENCIA", 12, 56.7);
-                doc.text("ÁREA", 12, 63.1);
+                doc.text("ENTIDAD", 12, 35.5);
+                doc.text("UNIDAD JERÁRQUICA", 12, 42.3);
+                doc.text("REPARTICIÓN", 12, 49.1);
+                doc.text("DEPENDENCIA", 12, 55.9);
+                doc.text("ÁREA", 12, 62.7);
 
-                // Valores del cuadro: Izquierda
+                // Valores del cuadro: Izquierda (Con control de ancho maxWidth para evitar solapamientos)
                 doc.setFont("helvetica", "normal");
-                doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 37.5);
-                doc.text(dependenciaActual.toUpperCase(), 44, 43.9);
-                doc.text(repText, 44, 50.3);
-                doc.text(dependenciaActual.toUpperCase(), 44, 56.7);
-                
-                // CORRECCIÓN 1: Límite de ancho (maxWidth: 94) para que no pise la línea vertical
-                doc.text(`${repText} (Resp: ${funcText})`, 44, 63.1, { maxWidth: 94 });
+                doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
+                doc.text(dependenciaActual.toUpperCase(), 44, 42.3, { maxWidth: 94 });
+                doc.text(repText, 44, 49.1, { maxWidth: 94 });
+                doc.text(dependenciaActual.toUpperCase(), 44, 55.9, { maxWidth: 94 });
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 62.7, { maxWidth: 94 });
 
                 // Textos del cuadro: Centro (Estado y Bienes)
-                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 37.5);
+                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("MB........Muy Bueno", 142, 43.9);
-                doc.text("B..........Bueno", 142, 50.3);
-                doc.text("R..........Regular", 142, 56.7);
-                doc.text("M.........Malo", 142, 63.1);
+                doc.text("MB........Muy Bueno", 142, 42.3);
+                doc.text("B..........Bueno", 142, 49.1);
+                doc.text("R..........Regular", 142, 55.9);
+                doc.text("M.........Malo", 142, 62.7);
 
-                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 37.5);
+                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 43.9);
-                doc.text("F.......Faltante", 197, 50.3);
-                doc.text("C...... Conforme", 197, 56.7);
+                doc.text("NR.... No Registrado", 197, 42.3);
+                doc.text("F.......Faltante", 197, 49.1);
+                doc.text("C...... Conforme", 197, 55.9);
 
-                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar)
+                // Textos del cuadro: Derecha (Páginas, Fecha, Lugar ajustados a X=245)
                 doc.setFont("helvetica", "bold"); 
-                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 37.5);
+                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
-                // CORRECCIÓN 2: Coordenadas X movidas a 242 (dentro del último recuadro)
-                doc.text("Fecha", 242, 51.5); 
+                doc.text("Fecha", 245, 50); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 255, 51.5);
+                doc.text(todayStr, 258, 50);
                 
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 242, 61.5); 
+                doc.text("Lugar", 245, 59.5); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 255, 61.5);
+                doc.text(fc03Config.lugar.toUpperCase(), 258, 59.5);
 
-                // --- FIRMAS IMPRESAS AL PIE DE CADA HOJA ---
-                const finalY = pageHeight - 20; 
+                // --- FIRMAS OFICIALES AL PIE DE CADA HOJA ---
+                const finalY = pageHeight - 18; 
                 doc.setDrawColor(0); doc.setLineWidth(0.3);
-                const sigWidth = 60;
+                const sigWidth = 65;
                 
                 // Izquierda
                 doc.line(15, finalY, 15 + sigWidth, finalY); 
@@ -1121,25 +1118,18 @@ export default function App() {
                 doc.line(rightX, finalY, rightX + sigWidth, finalY); 
                 doc.text("Directora General de Administración y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
 
-                // Sello de Sistema
+                // Sello de Sistema al pie
                 doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(100);
-                doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 5);
+                doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 4);
                 doc.setTextColor(0);
             }
-        }); // <-- Aquí se cierra el autoTable
+        });
         
-        // --- AQUÍ SE GUARDA EL PDF (No debes borrar esto) ---
         const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
         doc.save(`FC03_${cleanDepName}_${descFiltro}_${todayStr}.pdf`); 
         addToast("Reporte Inventario Oficial generado", "success");
-      } catch(e) { 
-        console.error(e); 
-        addToast("Error PDF: " + (e.message || "Desconocido"), "error"); 
-      } finally { 
-        setIsProcessing({ active: false, text: '' }); 
-        setIsFC03ModalOpen(false); 
-      }
+      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsFC03ModalOpen(false); }
     }, 100);
   }; // <-- Aquí se cierra toda la función executeGenerateFC03
 
