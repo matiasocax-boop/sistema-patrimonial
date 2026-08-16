@@ -278,7 +278,6 @@ export default function App() {
       addToast("Sesión cerrada correctamente", "info");
   }, []);
 
-  // --- INICIO MEJORAS DE RED E INACTIVIDAD ---
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   useEffect(() => {
@@ -311,7 +310,6 @@ export default function App() {
       window.removeEventListener('keypress', resetTimer);
     };
   }, [isAuthenticated, handleLogout]);
-  // --- FIN MEJORAS DE RED E INACTIVIDAD ---
 
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
@@ -392,7 +390,6 @@ export default function App() {
     try {
       setIsLoading(true);
 
-      // Limpieza de notificaciones con más de 2 días
       const dosDiasAtras = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
       await supabase.from('auditoria').delete().lt('updated_at', dosDiasAtras);
 
@@ -606,15 +603,11 @@ export default function App() {
             canvas.height = height; 
             const ctx = canvas.getContext('2d'); 
             
-            // --- SOLUCIÓN AL CUADRO NEGRO ---
-            // Dibujamos un fondo blanco sólido antes de pegar el logo
             ctx.fillStyle = '#ffffff'; 
             ctx.fillRect(0, 0, width, height); 
-            // --------------------------------
 
             ctx.drawImage(img, 0, 0, width, height); 
             
-            // Guardamos estrictamente en formato PNG (Mejor compatibilidad con jsPDF)
             const compressedLogo = canvas.toDataURL('image/png'); 
             localStorage.setItem('logoOficial', compressedLogo); 
             setAppLogo(compressedLogo); 
@@ -1025,7 +1018,6 @@ export default function App() {
             styles: { fontSize: 6, cellPadding: 1, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.15 }, 
             headStyles: { fillColor: [255, 255, 255], fontStyle: 'bold', halign: 'center', textColor: [0,0,0], lineWidth: 0.3 }, 
             didDrawPage: function(data) {
-                // Logo y Títulos Oficiales
                 doc.addImage(logoImg, 'PNG', 12, 6, 18, 18); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(12); 
                 doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 11, { align: 'center' }); 
@@ -1034,33 +1026,27 @@ export default function App() {
                 doc.setFontSize(10.5); 
                 doc.text("INVENTARIO DE BIENES DE USO (FC-03)", pageWidth / 2, 22, { align: 'center' }); 
                 
-                // Etiqueta F.C. - 03
                 doc.setFontSize(8); doc.setFont("helvetica", "bold");
                 doc.text("F.C. - 03", 10, 29);
                 
-                // Cuadro del Encabezado (Altura total de 36mm)
                 doc.setDrawColor(0); doc.setLineWidth(0.2);
                 doc.rect(10, 31, pageWidth - 20, 36); 
                 
-                // Lineas Horizontales de la sección izquierda y centro (cada 7.2mm)
                 doc.line(10, 38.2, 140, 38.2);
                 doc.line(10, 45.4, 140, 45.4);
                 doc.line(10, 52.6, 140, 52.6);
                 doc.line(10, 59.8, 140, 59.8);
                 
-                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar) con altura perfectamente distribuida
-                doc.line(195, 37, pageWidth - 10, 37);   // Debajo de "BIENES"
-                doc.line(195, 42.5, pageWidth - 10, 42.5); // Debajo de "No Registrado"
-                doc.line(195, 48, pageWidth - 10, 48);   // Debajo de "Faltante"
-                doc.line(195, 53.5, pageWidth - 10, 53.5); // Debajo de "Fecha"
+                doc.line(195, 37, pageWidth - 10, 37);   
+                doc.line(195, 42.5, pageWidth - 10, 42.5); 
+                doc.line(195, 48, pageWidth - 10, 48);   
+                doc.line(195, 53.5, pageWidth - 10, 53.5); 
 
-                // Lineas Verticales principales del cuadro
                 doc.line(42, 31, 42, 67); 
                 doc.line(140, 31, 140, 67); 
                 doc.line(195, 31, 195, 67); 
-                doc.line(242, 53.5, 242, 67); // Divide etiqueta de Fecha/Lugar de su valor
+                doc.line(242, 53.5, 242, 67); 
 
-                // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
                 doc.text("UNIDAD JERÁRQUICA", 12, 42.7);
@@ -1068,7 +1054,6 @@ export default function App() {
                 doc.text("DEPENDENCIA", 12, 57.1);
                 doc.text("ÁREA", 12, 64.3);
 
-                // Valores del cuadro: Izquierda
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
                 doc.text(dependenciaActual.toUpperCase(), 44, 42.7, { maxWidth: 94 });
@@ -1076,7 +1061,6 @@ export default function App() {
                 doc.text(dependenciaActual.toUpperCase(), 44, 57.1, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 64.3, { maxWidth: 94 });
 
-                // Textos del cuadro: Centro (Estado de Conservación)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 42.7);
@@ -1084,14 +1068,12 @@ export default function App() {
                 doc.text("R..........Regular", 142, 57.1);
                 doc.text("M.........Malo", 142, 64.3);
 
-                // Textos del cuadro: Derecha (Bienes - Espacios limpios y holgados)
                 doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 34.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("NR.... No Registrado", 197, 40.2);
                 doc.text("F.......Faltante", 197, 45.8);
                 doc.text("C...... Conforme", 197, 51.5);
 
-                // Textos del cuadro: Derecha (Fecha y Lugar alineados)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
@@ -1104,32 +1086,27 @@ export default function App() {
                 doc.setFont("helvetica", "normal"); 
                 doc.text(fc03Config.lugar.toUpperCase(), 245, 60.5);
 
-                // --- FIRMAS OFICIALES AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 18; 
                 doc.setDrawColor(0); doc.setLineWidth(0.3);
                 const sigWidth = 65;
                 
-                // Izquierda
                 doc.line(15, finalY, 15 + sigWidth, finalY); 
                 doc.setFont("helvetica", "bold"); doc.setFontSize(8); 
                 doc.text("Jefe de Dependencia", 15 + (sigWidth/2), finalY + 4, { align: 'center' });
                 
-                // Centro
                 const midX = pageWidth / 2;
                 doc.line(midX - (sigWidth/2), finalY, midX + (sigWidth/2), finalY); 
                 doc.text("Jefe de Bienes Patrimoniales", midX, finalY + 4, { align: 'center' });
 
-                // Derecha
                 const rightX = pageWidth - 15 - sigWidth;
                 doc.line(rightX, finalY, rightX + sigWidth, finalY); 
                 doc.text("Directora General de Administración y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
 
-                // Sello de Sistema al pie
                 doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(100);
                 doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 4);
                 doc.setTextColor(0);
-            } // <--- Cierra didDrawPage
-        }); // <--- Cierra doc.autoTable
+            }
+        });
         
         const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
@@ -1143,8 +1120,7 @@ export default function App() {
         setIsFC03ModalOpen(false); 
       }
     }, 100);
-  }; // <--- Este cierra el setTimeout
-}; // <--- Este cierra la función executeGenerateFC03
+  };
 
   const toggleQR = async (bien) => { 
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
@@ -1619,7 +1595,7 @@ export default function App() {
   const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setIsFC10ModalOpen(true); };
   const openFC11Modal = (bien, fc = null) => { setFc11TargetBien(bien); setFc11Editing(fc); setFc11FormNumber(fc ? fc.numeroFormulario : ''); setIsFC11ModalOpen(true); };
   const openFC04Modal = (fc = null) => { setFc04Editing(fc); if (fc) { setFc04Items(fc.bienesSnapshot || []); setFc04SinMovimiento(fc.sinMovimiento); } else { setFc04Items([]); setFc04SinMovimiento(false); } setIsFC04ModalOpen(true); };
-  // --- INICIO FUNCIONES FALTANTES FC-04 ---
+  
   const handleAddFC04Item = () => {
     setFc04Items(prev => [...prev, { 
       id: generateId(), 
@@ -1636,7 +1612,7 @@ export default function App() {
   const handleFC04ItemChange = (id, field, value) => {
     setFc04Items(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
-  // --- FIN FUNCIONES FALTANTES FC-04 ---
+
   const handleRowAction = (action, item, extraData) => { 
       switch(action) { 
           case 'toggleQR': toggleQR(item); break; 
@@ -1733,7 +1709,6 @@ export default function App() {
       
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
         
-        {/* Banner de sin conexión (FUERA del map) */}
         {!isOnline && (
           <div className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-amber-500 text-white transition-all animate-slide-up mb-2">
             <i className="fa-solid fa-wifi-slash text-lg"></i>
@@ -1741,7 +1716,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Bucle de notificaciones (toasts) */}
         {toasts.map(t => (
           <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
             <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
@@ -2008,7 +1982,6 @@ export default function App() {
                 {activeTab === 'dashboard' && (
                   <div className="space-y-8 animate-fade-in">
                     
-                    {/* 1. Pantalla de Bienvenida (SOLO en el Dashboard) */}
                     <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 animate-fade-in">
                       <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary font-bold text-lg shadow-sm">
@@ -2024,7 +1997,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* 2. Tarjetas de Estadísticas Principales */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
                         <StatCard title="Valor Neto" value={isLoading ? '...' : `Gs. ${formatCurrency(stats.totalValue)}`} subtitle="Suma de valuación" icon="fa-sack-dollar" colorClass="text-green-600 dark:text-green-400" bgIconClass="bg-green-100/80 dark:bg-green-900/30" />
@@ -2032,7 +2004,6 @@ export default function App() {
                         <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
                     </div>
 
-                    {/* 3. Accesos Directos */}
                     <div className={`${STYLES.card} p-6 border-l-4 border-l-brand-primary shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden`}>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="flex items-center gap-3">
@@ -2066,10 +2037,8 @@ export default function App() {
                         </div>
                     </div>
 
-                    {/* 4. Gráficos Inferiores (Regularización y Tendencias) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       
-                      {/* Estado de Regularización (Nuevas Barras) */}
                       <div className={`${STYLES.card} flex flex-col`}>
                         <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4 flex items-center justify-between">
                           <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Estado de Regularización</h2>
@@ -2077,7 +2046,6 @@ export default function App() {
                         </div>
                         <div className="flex flex-1 flex-col p-8 gap-7 justify-center">
                           
-                          {/* Progress Bar 1: FC-10 */}
                           <div>
                             <div className="flex justify-between items-end mb-2.5">
                               <div className="flex items-center gap-3">
@@ -2098,7 +2066,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Progress Bar 2: QR */}
                           <div>
                             <div className="flex justify-between items-end mb-2.5">
                               <div className="flex items-center gap-3">
@@ -2122,7 +2089,6 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Tendencias Operativas */}
                       <div className={`${STYLES.card} flex flex-col`}>
                         <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
                           <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Tendencias Operativas</h2>
@@ -2154,7 +2120,6 @@ export default function App() {
                 {activeTab === 'inventario' && (
     <div className="animate-fade-in flex flex-col flex-1 space-y-6">
       
-      {/* 1. CABECERA Y ACCIONES PRINCIPALES UNIFICADAS */}
       <div className="bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-xs space-y-5 shrink-0 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-1.5 h-full bg-brand-primary"></div>
         
@@ -2176,7 +2141,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Barra de Herramientas de Datos y Salidas con Tarjetas sutiles */}
         <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-1 bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1.5 rounded-lg">Datos</span>
@@ -2203,11 +2167,9 @@ export default function App() {
         </div>
       </div>
 
-      {/* 2. PANEL DE BÚSQUEDA Y FILTROS PROFESIONAL */}
       <div className={`${STYLES.card} p-5 space-y-4 shrink-0`}>
         <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
           
-          {/* Buscador Principal Mejorado */}
           <div className="w-full xl:w-96 shrink-0 relative">
             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
             <input 
@@ -2224,7 +2186,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Grid de Filtros Compactos */}
           <div className="w-full flex flex-wrap items-center gap-2 justify-start xl:justify-end">
             <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
             <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
@@ -2257,7 +2218,6 @@ export default function App() {
         )}
       </div>
 
-      {/* 3. TABLA DE DATOS */}
       <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative min-h-[550px]">
           <div className="flex-1 overflow-y-auto custom-scrollbar relative">
             <table className="min-w-full text-left">
@@ -2759,7 +2719,6 @@ export default function App() {
           />
       )}
 
-      {/* Modal para Crear / Editar Datos Maestros (Funcionarios / Ubicaciones) */}
       {isMaestroModalOpen && (
           <div className={STYLES.modalOverlay}>
               <div className={STYLES.modalContent + " max-w-md"}>
@@ -3055,3 +3014,4 @@ export default function App() {
       )}
     </div>
   );
+}
