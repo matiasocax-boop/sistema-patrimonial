@@ -1048,15 +1048,17 @@ export default function App() {
                 doc.line(10, 52.6, 140, 52.6);
                 doc.line(10, 59.8, 140, 59.8);
                 
-                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar)
-                doc.line(195, 43, pageWidth - 10, 43); // Debajo de BIENES
-                doc.line(195, 55, pageWidth - 10, 55); // Debajo de Fecha
+                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar) corregidas y separadas
+                doc.line(195, 37, pageWidth - 10, 37);   // Debajo de "BIENES"
+                doc.line(195, 42.5, pageWidth - 10, 42.5); // Debajo de "No Registrado"
+                doc.line(195, 48, pageWidth - 10, 48);   // Debajo de "Faltante"
+                doc.line(195, 53.5, pageWidth - 10, 53.5); // Debajo de "Fecha"
 
                 // Lineas Verticales principales del cuadro
                 doc.line(42, 31, 42, 67); 
                 doc.line(140, 31, 140, 67); 
                 doc.line(195, 31, 195, 67); 
-                doc.line(242, 43, 242, 67); // Divide etiqueta de Fecha/Lugar de su valor
+                doc.line(242, 53.5, 242, 67); // Divide etiqueta de Fecha/Lugar de su valor
 
                 // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
@@ -1082,25 +1084,25 @@ export default function App() {
                 doc.text("R..........Regular", 142, 57.1);
                 doc.text("M.........Malo", 142, 64.3);
 
-                // Textos del cuadro: Derecha (Bienes - Espaciado limpio sin solapamientos)
-                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 35.5);
+                // Textos del cuadro: Derecha (Bienes - Espaciado vertical holgado y sin tachaduras)
+                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 34.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 39.5);
-                doc.text("F.......Faltante", 197, 41.5);
-                doc.text("C...... Conforme", 197, 42.7);
+                doc.text("NR.... No Registrado", 197, 40);
+                doc.text("F.......Faltante", 197, 45.5);
+                doc.text("C...... Conforme", 197, 51);
 
                 // Textos del cuadro: Derecha (Fecha y Lugar alineados con celdas limpias)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
-                doc.text("Fecha", 197, 50); 
+                doc.text("Fecha", 197, 49.5); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 245, 50);
+                doc.text(todayStr, 245, 49.5);
                 
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 197, 61); 
+                doc.text("Lugar", 197, 60.5); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 245, 61);
+                doc.text(fc03Config.lugar.toUpperCase(), 245, 60.5);
 
                 // --- FIRMAS OFICIALES AL PIE DE CADA HOJA ---
                 const finalY = pageHeight - 18; 
@@ -1126,16 +1128,23 @@ export default function App() {
                 doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(100);
                 doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 4);
                 doc.setTextColor(0);
-            }
-        });
+            } // <--- Cierra didDrawPage
+        }); // <--- Cierra doc.autoTable
         
         const descFiltro = fc03Config.tipoFiltro === 'general' ? 'General' : fc03Config.filtroValor.replace(/[^a-zA-Z0-9]/g, '_');
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); 
         doc.save(`FC03_${cleanDepName}_${descFiltro}_${todayStr}.pdf`); 
         addToast("Reporte Inventario Oficial generado", "success");
-      } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsFC03ModalOpen(false); }
+      } catch(e) { 
+        console.error(e); 
+        addToast("Error PDF: " + (e.message || "Desconocido"), "error"); 
+      } finally { 
+        setIsProcessing({ active: false, text: '' }); 
+        setIsFC03ModalOpen(false); 
+      }
     }, 100);
-  }; // <-- Aquí se cierra toda la función executeGenerateFC03
+  }; // <--- Cierra setTimeout
+}; // <--- Cierra executeGenerateFC03
 
   const toggleQR = async (bien) => { 
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
@@ -3046,4 +3055,3 @@ export default function App() {
       )}
     </div>
   );
-}
