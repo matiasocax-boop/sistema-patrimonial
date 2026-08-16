@@ -1037,16 +1037,21 @@ export default function App() {
                 doc.line(10, 52.6, 140, 52.6);
                 doc.line(10, 59.8, 140, 59.8);
                 
-                doc.line(195, 37, pageWidth - 10, 37);   
-                doc.line(195, 42.5, pageWidth - 10, 42.5); 
-                doc.line(195, 48, pageWidth - 10, 48);   
-                doc.line(195, 53.5, pageWidth - 10, 53.5); 
+                // --- SECCIÓN DERECHA CORREGIDA Y ESPACIADA PROFESIONALMENTE ---
+                
+                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar) con separación perfecta
+                doc.line(195, 37, pageWidth - 10, 37);   // Debajo de "BIENES"
+                doc.line(195, 43, pageWidth - 10, 43);   // Debajo de "No Registrado"
+                doc.line(195, 49, pageWidth - 10, 49);   // Debajo de "Faltante"
+                doc.line(195, 55, pageWidth - 10, 55);   // Debajo de "Conforme" y separación para "Fecha"
 
+                // Lineas Verticales principales del cuadro
                 doc.line(42, 31, 42, 67); 
                 doc.line(140, 31, 140, 67); 
                 doc.line(195, 31, 195, 67); 
-                doc.line(242, 53.5, 242, 67); 
+                doc.line(242, 55, 242, 67); // Divide la etiqueta de Fecha/Lugar de su valor correspondiente
 
+                // Textos del cuadro: Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
                 doc.text("UNIDAD JERÁRQUICA", 12, 42.7);
@@ -1054,6 +1059,7 @@ export default function App() {
                 doc.text("DEPENDENCIA", 12, 57.1);
                 doc.text("ÁREA", 12, 64.3);
 
+                // Valores del cuadro: Izquierda
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
                 doc.text(dependenciaActual.toUpperCase(), 44, 42.7, { maxWidth: 94 });
@@ -1061,6 +1067,7 @@ export default function App() {
                 doc.text(dependenciaActual.toUpperCase(), 44, 57.1, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 64.3, { maxWidth: 94 });
 
+                // Textos del cuadro: Centro (Estado de Conservación)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 42.7);
@@ -1068,23 +1075,25 @@ export default function App() {
                 doc.text("R..........Regular", 142, 57.1);
                 doc.text("M.........Malo", 142, 64.3);
 
+                // Textos del cuadro: Derecha (Bienes - Espacios limpios, holgados y sin solaparse con líneas)
                 doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 34.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 40.2);
-                doc.text("F.......Faltante", 197, 45.8);
-                doc.text("C...... Conforme", 197, 51.5);
+                doc.text("NR.... No Registrado", 197, 40.5);
+                doc.text("F.......Faltante", 197, 46.5);
+                doc.text("C...... Conforme", 197, 52.5);
 
+                // Textos del cuadro: Derecha (Fecha y Lugar perfectamente ubicados en sus celdas inferiores)
                 doc.setFont("helvetica", "bold"); 
                 doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
                 
-                doc.text("Fecha", 197, 49.5); 
+                doc.text("Fecha", 197, 51.5); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 245, 49.5);
+                doc.text(todayStr, 245, 51.5);
                 
                 doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 197, 60.5); 
+                doc.text("Lugar", 197, 61); 
                 doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 245, 60.5);
+                doc.text(fc03Config.lugar.toUpperCase(), 245, 61);
 
                 const finalY = pageHeight - 18; 
                 doc.setDrawColor(0); doc.setLineWidth(0.3);
