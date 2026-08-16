@@ -1143,8 +1143,8 @@ export default function App() {
         setIsFC03ModalOpen(false); 
       }
     }, 100);
-  }; // <--- Cierra setTimeout
-}; // <--- Cierra executeGenerateFC03
+  }; // <--- Este cierra el setTimeout
+}; // <--- Este cierra la función executeGenerateFC03
 
   const toggleQR = async (bien) => { 
     const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
