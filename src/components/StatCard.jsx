@@ -1,11 +1,9 @@
-// frontend/src/components/StatCard.jsx
 import React from 'react';
 
-function StatCard({ title, value, subtitle, icon, colorClass, bgIconClass }) {
-  // Ajuste dinámico de tamaño si el valor es un monto monetario largo
-  // En src/components/StatCard.jsx
-const isLongValue = String(value || '').length > 10;
-const textSizeClass = isLongValue ? "text-xl sm:text-2xl font-extrabold" : "text-2xl sm:text-3xl font-black";
+export default function StatCard({ title, value, subtitle, icon, colorClass, bgIconClass }) {
+  // Ajuste dinámico de tamaño si el valor es un texto o monto largo
+  const isLongValue = String(value || '').length > 10;
+  const textSizeClass = isLongValue ? "text-xl sm:text-2xl font-extrabold" : "text-2xl sm:text-3xl font-black";
 
   return (
     <div className="group relative bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border/80 p-6 shadow-xs hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-default">
@@ -36,5 +34,3 @@ const textSizeClass = isLongValue ? "text-xl sm:text-2xl font-extrabold" : "text
     </div>
   );
 }
-
-export default StatCard;

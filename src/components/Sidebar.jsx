@@ -15,14 +15,17 @@ export default function Sidebar({
                 <div onClick={() => setIsSidebarOpen(false)} className="fixed inset-0 bg-zinc-900/60 backdrop-blur-xs z-40 lg:hidden animate-fade-in"></div>
             )}
 
-            <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-white dark:bg-darkbg-card border-r border-zinc-200 dark:border-darkbg-border shrink-0 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
-                <div className="flex h-16 shrink-0 items-center justify-between px-6 border-b border-zinc-100 dark:border-darkbg-border/50 lg:border-none">
-                    <div className="flex items-center gap-3 w-full">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-brand-light shadow-2xs overflow-hidden dark:bg-darkbg-main dark:border-darkbg-border">
-                            {appLogo ? <img src={appLogo} alt="Logo" className="w-full h-full object-contain" /> : <i className="fa-solid fa-landmark text-brand-primary text-base"></i>}
+            <aside className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-zinc-50/50 dark:bg-darkbg-card border-r border-zinc-200/80 dark:border-darkbg-border shrink-0 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`}>
+                
+                {/* Encabezado del Sidebar */}
+                <div className="flex h-20 shrink-0 items-center justify-between px-6 border-b border-zinc-200/60 dark:border-darkbg-border/60 bg-white/80 dark:bg-darkbg-card backdrop-blur-md">
+                    <div className="flex items-center gap-3.5 w-full">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border shadow-xs overflow-hidden p-1.5">
+                            {appLogo ? <img src={appLogo} alt="Logo" className="w-full h-full object-contain" /> : <i className="fa-solid fa-landmark text-brand-primary text-lg"></i>}
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-base font-black tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>
+                            <h1 className="text-sm font-black tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>
+                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Gestión Institucional</p>
                         </div>
                     </div>
                     <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden text-zinc-400 hover:text-zinc-700 dark:hover:text-white p-2 cursor-pointer">
@@ -30,7 +33,12 @@ export default function Sidebar({
                     </button>
                 </div>
                 
-                <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 custom-scrollbar">
+                {/* Navegación */}
+                <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-2 custom-scrollbar">
+                    <div className="px-3 pb-2">
+                        <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Navegación</span>
+                    </div>
+
                     {[ 
                         { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie', color: 'text-sky-500 bg-sky-50 dark:bg-sky-950/40' },
                         { id: 'inventario', label: 'Directorio de Bienes', icon: 'fa-boxes-stacked', color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40' },
@@ -48,9 +56,13 @@ export default function Sidebar({
                             <button 
                                 key={tab.id} 
                                 onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} 
-                                className={`group flex w-full items-center gap-x-3.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all cursor-pointer ${isActive ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20' : 'text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-darkbg-hover dark:hover:text-white'}`}
+                                className={`group flex w-full items-center gap-x-3.5 rounded-2xl px-4 py-3 text-xs font-bold transition-all duration-200 cursor-pointer ${
+                                    isActive 
+                                        ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25 scale-[1.02]' 
+                                        : 'text-zinc-600 hover:bg-white dark:hover:bg-darkbg-hover/80 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white shadow-2xs hover:shadow-xs'
+                                }`}
                             >
-                                <div className={`flex h-8 w-8 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${isActive ? 'bg-white/20 text-white' : tab.color}`}>
+                                <div className={`flex h-9 w-9 items-center justify-center rounded-xl transition-transform group-hover:scale-110 shadow-2xs ${isActive ? 'bg-white/25 text-white' : tab.color}`}>
                                     <i className={`fa-solid ${tab.icon} text-sm`}></i>
                                 </div>
                                 <span className="flex-1 text-left tracking-tight">{tab.label}</span>
