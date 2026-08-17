@@ -38,7 +38,6 @@ export default function Sidebar({
                         { id: 'fc10', label: 'Asignaciones (FC-10)', icon: 'fa-file-signature', color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' },
                         { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast', color: 'text-purple-500 bg-purple-50 dark:bg-purple-950/40' },
                         ...(isAdmin ? [
-                            { id: 'maestros', label: 'Datos Maestros', icon: 'fa-address-book', color: 'text-blue-600 bg-blue-50 dark:bg-blue-950/40' },
                             { id: 'aprobaciones', label: 'Aprobaciones', icon: 'fa-check-to-slot', color: 'text-rose-500 bg-rose-50 dark:bg-rose-950/40' },
                             { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear', color: 'text-teal-500 bg-teal-50 dark:bg-teal-950/40' }
                         ] : []),
