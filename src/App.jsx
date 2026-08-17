@@ -1029,72 +1029,73 @@ export default function App() {
                 doc.setFontSize(8); doc.setFont("helvetica", "bold");
                 doc.text("F.C. - 03", 10, 29);
                 
+                // Cuadro del Encabezado Principal (Altura total: 39mm, de Y=31 a Y=70)
                 doc.setDrawColor(0); doc.setLineWidth(0.2);
-                doc.rect(10, 31, pageWidth - 20, 36); 
+                doc.rect(10, 31, pageWidth - 20, 39); 
                 
-                doc.line(10, 38.2, 140, 38.2);
-                doc.line(10, 45.4, 140, 45.4);
-                doc.line(10, 52.6, 140, 52.6);
-                doc.line(10, 59.8, 140, 59.8);
+                // Líneas Horizontales del bloque izquierdo (Entidad, Unidad, Repartición, Dependencia, Área)
+                doc.line(10, 38.6, 140, 38.6);
+                doc.line(10, 46.2, 140, 46.2);
+                doc.line(10, 53.8, 140, 53.8);
+                doc.line(10, 61.4, 140, 61.4);
                 
-                // --- SECCIÓN DERECHA CORREGIDA Y ESPACIADA PROFESIONALMENTE ---
-                
-                // Lineas Horizontales de la sección derecha (Bienes, Fecha, Lugar) con separación perfecta
-                doc.line(195, 37, pageWidth - 10, 37);   // Debajo de "BIENES"
-                doc.line(195, 43, pageWidth - 10, 43);   // Debajo de "No Registrado"
-                doc.line(195, 49, pageWidth - 10, 49);   // Debajo de "Faltante"
-                doc.line(195, 55, pageWidth - 10, 55);   // Debajo de "Conforme" y separación para "Fecha"
+                // Líneas Horizontales estrictamente espaciadas en la columna derecha
+                doc.line(195, 37.5, pageWidth - 10, 37.5); // Debajo de BIENES
+                doc.line(195, 43.5, pageWidth - 10, 43.5); // Debajo de No Registrado
+                doc.line(195, 49.5, pageWidth - 10, 49.5); // Debajo de Faltante
+                doc.line(195, 55.5, pageWidth - 10, 55.5); // Debajo de Conforme / Separa Fecha
 
-                // Lineas Verticales principales del cuadro
-                doc.line(42, 31, 42, 67); 
-                doc.line(140, 31, 140, 67); 
-                doc.line(195, 31, 195, 67); 
-                doc.line(242, 55, 242, 67); // Divide la etiqueta de Fecha/Lugar de su valor correspondiente
+                // Líneas Verticales principales
+                doc.line(42, 31, 42, 70); 
+                doc.line(140, 31, 140, 70); 
+                doc.line(195, 31, 195, 70); 
+                doc.line(235, 55.5, 235, 70); // Divide la etiqueta Fecha/Lugar de su valor
 
-                // Textos del cuadro: Izquierda
+                // Textos Izquierda
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
-                doc.text("UNIDAD JERÁRQUICA", 12, 42.7);
-                doc.text("REPARTICIÓN", 12, 49.9);
-                doc.text("DEPENDENCIA", 12, 57.1);
-                doc.text("ÁREA", 12, 64.3);
+                doc.text("UNIDAD JERÁRQUICA", 12, 43.1);
+                doc.text("REPARTICIÓN", 12, 50.7);
+                doc.text("DEPENDENCIA", 12, 58.3);
+                doc.text("ÁREA", 12, 65.9);
 
-                // Valores del cuadro: Izquierda
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
-                doc.text(dependenciaActual.toUpperCase(), 44, 42.7, { maxWidth: 94 });
-                doc.text(repText, 44, 49.9, { maxWidth: 94 });
-                doc.text(dependenciaActual.toUpperCase(), 44, 57.1, { maxWidth: 94 });
-                doc.text(`${repText} (Resp: ${funcText})`, 44, 64.3, { maxWidth: 94 });
+                doc.text(dependenciaActual.toUpperCase(), 44, 43.1, { maxWidth: 94 });
+                doc.text(repText, 44, 50.7, { maxWidth: 94 });
+                doc.text(dependenciaActual.toUpperCase(), 44, 58.3, { maxWidth: 94 });
+                doc.text(`${repText} (Resp: ${funcText})`, 44, 65.9, { maxWidth: 94 });
 
-                // Textos del cuadro: Centro (Estado de Conservación)
+                // Textos Centro (Estado de Conservación)
                 doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
-                doc.text("MB........Muy Bueno", 142, 42.7);
-                doc.text("B..........Bueno", 142, 49.9);
-                doc.text("R..........Regular", 142, 57.1);
-                doc.text("M.........Malo", 142, 64.3);
+                doc.text("MB........Muy Bueno", 142, 43.1);
+                doc.text("B..........Bueno", 142, 50.7);
+                doc.text("R..........Regular", 142, 58.3);
+                doc.text("M.........Malo", 142, 65.9);
 
-                // Textos del cuadro: Derecha (Bienes - Espacios limpios, holgados y sin solaparse con líneas)
-                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 34.5);
+                // Textos Derecha (Bienes - Espacios milimétricamente independientes y libres)
+                doc.setFont("helvetica", "bold"); doc.text("BIENES", 197, 35);
                 doc.setFont("helvetica", "normal");
-                doc.text("NR.... No Registrado", 197, 40.5);
-                doc.text("F.......Faltante", 197, 46.5);
-                doc.text("C...... Conforme", 197, 52.5);
+                doc.text("NR.... No Registrado", 197, 41);
+                doc.text("F.......Faltante", 197, 47);
+                doc.text("C...... Conforme", 197, 53);
 
-                // Textos del cuadro: Derecha (Fecha y Lugar perfectamente ubicados en sus celdas inferiores)
-                doc.setFont("helvetica", "bold"); 
-                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35.5);
-                
-                doc.text("Fecha", 197, 51.5); 
-                doc.setFont("helvetica", "normal"); 
-                doc.text(todayStr, 245, 51.5);
-                
-                doc.setFont("helvetica", "bold"); 
-                doc.text("Lugar", 197, 61); 
-                doc.setFont("helvetica", "normal"); 
-                doc.text(fc03Config.lugar.toUpperCase(), 245, 61);
+                // Número de Hoja
+                doc.setFont("helvetica", "bold");
+                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35);
 
+                // Fecha y Lugar en celdas inferiores sin ninguna interferencia de líneas
+                doc.text("Fecha", 197, 59); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(todayStr, 238, 59);
+                
+                doc.setFont("helvetica", "bold"); 
+                doc.text("Lugar", 197, 65); 
+                doc.setFont("helvetica", "normal"); 
+                doc.text(fc03Config.lugar.toUpperCase(), 238, 65);
+
+                // Firmas al pie de página
                 const finalY = pageHeight - 18; 
                 doc.setDrawColor(0); doc.setLineWidth(0.3);
                 const sigWidth = 65;
@@ -1997,7 +1998,7 @@ export default function App() {
                           {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}</h3>
+                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}!, {currentUser?.nombre || 'Usuario'}</h3>
                           <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
                         </div>
                       </div>
@@ -2007,11 +2008,11 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
-                        <StatCard title="Valor Neto" value={isLoading ? '...' : `Gs. ${formatCurrency(stats.totalValue)}`} subtitle="Suma de valuación" icon="fa-sack-dollar" colorClass="text-green-600 dark:text-green-400" bgIconClass="bg-green-100/80 dark:bg-green-900/30" />
-                        <StatCard title="Sin FC-10" value={isLoading ? '...' : stats.withoutFc10} subtitle="Bienes sin asignación" icon="fa-file-signature" colorClass="text-amber-600 dark:text-amber-400" bgIconClass="bg-amber-100/80 dark:bg-amber-900/30" />
-                        <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
-                    </div>
+    <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
+    <StatCard title="Bienes con QR" value={isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`} subtitle="Etiquetados y verificados" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
+    <StatCard title="Sin FC-10" value={isLoading ? '...' : stats.withoutFc10} subtitle="Bienes sin asignación" icon="fa-file-signature" colorClass="text-amber-600 dark:text-amber-400" bgIconClass="bg-amber-100/80 dark:bg-amber-900/30" />
+    <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-triangle-exclamation" colorClass="text-rose-600 dark:text-rose-400" bgIconClass="bg-rose-100/80 dark:bg-rose-900/30" />
+</div>
 
                     <div className={`${STYLES.card} p-6 border-l-4 border-l-brand-primary shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden`}>
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
