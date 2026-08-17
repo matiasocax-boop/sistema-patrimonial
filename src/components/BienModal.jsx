@@ -83,8 +83,20 @@ export default function BienModal({
                       </label>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div><label className={STYLES.label}>Custodio Designado</label><input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} className={STYLES.input} placeholder="Nombre completo..." /><datalist id="lista-funcionarios-modal-bien">{funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}</datalist></div>
-                    <div><label className={STYLES.label}>Ubicación Operativa</label><input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={STYLES.input} placeholder="Oficina / Laboratorio..." /><datalist id="lista-ubicaciones-modal-bien">{ubicacionesUnicas.map(u => <option key={u} value={u} />)}</datalist></div>
+                    <div>
+                        <label className={STYLES.label}>Custodio Designado</label>
+                        <input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} className={STYLES.input} placeholder="Nombre completo..." />
+                        <datalist id="lista-funcionarios-modal-bien">
+                            {funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}
+                        </datalist>
+                    </div>
+                    <div>
+                        <label className={STYLES.label}>Ubicación Operativa</label>
+                        <input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={STYLES.input} placeholder="Oficina / Laboratorio..." />
+                        <datalist id="lista-ubicaciones-modal-bien">
+                            {ubicacionesUnicas.map(u => <option key={u} value={u} />)}
+                        </datalist>
+                    </div>
                   </div>
                 </div>
 

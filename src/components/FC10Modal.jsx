@@ -5,7 +5,6 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     const savedOrg = JSON.parse(localStorage.getItem('unp_last_org_data') || '{}');
     const safeFuncionarios = funcionariosConDatos || [];
 
-    // Esta función repara el error del historial: alinea el checkbox de devolución con la base de datos
     useEffect(() => {
         setIsReturning(!!fc10Editing?.devolucionFecha);
     }, [fc10Editing]);
@@ -49,7 +48,26 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
 
                         <h3 className={STYLES.sectionTitle}><i className="fa-solid fa-user-tie text-zinc-400 mr-2"></i> 2. Funcionario Responsable</h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                            <div><label className={STYLES.label}>Nombre y Apellido</label><input list="funcionarios-list-fc10" name="funcionarioNombre" required defaultValue={fc10Editing?.funcionarioNombre || fc10TargetBien.funcionario} className={STYLES.input} /></div>
+                            <div>
+                                <label className={STYLES.label}>Nombre y Apellido</label>
+                                <input 
+                                    list="funcionarios-list-fc10" 
+                                    name="funcionarioNombre" 
+                                    required 
+                                    defaultValue={fc10Editing?.funcionarioNombre || fc10TargetBien.funcionario} 
+                                    className={STYLES.input} 
+                                    onChange={(e) => {
+                                        const match = safeFuncionarios.find(f => f.nombre.toLowerCase() === e.target.value.toLowerCase());
+                                        if (match) {
+                                            const form = e.target.form;
+                                            if (form) {
+                                                if (match.doc && form.elements['funcionarioDoc']) form.elements['funcionarioDoc'].value = match.doc;
+                                                if (match.cargo && form.elements['funcionarioCargo']) form.elements['funcionarioCargo'].value = match.cargo;
+                                            }
+                                        }
+                                    }}
+                                />
+                            </div>
                             <div><label className={STYLES.label}>Cédula de Identidad</label><input name="funcionarioDoc" required defaultValue={fc10Editing?.funcionarioDoc} className={STYLES.input} /></div>
                             <div><label className={STYLES.label}>Cargo Funcional</label><input name="funcionarioCargo" required defaultValue={fc10Editing?.funcionarioCargo} className={STYLES.input} /></div>
                         </div>
