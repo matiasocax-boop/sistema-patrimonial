@@ -384,9 +384,6 @@ export default function App() {
     try {
       setIsLoading(true);
 
-      const dosDiasAtras = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.from('auditoria').delete().lt('updated_at', dosDiasAtras);
-
       const cacheBienes = await localforage.getItem('bienes_cache') || [];
 
       let todosLosNuevosBienes = [];
