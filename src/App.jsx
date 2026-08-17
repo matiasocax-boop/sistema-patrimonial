@@ -1264,10 +1264,12 @@ export default function App() {
 
       try {
           let res;
+          const recordId = maestroEditing ? maestroEditing.id : generateId();
+          const payload = { id: recordId, data: data };
+
           if (maestroEditing) {
-              res = await supabase.from(table).update(data).eq('id', maestroEditing.id);
+              res = await supabase.from(table).update(payload).eq('id', recordId);
           } else {
-              const payload = { id: generateId(), ...data };
               res = await supabase.from(table).insert([payload]);
           }
 
