@@ -1998,7 +1998,7 @@ export default function App() {
                           {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}!, {currentUser?.nombre || 'Usuario'}</h3>
+                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!</h3>
                           <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
                         </div>
                       </div>
