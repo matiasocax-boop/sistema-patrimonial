@@ -1263,10 +1263,10 @@ export default function App() {
 
       try {
           let res;
-          const payload = { id: maestroEditing ? maestroEditing.id : generateId(), data };
           if (maestroEditing) {
-              res = await supabase.from(table).update(payload).eq('id', maestroEditing.id);
+              res = await supabase.from(table).update(data).eq('id', maestroEditing.id);
           } else {
+              const payload = { id: generateId(), ...data };
               res = await supabase.from(table).insert([payload]);
           }
 
@@ -1276,7 +1276,7 @@ export default function App() {
               setMaestroEditing(null);
               fetchData();
           } else {
-              addToast("Error al guardar en el servidor", "error");
+              addToast(res.error.message || "Error al guardar en el servidor", "error");
           }
       } catch (err) {
           addToast("Error de conexión", "error");
