@@ -503,7 +503,11 @@ export default function App() {
 
               const updateState = async (setter, isBensTable = false) => {
                   if (eventType === 'INSERT') {
-                      setter(prev => [newItem, ...prev]);
+                      setter(prev => {
+                          const exists = prev.some(item => item.id === newItem.id);
+                          if (exists) return prev.map(item => item.id === newItem.id ? newItem : item);
+                          return [newItem, ...prev];
+                      });
                   } else if (eventType === 'UPDATE') {
                       setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
                   } else if (eventType === 'DELETE') {
@@ -513,7 +517,6 @@ export default function App() {
                   if (isBensTable) {
                       const cacheActual = await localforage.getItem('bienes_cache') || [];
                       let nuevoInventario = [...cacheActual];
-                      
                       if (eventType === 'INSERT') {
                           const exists = nuevoInventario.some(b => b.id === newItem.id);
                           if (!exists) nuevoInventario.unshift(newItem);
@@ -524,7 +527,6 @@ export default function App() {
                       } else if (eventType === 'DELETE') {
                           nuevoInventario = nuevoInventario.filter(b => b.id !== targetId);
                       }
-                      
                       await localforage.setItem('bienes_cache', nuevoInventario);
                   }
               };
