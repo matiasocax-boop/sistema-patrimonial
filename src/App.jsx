@@ -502,20 +502,29 @@ export default function App() {
               const targetId = oldItem?.id || oldRecord?.id;
 
               const updateState = async (setter, isBensTable = false) => {
-                  if (eventType === 'INSERT') setter(prev => [newItem, ...prev]);
-                  else if (eventType === 'UPDATE') setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
-                  else if (eventType === 'DELETE') setter(prev => prev.filter(i => i.id !== targetId));
+                  if (eventType === 'INSERT') {
+                      setter(prev => [newItem, ...prev]);
+                  } else if (eventType === 'UPDATE') {
+                      setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
+                  } else if (eventType === 'DELETE') {
+                      setter(prev => prev.filter(i => i.id !== targetId));
+                  }
 
                   if (isBensTable) {
                       const cacheActual = await localforage.getItem('bienes_cache') || [];
                       let nuevoInventario = [...cacheActual];
-                      if (eventType === 'INSERT' || eventType === 'UPDATE') {
+                      
+                      if (eventType === 'INSERT') {
+                          const exists = nuevoInventario.some(b => b.id === newItem.id);
+                          if (!exists) nuevoInventario.unshift(newItem);
+                      } else if (eventType === 'UPDATE') {
                           const index = nuevoInventario.findIndex(b => b.id === newItem.id);
                           if (index !== -1) nuevoInventario[index] = newItem;
                           else nuevoInventario.push(newItem);
                       } else if (eventType === 'DELETE') {
                           nuevoInventario = nuevoInventario.filter(b => b.id !== targetId);
                       }
+                      
                       await localforage.setItem('bienes_cache', nuevoInventario);
                   }
               };
