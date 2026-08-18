@@ -533,7 +533,6 @@ export default function App() {
 
       return () => supabase.removeChannel(subscription); 
   }, [isAuthenticated, fetchData]);
- 
   
   const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
   
@@ -1126,6 +1125,11 @@ export default function App() {
     setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
     try { 
         await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
+        
+        const cacheActual = await localforage.getItem('bienes_cache') || [];
+        const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
+        await localforage.setItem('bienes_cache', nuevoCache);
+
         addToast(`Estado QR actualizado`, "success"); 
     } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
   };
@@ -1178,7 +1182,7 @@ export default function App() {
           
           if (row.length >= 8) {
             const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); 
-            const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase()); 
+            const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase() && b.dependencia === dependenciaActual); 
             const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
             
             if (isDuplicateDB || isDuplicateCSV) { duplicatesSkipped++; continue; }
@@ -1254,9 +1258,9 @@ export default function App() {
     setIsSaving(true);
     const formData = new FormData(form); 
     const rotuloInput = formData.get('rotulo').trim(); 
-    const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && (!bienEditing || b.id !== bienEditing.id)); 
+    const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && b.dependencia === dependenciaActual && (!bienEditing || b.id !== bienEditing.id)); 
     if (isDuplicate) { 
-        addToast(`El rótulo "${rotuloInput}" ya está registrado.`, "error"); 
+        addToast(`El rótulo "${rotuloInput}" ya está registrado en esta dependencia.`, "error"); 
         setIsSaving(false);
         return; 
     }
