@@ -1804,26 +1804,44 @@ export default function App() {
                 )}
 
                 {activeTab === 'dashboard' && (
-                  <div className="space-y-8 animate-fade-in">
+                  <div className="space-y-6 animate-fade-in pb-8">
                     
-                    <div className="flex items-center justify-between bg-white dark:bg-darkbg-card px-6 py-4 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 animate-fade-in">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary font-bold text-lg shadow-sm">
+                    {/* ENCABEZADO MEJORADO */}
+                    <div className="relative flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-darkbg-card px-8 py-6 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 overflow-hidden group gap-4">
+                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-br from-brand-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+                      
+                      <div className="flex items-center gap-5 relative z-10">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-hover text-white font-black text-2xl shadow-lg shadow-brand-primary/20 ring-4 ring-brand-primary/10">
                           {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div>
-                          <h3 className="text-sm font-black text-zinc-900 dark:text-white">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!</h3>
-                          <p className="text-[11px] font-semibold text-zinc-400">Dependencia activa: <span className="text-brand-primary">{dependenciaActual}</span></p>
+                          <h3 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!</h3>
+                          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
+                              <i className="fa-solid fa-building-columns text-brand-primary/70"></i>
+                              Dependencia activa: <span className="text-brand-primary dark:text-brand-accent">{dependenciaActual}</span>
+                          </p>
                         </div>
                       </div>
-                      <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
+                      
+                      <div className="flex items-center justify-start sm:justify-end gap-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-50/80 dark:bg-darkbg-main/80 px-4 py-2.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border relative z-10 backdrop-blur-sm">
                         {isOnline ? (
-                          <><span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado</>
+                          <>
+                            <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span> 
+                            Sistema sincronizado
+                          </>
                         ) : (
-                          <><span className="h-2 w-2 rounded-full bg-amber-500"></span> Operando en local</>
+                          <>
+                            <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 
+                            Operando en local
+                          </>
                         )}
                       </div>
                     </div>
+
+                    {/* MÉTRICAS PRINCIPALES */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                       <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
                       <StatCard title="Bienes con QR" value={isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`} subtitle="Etiquetados y verificados" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
@@ -1831,80 +1849,90 @@ export default function App() {
                       <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-triangle-exclamation" colorClass="text-rose-600 dark:text-rose-400" bgIconClass="bg-rose-100/80 dark:bg-rose-900/30" />
                     </div>
 
-                    <div className={`${STYLES.card} p-6 border-l-4 border-l-brand-primary shadow-2xs hover:shadow-md transition-shadow relative overflow-hidden`}>
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent">
-                                    <i className="fa-solid fa-bolt text-lg"></i>
+                    {/* ACCESOS DIRECTOS REDISEÑADOS */}
+                    <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-6 sm:p-8 relative overflow-hidden group transition-all">
+                        <div className="absolute -left-32 -bottom-32 w-64 h-64 bg-brand-primary/5 dark:bg-brand-primary/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
+                            
+                            <div className="flex items-center gap-4">
+                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 dark:bg-darkbg-main text-amber-500 border border-zinc-200/60 dark:border-darkbg-border/60 shadow-inner">
+                                    <i className="fa-solid fa-bolt text-xl drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]"></i>
                                 </div>
                                 <div>
-                                    <h3 className="text-base font-extrabold text-zinc-900 dark:text-white tracking-tight">Accesos Directos</h3>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">Acciones rápidas para la gestión operativa</p>
+                                    <h3 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">Acciones Rápidas</h3>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Atajos operativos para tu gestión diaria</p>
                                 </div>
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-3">
-                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:text-brand-primary dark:hover:border-brand-primary dark:hover:text-brand-accent shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
-                                    <i className="fa-solid fa-calendar-plus text-brand-primary"></i> Ingreso FC-04
+                            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 w-full xl:w-auto">
+                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:bg-brand-light/30 hover:text-brand-primary dark:hover:border-brand-primary/50 dark:hover:text-brand-accent shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                    <i className="fa-solid fa-calendar-plus text-brand-primary group-hover/btn:scale-110 transition-transform"></i> Ingreso FC-04
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-purple-500 hover:text-purple-600 dark:hover:border-purple-500 dark:hover:text-purple-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
-                                    <i className="fa-solid fa-file-zipper text-purple-500"></i> Paquete QRs
+                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-600 dark:hover:border-purple-500/50 dark:hover:bg-purple-900/10 dark:hover:text-purple-400 shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                    <i className="fa-solid fa-file-zipper text-purple-500 group-hover/btn:scale-110 transition-transform"></i> Paquete QRs
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:text-emerald-600 dark:hover:border-emerald-500 dark:hover:text-emerald-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer">
-                                    <i className="fa-solid fa-file-import text-emerald-500"></i> Importar CSV
+                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-900/10 dark:hover:text-emerald-400 shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                    <i className="fa-solid fa-file-import text-emerald-500 group-hover/btn:scale-110 transition-transform"></i> Importar CSV
                                 </button>
-                                <div className="relative inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:text-sky-600 dark:hover:border-sky-500 dark:hover:text-sky-400 shadow-2xs hover:shadow-xs transition-all duration-200 active:scale-95 cursor-pointer overflow-hidden">
-                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                                    <i className="fa-solid fa-image text-sky-500"></i> Subir Logo
+                                <div className="relative flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:bg-sky-50 hover:text-sky-600 dark:hover:border-sky-500/50 dark:hover:bg-sky-900/10 dark:hover:text-sky-400 shadow-2xs hover:shadow-md transition-all active:scale-95 overflow-hidden group/btn">
+                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Actualizar Escudo Institucional" />
+                                    <i className="fa-solid fa-image text-sky-500 group-hover/btn:scale-110 transition-transform"></i> Subir Logo
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    {/* SECCIÓN INFERIOR DE GRÁFICOS */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       
-                      <div className={`${STYLES.card} flex flex-col`}>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4 flex items-center justify-between">
-                          <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Estado de Regularización</h2>
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:block">Metas de cobertura</span>
+                      {/* ESTADO DE REGULARIZACIÓN */}
+                      <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col relative overflow-hidden group">
+                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 opacity-80"></div>
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-8 py-5 flex items-center justify-between bg-zinc-50/50 dark:bg-darkbg-main/30">
+                          <h2 className="text-[11px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                             <i className="fa-solid fa-chart-pie text-emerald-500"></i> Estado de Regularización
+                          </h2>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:block bg-zinc-100 dark:bg-darkbg-main px-2 py-1 rounded-md">Metas de cobertura</span>
                         </div>
-                        <div className="flex flex-1 flex-col p-8 gap-7 justify-center">
-                          
-                          <div>
-                            <div className="flex justify-between items-end mb-2.5">
-                              <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-sm">
-                                  <i className="fa-solid fa-file-contract text-sm"></i>
+                        
+                        <div className="flex flex-1 flex-col p-8 gap-8 justify-center">
+                          {/* Progreso FC-10 */}
+                          <div className="group/bar">
+                            <div className="flex justify-between items-end mb-3">
+                              <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-inner group-hover/bar:scale-110 transition-transform duration-300">
+                                  <i className="fa-solid fa-file-contract text-base drop-shadow-sm"></i>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-bold text-zinc-900 dark:text-white">Cobertura FC-10</p>
-                                  <p className="text-[11px] text-zinc-500 font-medium">{stats.withFc10} de {stats.totalItems} activos</p>
+                                  <p className="text-sm font-black text-zinc-900 dark:text-white tracking-tight">Cobertura FC-10</p>
+                                  <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{stats.withFc10} de {stats.totalItems} activos</p>
                                 </div>
                               </div>
-                              <span className="text-2xl font-black text-emerald-500 tracking-tight">{stats.percFC10.toFixed(1)}%</span>
+                              <span className="text-2xl font-black text-emerald-500 tracking-tighter drop-shadow-sm">{stats.percFC10.toFixed(1)}%</span>
                             </div>
-                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner">
-                              <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 relative" style={{ width: `${stats.percFC10}%` }}>
+                            <div className="h-4 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner p-0.5">
+                              <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percFC10}%` }}>
                                 <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
                               </div>
                             </div>
                           </div>
 
-                          <div>
-                            <div className="flex justify-between items-end mb-2.5">
-                              <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-sm">
-                                  <i className="fa-solid fa-qrcode text-sm"></i>
+                          {/* Progreso QR */}
+                          <div className="group/bar">
+                            <div className="flex justify-between items-end mb-3">
+                              <div className="flex items-center gap-4">
+                                <div className="h-10 w-10 rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-inner group-hover/bar:scale-110 transition-transform duration-300">
+                                  <i className="fa-solid fa-qrcode text-base drop-shadow-sm"></i>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-bold text-zinc-900 dark:text-white">Etiquetado QR</p>
-                                  <p className="text-[11px] text-zinc-500 font-medium">{stats.withQR} de {stats.totalItems} activos</p>
+                                  <p className="text-sm font-black text-zinc-900 dark:text-white tracking-tight">Etiquetado QR</p>
+                                  <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{stats.withQR} de {stats.totalItems} activos</p>
                                 </div>
                               </div>
-                              <span className="text-2xl font-black text-brand-primary tracking-tight">{stats.percQR.toFixed(1)}%</span>
+                              <span className="text-2xl font-black text-brand-primary tracking-tighter drop-shadow-sm">{stats.percQR.toFixed(1)}%</span>
                             </div>
-                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner">
-                              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 relative" style={{ width: `${stats.percQR}%` }}>
+                            <div className="h-4 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner p-0.5">
+                              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percQR}%` }}>
                                 <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
                               </div>
                             </div>
@@ -1913,27 +1941,39 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className={`${STYLES.card} flex flex-col`}>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 py-4">
-                          <h2 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Tendencias Operativas</h2>
+                      {/* TENDENCIAS OPERATIVAS */}
+                      <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col relative overflow-hidden group">
+                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-brand-primary to-purple-600 opacity-80"></div>
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-8 py-5 bg-zinc-50/50 dark:bg-darkbg-main/30">
+                          <h2 className="text-[11px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                             <i className="fa-solid fa-chart-line text-brand-primary"></i> Tendencias Operativas
+                          </h2>
                         </div>
-                        <div className="flex flex-1 flex-col sm:flex-row p-8 gap-8">
-                          <div className="flex-1 flex flex-col border-b border-zinc-100 dark:border-darkbg-border pb-6 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-8">
-                            <h3 className="text-xs font-semibold text-zinc-500 mb-5">Adquisiciones Anuales</h3>
-                            <div className="flex-1 flex flex-col justify-center gap-4">
-                              {timeStats.adqByYear.length === 0 ? <p className="text-sm text-zinc-400 text-center py-4 italic">Datos insuficientes.</p> : timeStats.adqByYear.map((item, idx) => {
-                                  const colors = ["bg-brand-primary", "bg-zinc-500", "bg-zinc-400", "bg-zinc-300"];
-                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
+                        <div className="flex flex-1 flex-col sm:flex-row p-8 gap-10">
+                          
+                          <div className="flex-1 flex flex-col border-b border-zinc-100 dark:border-darkbg-border pb-8 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-8">
+                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-6 uppercase tracking-wider">Adquisiciones Anuales</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-5">
+                              {timeStats.adqByYear.length === 0 ? (
+                                  <div className="flex flex-col items-center justify-center text-center py-4 opacity-50">
+                                      <i className="fa-solid fa-box-open text-3xl text-zinc-400 mb-2"></i>
+                                      <p className="text-xs font-bold text-zinc-400">Sin adquisiciones.</p>
+                                  </div>
+                              ) : timeStats.adqByYear.map((item, idx) => {
+                                  const colors = ["bg-brand-primary shadow-brand-primary/40", "bg-purple-500 shadow-purple-500/40", "bg-zinc-400 shadow-zinc-400/40", "bg-zinc-300 shadow-none"];
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={`${colors[idx] || "bg-zinc-400"} shadow-sm`} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
                               })}
                             </div>
                           </div>
+
                           <div className="flex-1 flex flex-col">
-                            <h3 className="text-xs font-semibold text-zinc-500 mb-5">Asignaciones Mensuales</h3>
-                            <div className="flex-1 flex flex-col justify-center gap-6">
-                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-green-500" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
-                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-300 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-6 uppercase tracking-wider">Asignaciones (FC-10)</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-7">
+                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500 shadow-sm shadow-emerald-500/40" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-400 dark:bg-zinc-600 shadow-sm" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
                             </div>
                           </div>
+
                         </div>
                       </div>
 
