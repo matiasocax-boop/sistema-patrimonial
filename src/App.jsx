@@ -459,10 +459,40 @@ export default function App() {
           .channel('cambios-bienes-oficial')
           .on(
               'postgres_changes', 
-              { event: '*', schema: 'public', table: 'bens' }, // <-- AQUÍ ESTá EL CAMBIO CLAVE
+              { event: '*', schema: 'public', table: 'bens' }, 
               async (payload) => {
-                  console.log("¡CAMBIO DETECTADO EN BENS!", payload);
-                  await fetchData();
+                  console.log("¡CAMBIO DETECTADO EN BENS EN VIVO!", payload);
+                  
+                  // 1. Extraemos el registro actualizado o nuevo del evento de Supabase
+                  const rawRecord = payload.new;
+                  if (rawRecord) {
+                      const parsedItem = {
+                          id: rawRecord.id,
+                          updated_at: rawRecord.updated_at,
+                          ...(typeof rawRecord.data === 'string' ? JSON.parse(rawRecord.data) : rawRecord.data)
+                      };
+
+                      // 2. Actualizamos inmediatamente el estado de React sin esperar recargas pesadas
+                      setBienes(prev => {
+                          const exists = prev.some(b => b.id === parsedItem.id);
+                          if (exists) {
+                              return prev.map(b => b.id === parsedItem.id ? parsedItem : b);
+                          } else {
+                              return [parsedItem, ...prev];
+                          }
+                      });
+
+                      // 3. Actualizamos la caché local en segundo plano
+                      const cacheActual = await localforage.getItem('bienes_cache') || [];
+                      const index = cacheActual.findIndex(b => b.id === parsedItem.id);
+                      let nuevoCache = [...cacheActual];
+                      if (index !== -1) {
+                          nuevoCache[index] = parsedItem;
+                      } else {
+                        nuevoCache.unshift(parsedItem);
+                      }
+                      await localforage.setItem('bienes_cache', nuevoCache);
+                  }
               }
           )
           .subscribe((status, err) => {
