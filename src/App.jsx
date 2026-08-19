@@ -704,7 +704,10 @@ export default function App() {
       } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
     }, 100);
   };
-
+  const openFC03Modal = () => {
+      setFc03Config({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+      setIsFC03ModalOpen(true);
+  };
   const executeGenerateFC03 = () => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     
