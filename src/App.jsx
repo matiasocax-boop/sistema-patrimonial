@@ -493,56 +493,18 @@ export default function App() {
       fetchData(); 
       
       const subscription = supabase
-          .channel('cambios-patrimonio')
+          .channel('cambios-patrimonio-global')
           .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-              const { table, eventType, new: newRecord, old: oldRecord } = payload;
-              const parseRecord = (record) => record ? { id: record.id, updated_at: record.updated_at, ...(typeof record.data === 'string' ? JSON.parse(record.data) : record.data) } : null;
-              const newItem = parseRecord(newRecord);
-              const oldItem = parseRecord(oldRecord);
-              const targetId = oldItem?.id || oldRecord?.id;
+              // Cada vez que ocurra cualquier INSERT, UPDATE o DELETE en cualquier tabla,
+              // ejecutamos fetchData silenciosamente para sincronizar al instante sin F5.
+              console.log("Cambio detectado en tiempo real, sincronizando...", payload.table);
+              await fetchData();
+          })
+          .subscribe();
 
-              const updateState = async (setter, isBensTable = false) => {
-                  if (eventType === 'INSERT') {
-                      setter(prev => {
-                          const exists = prev.some(item => item.id === newItem.id);
-                          if (exists) return prev.map(item => item.id === newItem.id ? newItem : item);
-                          return [newItem, ...prev];
-                      });
-                  } else if (eventType === 'UPDATE') {
-                      setter(prev => prev.map(i => i.id === newItem.id ? newItem : i));
-                  } else if (eventType === 'DELETE') {
-                      setter(prev => prev.filter(i => i.id !== targetId));
-                  }
-
-                  if (isBensTable) {
-                      const cacheActual = await localforage.getItem('bienes_cache') || [];
-                      let nuevoInventario = [...cacheActual];
-                      if (eventType === 'INSERT') {
-                          const exists = nuevoInventario.some(b => b.id === newItem.id);
-                          if (!exists) nuevoInventario.unshift(newItem);
-                      } else if (eventType === 'UPDATE') {
-                          const index = nuevoInventario.findIndex(b => b.id === newItem.id);
-                          if (index !== -1) nuevoInventario[index] = newItem;
-                          else nuevoInventario.push(newItem);
-                      } else if (eventType === 'DELETE') {
-                          nuevoInventario = nuevoInventario.filter(b => b.id !== targetId);
-                      }
-                      await localforage.setItem('bienes_cache', nuevoInventario);
-                  }
-              };
-
-              if (table === 'bens') await updateState(setBienes, true);
-              else if (table === 'fc10') updateState(setFc10List);
-              else if (table === 'fc11') updateState(setFc11List);
-              else if (table === 'fc04') updateState(setFc04List);
-              else if (table === 'auditoria') updateState(setNotificaciones);
-              else if (table === 'configuracion_sistema' && eventType === 'UPDATE') {
-                  setIsMaintenanceMode(newItem.en_mantenimiento);
-                  setSystemConfig({ version: newItem.version_actual, notes: newItem.notas_actualizacion });
-              }
-          }).subscribe();
-
-      return () => supabase.removeChannel(subscription); 
+      return () => {
+          supabase.removeChannel(subscription);
+      }; 
   }, [isAuthenticated, fetchData]);
   
   const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
