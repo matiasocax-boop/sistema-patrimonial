@@ -380,9 +380,10 @@ export default function App() {
     return { data: allData };
   };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (isSilent = false) => {
     try {
-      setIsLoading(true);
+      // Solo mostramos la animación de carga si NO es silencioso
+      if (!isSilent) setIsLoading(true);
 
       let todosLosNuevosBienes = [];
       let rangeSize = 1000;
@@ -445,68 +446,26 @@ export default function App() {
       setDbError(false);
     } catch (error) { 
         console.error("Error crítico de datos:", error);
-        setDbError(true);
+        if (!isSilent) setDbError(true);
     } finally { 
-        setIsLoading(false); 
+        // Solo quitamos la carga si NO es silencioso
+        if (!isSilent) setIsLoading(false); 
     }
   }, []); 
 
   useEffect(() => { 
       if (!isAuthenticated) return;
       
-      // 1. Carga inicial
-      fetchData(); 
+      // 1. Carga inicial visual (Sí muestra el SkeletonLoader)
+      fetchData(false); 
       
-      // 2. Suscripción en tiempo real optimizada (sin setInterval ni fetchData global)
-      const subscription = supabase
-          .channel('sincronizacion-activos')
-          .on(
-              'postgres_changes', 
-              { event: '*', schema: 'public', table: 'bens' }, 
-              async (payload) => {
-                  console.log("⚡ EVENTO REALTIME:", payload);
-                  
-                  if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                      const rawRecord = payload.new;
-                      const parsedItem = {
-                          id: rawRecord.id,
-                          updated_at: rawRecord.updated_at,
-                          ...(typeof rawRecord.data === 'string' ? JSON.parse(rawRecord.data) : rawRecord.data)
-                      };
-
-                      // Inyección directa en la interfaz (0 parpadeos)
-                      setBienes(prev => {
-                          const exists = prev.some(b => b.id === parsedItem.id);
-                          if (exists) {
-                              return prev.map(b => b.id === parsedItem.id ? parsedItem : b);
-                          } else {
-                              return [parsedItem, ...prev];
-                          }
-                      });
-
-                      // Sincronización en caché silenciosa
-                      const cacheActual = await localforage.getItem('bienes_cache') || [];
-                      const index = cacheActual.findIndex(b => b.id === parsedItem.id);
-                      let nuevoCache = [...cacheActual];
-                      if (index !== -1) {
-                          nuevoCache[index] = parsedItem;
-                      } else {
-                          nuevoCache.unshift(parsedItem);
-                      }
-                      await localforage.setItem('bienes_cache', nuevoCache);
-                      
-                  } else if (payload.eventType === 'DELETE') {
-                      const deletedId = payload.old.id;
-                      setBienes(prev => prev.filter(b => b.id !== deletedId));
-                      const cacheActual = await localforage.getItem('bienes_cache') || [];
-                      await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== deletedId));
-                  }
-              }
-          )
-          .subscribe();
+      // 2. Sincronización simultánea de alta frecuencia silenciosa
+      const intervalId = setInterval(() => {
+          fetchData(true); // Al pasar "true", la pantalla ya NO titilará
+      }, 1500);
 
       return () => {
-          supabase.removeChannel(subscription);
+          clearInterval(intervalId);
       }; 
   }, [isAuthenticated, fetchData]);
       
