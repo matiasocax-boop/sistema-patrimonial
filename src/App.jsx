@@ -453,15 +453,54 @@ export default function App() {
 
   useEffect(() => { 
       if (!isAuthenticated) return;
+      
+      // 1. Carga inicial
       fetchData(); 
       
+      // 2. Suscripción en tiempo real optimizada (sin setInterval ni fetchData global)
       const subscription = supabase
-          .channel('cambios-bienes-oficial')
+          .channel('sincronizacion-activos')
           .on(
               'postgres_changes', 
               { event: '*', schema: 'public', table: 'bens' }, 
-              async () => {
-                  await fetchData(); // Solo actualiza si hay un cambio real en Supabase, no cada 1.5s
+              async (payload) => {
+                  console.log("⚡ EVENTO REALTIME:", payload);
+                  
+                  if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+                      const rawRecord = payload.new;
+                      const parsedItem = {
+                          id: rawRecord.id,
+                          updated_at: rawRecord.updated_at,
+                          ...(typeof rawRecord.data === 'string' ? JSON.parse(rawRecord.data) : rawRecord.data)
+                      };
+
+                      // Inyección directa en la interfaz (0 parpadeos)
+                      setBienes(prev => {
+                          const exists = prev.some(b => b.id === parsedItem.id);
+                          if (exists) {
+                              return prev.map(b => b.id === parsedItem.id ? parsedItem : b);
+                          } else {
+                              return [parsedItem, ...prev];
+                          }
+                      });
+
+                      // Sincronización en caché silenciosa
+                      const cacheActual = await localforage.getItem('bienes_cache') || [];
+                      const index = cacheActual.findIndex(b => b.id === parsedItem.id);
+                      let nuevoCache = [...cacheActual];
+                      if (index !== -1) {
+                          nuevoCache[index] = parsedItem;
+                      } else {
+                          nuevoCache.unshift(parsedItem);
+                      }
+                      await localforage.setItem('bienes_cache', nuevoCache);
+                      
+                  } else if (payload.eventType === 'DELETE') {
+                      const deletedId = payload.old.id;
+                      setBienes(prev => prev.filter(b => b.id !== deletedId));
+                      const cacheActual = await localforage.getItem('bienes_cache') || [];
+                      await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== deletedId));
+                  }
               }
           )
           .subscribe();
