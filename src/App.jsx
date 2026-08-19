@@ -538,6 +538,7 @@ export default function App() {
 
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
+      // 1. Buscamos en los FC-10
       fc10List.forEach(fc => { 
           if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { 
               const nombreSeguro = String(fc.funcionarioNombre).trim(); 
@@ -546,8 +547,17 @@ export default function App() {
               } 
           } 
       }); 
+      // 2. Buscamos también directo en los bienes registrados para no perder ningún custodio
+      bienes.forEach(b => {
+          if (b.funcionario && String(b.funcionario).trim() !== "") {
+              const nombreSeguro = String(b.funcionario).trim();
+              if(!map.has(normalizeStr(nombreSeguro))) {
+                  map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: '', cargo: '' });
+              }
+          }
+      });
       return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); 
-  }, [fc10List]);
+  }, [fc10List, bienes]);
 
   const funcionariosUnicos = useMemo(() => { 
       const funcMap = new Map(); 
