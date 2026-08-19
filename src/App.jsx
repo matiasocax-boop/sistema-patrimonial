@@ -1817,10 +1817,13 @@ export default function App() {
                         </div>
                       </div>
                       <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-zinc-400">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado
+                        {isOnline ? (
+                          <><span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema sincronizado</>
+                        ) : (
+                          <><span className="h-2 w-2 rounded-full bg-amber-500"></span> Operando en local</>
+                        )}
                       </div>
                     </div>
-
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                       <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
                       <StatCard title="Bienes con QR" value={isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`} subtitle="Etiquetados y verificados" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
