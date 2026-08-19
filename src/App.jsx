@@ -456,13 +456,15 @@ export default function App() {
       fetchData(); 
       
       const subscription = supabase
-          .channel('cambios-patrimonio-en-vivo')
+          .channel('cambios-patrimonio')
           .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-              console.log("Evento en tiempo real recibido de:", payload.table);
-              // Forzamos una actualización silenciosa inmediata de los datos y la caché
+              console.log("¡EVENTO DE SUPABASE RECIBIDO!", payload);
               await fetchData();
           })
-          .subscribe();
+          .subscribe((status, err) => {
+              console.log("ESTADO REALTIME SUPABASE:", status);
+              if (err) console.error("ERROR DE CONEXIÓN:", err);
+          });
 
       return () => {
           supabase.removeChannel(subscription);
