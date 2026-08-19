@@ -384,8 +384,6 @@ export default function App() {
     try {
       setIsLoading(true);
 
-      const cacheBienes = await localforage.getItem('bienes_cache') || [];
-
       let todosLosNuevosBienes = [];
       let rangeSize = 1000;
       let from = 0;
@@ -393,17 +391,8 @@ export default function App() {
       let keepFetchingBienes = true;
 
       while (keepFetchingBienes) {
+        // Consultamos directo sin el filtro restrictivo de fechas para garantizar sincronía total
         let query = supabase.from('bens').select('id, data, updated_at');
-        
-        if (cacheBienes.length > 0) {
-            let ultimaFecha = '1970-01-01T00:00:00.000Z';
-            const fechas = cacheBienes.map(b => b.updated_at ? new Date(b.updated_at).getTime() : 0).filter(t => t > 0);
-            if (fechas.length > 0) {
-                ultimaFecha = new Date(Math.max(...fechas)).toISOString();
-                query = query.gt('updated_at', ultimaFecha);
-            }
-        }
-
         const { data: batch, error } = await query.range(from, to);
 
         if (error || !batch || batch.length === 0) {
@@ -420,7 +409,7 @@ export default function App() {
       }
 
       if (todosLosNuevosBienes.length > 0) {
-        const mapaBienes = new Map(cacheBienes.map(b => [b.id, b]));
+        const mapaBienes = new Map();
         todosLosNuevosBienes.forEach(item => {
             const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
             mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
@@ -451,33 +440,7 @@ export default function App() {
       setFc04List(parseDirect(resFc04.data)); 
       setEstructurasDB(parseDirect(resEstructuras.data));
       setNotificaciones(parseDirect(resAuditoria.data));
-      
-      const parsedUsuarios = parseDirect(resUsuarios.data);
-      setUsuariosList(parsedUsuarios);
-      
-      const resConfig = await supabase.from('configuracion_sistema').select('*').limit(1).single();
-      if (resConfig.data) {
-          setIsMaintenanceMode(resConfig.data.en_mantenimiento);
-          setSystemConfig({ version: resConfig.data.version_actual, notes: resConfig.data.notas_actualizacion });
-          
-          const lastSeenVersion = localStorage.getItem('unp_last_version');
-          if (lastSeenVersion && lastSeenVersion !== resConfig.data.version_actual && !resConfig.data.en_mantenimiento) {
-              setShowChangelog(true);
-          }
-      }
-
-      const localUserStr = localStorage.getItem('current_user');
-      if (localUserStr) {
-          const localUser = JSON.parse(localUserStr);
-          const freshUser = parsedUsuarios.find(u => u.username === localUser.username);
-          if (freshUser && (freshUser.cargo === 'admin' || freshUser.role === 'admin')) {
-              if (localUser.role !== 'admin' || localUser.cargo !== 'admin') {
-                  const updatedSessionUser = { ...freshUser, role: 'admin', cargo: 'admin' };
-                  setCurrentUser(updatedSessionUser);
-                  localStorage.setItem('current_user', JSON.stringify(updatedSessionUser));
-              }
-          }
-      }
+      setUsuariosList(parseDirect(resUsuarios.data));
 
       setDbError(false);
     } catch (error) { 
