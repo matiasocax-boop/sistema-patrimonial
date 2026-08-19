@@ -493,11 +493,10 @@ export default function App() {
       fetchData(); 
       
       const subscription = supabase
-          .channel('cambios-patrimonio-global')
+          .channel('cambios-patrimonio-en-vivo')
           .on('postgres_changes', { event: '*', schema: 'public' }, async (payload) => {
-              // Cada vez que ocurra cualquier INSERT, UPDATE o DELETE en cualquier tabla,
-              // ejecutamos fetchData silenciosamente para sincronizar al instante sin F5.
-              console.log("Cambio detectado en tiempo real, sincronizando...", payload.table);
+              console.log("Evento en tiempo real recibido de:", payload.table);
+              // Forzamos una actualización silenciosa inmediata de los datos y la caché
               await fetchData();
           })
           .subscribe();
@@ -506,6 +505,7 @@ export default function App() {
           supabase.removeChannel(subscription);
       }; 
   }, [isAuthenticated, fetchData]);
+      
   
   const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
   
