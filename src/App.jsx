@@ -1053,17 +1053,25 @@ export default function App() {
   };
 
   const toggleQR = async (bien) => { 
-    const updatedBien = { ...bien, hasQR: !bien.hasQR }; 
-    setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
-    try { 
-        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
-        
-        const cacheActual = await localforage.getItem('bienes_cache') || [];
-        const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
-        await localforage.setItem('bienes_cache', nuevoCache);
+      const nuevoEstadoQR = !bien.hasQR;
+      const updatedBien = { ...bien, hasQR: nuevoEstadoQR }; 
+      
+      // Actualizamos inmediatamente el estado local para que no desaparezca ni parpadee
+      setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
+      
+      try { 
+          await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
+          
+          const cacheActual = await localforage.getItem('bienes_cache') || [];
+          const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
+          await localforage.setItem('bienes_cache', nuevoCache);
 
-        addToast(`Estado QR actualizado`, "success"); 
-    } catch (error) { addToast("Error de red al guardar QR.", "error"); } 
+          addToast(`Estado QR actualizado`, "success"); 
+      } catch (error) { 
+          // Si falla, revertimos el cambio en pantalla
+          setBienes(prev => prev.map(b => b.id === bien.id ? bien : b));
+          addToast("Error de red al guardar QR.", "error"); 
+      } 
   };
   
   const handleDownloadTemplateCSV = () => {
