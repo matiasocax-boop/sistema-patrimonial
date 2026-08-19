@@ -2504,48 +2504,74 @@ export default function App() {
 
       {isFC03ModalOpen && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-lg"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">Generar Inventario FC-03</h2>
-              <button onClick={() => setIsFC03ModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <div className={STYLES.modalBody}>
-              <div className="space-y-4">
+          <div className={STYLES.modalContent + " max-w-lg !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-darkbg-border shadow-2xl"}>
+            
+            {/* CABECERA CON GLOW ÁMBAR */}
+            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center group overflow-hidden">
+              <div className="absolute top-0 right-0 -mt-16 -mr-16 w-40 h-40 bg-gradient-to-bl from-amber-500/20 to-orange-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
+              
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10">
+                   <i className="fa-solid fa-file-pdf text-xl"></i>
+                </div>
                 <div>
+                  <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
+                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
+                </div>
+              </div>
+
+              <button onClick={() => setIsFC03ModalOpen(false)} className="relative z-10 rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-darkbg-hover dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border shadow-sm hover:shadow-md">
+                 <i className="fa-solid fa-xmark text-xl"></i>
+              </button>
+            </div>
+
+            {/* CUERPO DEL MODAL */}
+            <div className="p-8 bg-zinc-50/40 dark:bg-darkbg-main/50 space-y-6 relative">
+                <div className="group relative">
                     <label className={STYLES.label}>Tipo de Reporte</label>
-                    <select className={STYLES.input} value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                    <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
                         <option value="general">General (Toda la Dependencia)</option>
                         <option value="ubicacion">Por Ubicación Específica</option>
                         <option value="funcionario">Por Funcionario Responsable</option>
                     </select>
                 </div>
+                
                 {fc03Config.tipoFiltro === 'ubicacion' && (
-                    <div>
+                    <div className="group relative animate-fade-in">
                         <label className={STYLES.label}>Seleccionar Ubicación</label>
-                        <select className={STYLES.input} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                        <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
                             <option value="">Seleccione una ubicación...</option>
                             {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
                         </select>
                     </div>
                 )}
+                
                 {fc03Config.tipoFiltro === 'funcionario' && (
-                    <div>
+                    <div className="group relative animate-fade-in">
                         <label className={STYLES.label}>Seleccionar Funcionario</label>
-                        <select className={STYLES.input} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                        <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
                             <option value="">Seleccione un funcionario...</option>
                             {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
                         </select>
                     </div>
                 )}
-                <div>
+                
+                <div className="group relative">
                     <label className={STYLES.label}>Lugar de Emisión</label>
-                    <input type="text" className={STYLES.input} value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                    <input type="text" className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner font-bold`} value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
-              </div>
             </div>
-            <div className={STYLES.modalFooter}>
-              <button onClick={() => setIsFC03ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-              <button onClick={executeGenerateFC03} className={STYLES.btnPrimary} disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}><i className="fa-solid fa-file-pdf"></i> Generar Documento</button>
+
+            {/* BOTONES REDISEÑADOS */}
+            <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 rounded-b-[32px]">
+              <button onClick={() => setIsFC03ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
+              <button onClick={executeGenerateFC03} className={`${STYLES.btnPrimary} !bg-amber-600 hover:!bg-amber-700 !rounded-2xl !py-3 !px-8 shadow-lg shadow-amber-600/20`} disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
+                <i className="fa-solid fa-file-pdf text-xs"></i> Generar Documento
+              </button>
             </div>
           </div>
         </div>
