@@ -455,13 +455,19 @@ export default function App() {
       if (!isAuthenticated) return;
       fetchData(); 
       
-      // Sincronización simultánea de alta frecuencia (cada 1.5 segundos)
-      const intervalId = setInterval(() => {
-          fetchData();
-      }, 1500);
+      const subscription = supabase
+          .channel('cambios-bienes-oficial')
+          .on(
+              'postgres_changes', 
+              { event: '*', schema: 'public', table: 'bens' }, 
+              async () => {
+                  await fetchData(); // Solo actualiza si hay un cambio real en Supabase, no cada 1.5s
+              }
+          )
+          .subscribe();
 
       return () => {
-          clearInterval(intervalId);
+          supabase.removeChannel(subscription);
       }; 
   }, [isAuthenticated, fetchData]);
       
