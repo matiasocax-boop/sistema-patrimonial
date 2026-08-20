@@ -238,7 +238,9 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  
+  // NUEVOS ESTADOS: Confirmación de cambio de dependencia
+  const [showDependenciaConfirm, setShowDependenciaConfirm] = useState(false);
+  const [pendingDependencia, setPendingDependencia] = useState('');
   const [bienes, setBienes] = useState([]);
   const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
 
@@ -271,7 +273,21 @@ export default function App() {
       setShowLogoutConfirm(false);
       addToast("Sesión cerrada correctamente", "info");
   }, []);
+  // NUEVAS FUNCIONES: Manejo seguro de dependencias
+  const requestDependenciaChange = (nuevaDependencia) => {
+      if (nuevaDependencia !== dependenciaActual) {
+          setPendingDependencia(nuevaDependencia);
+          setShowDependenciaConfirm(true);
+      }
+  };
 
+  const confirmDependenciaChange = () => {
+      setDependenciaActual(pendingDependencia);
+      clearAllFilters(); // Limpiamos la vista para evitar que queden filtros viejos aplicados
+      setShowDependenciaConfirm(false);
+      setPendingDependencia('');
+      addToast(`Entorno de trabajo cambiado a ${pendingDependencia}`, "info");
+  };
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   useEffect(() => {
