@@ -1199,7 +1199,8 @@ export default function App() {
     try {
         let res;
         if (usuarioEditing) {
-            const updateData = { nombre: userData.nombre, cargo: userData.cargo };
+            // Agregamos la dependencia a los datos que se actualizan
+            const updateData = { nombre: userData.nombre, cargo: userData.cargo, dependencia: userData.dependencia };
             if (userData.password) updateData.password = userData.password;
             res = await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
         } else {
@@ -2720,7 +2721,18 @@ export default function App() {
                         <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
                       </div>
                     </div>
-
+                  <div>
+                      <label className={STYLES.label}>Dependencia Asignada</label>
+                      <div className="relative">
+                        <i className="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
+                        <select name="dependencia" required defaultValue={usuarioEditing?.dependencia || 'Rectorado'} className={`${STYLES.input} pl-11 appearance-none cursor-pointer pr-10`}>
+                            {todasDependencias.map(dep => (
+                                <option key={dep} value={dep}>{dep}</option>
+                            ))}
+                        </select>
+                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
+                      </div>
+                    </div>
                 </div>
               </div>
               
