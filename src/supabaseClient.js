@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Aquí están tus nuevas credenciales del proyecto "Espejo"
-const SUPABASE_URL = 'https://xgactumwhukhjwggcmqs.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_7foy8CTWF4qZACa6jxVDiA_wFLLcKmw';
+// Vercel inyectará automáticamente estos valores de forma segura
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
