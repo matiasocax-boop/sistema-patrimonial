@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const SUPABASE_URL = 'https://oygosimrplsiborgxffe.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VbvQxF4MzOioroTl4dKqhg_W1BQi6Iy';
+// Aquí están tus nuevas credenciales del proyecto "Espejo"
+const SUPABASE_URL = 'https://xgactumwhukhjwggcmqs.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_7foy8CTWF4qZACa6jxVDiA_wFLLcKmw';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
