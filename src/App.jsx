@@ -472,17 +472,26 @@ export default function App() {
   useEffect(() => { 
       if (!isAuthenticated) return;
       
-      // 1. Carga inicial visual (Sí muestra el SkeletonLoader)
+      // 1. Carga inicial visual al abrir el sistema
       fetchData(false); 
       
-      // 2. Sincronización simultánea de alta frecuencia silenciosa
-      const intervalId = setInterval(() => {
-          fetchData(true); // Al pasar "true", la pantalla ya NO titilará
-      }, 1500);
+      // 2. Suscripción a WebSockets: Sincronización real e instantánea sin gastar Egress
+      const realtimeChannel = supabase
+          .channel('cambios-globales')
+          .on(
+              'postgres_changes',
+              { event: '*', schema: 'public' }, // Escucha Inserts, Updates o Deletes
+              (payload) => {
+                  // Solo descarga los datos si hubo un cambio real en la base de datos
+                  fetchData(true); 
+              }
+          )
+          .subscribe();
 
+      // Limpieza de la conexión al cerrar
       return () => {
-          clearInterval(intervalId);
-      }; 
+          supabase.removeChannel(realtimeChannel);
+      };
   }, [isAuthenticated, fetchData]);
       
   
