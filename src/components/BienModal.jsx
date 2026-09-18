@@ -11,14 +11,36 @@ export default function BienModal({
     ESTADOS_CONSERVACION,
     funcionariosConDatos,
     ubicacionesUnicas,
+    funcionariosPadron = [],
     STYLES
 }) {
+    const handleCustodioChange = (e) => {
+        const valorInput = e.target.value;
+        if (!bienFormRef.current) return;
+        
+        const match = funcionariosPadron.find(f => 
+            normalizeStr(f.nombre) === normalizeStr(valorInput) || 
+            String(f.cedula).trim() === String(valorInput).trim()
+        );
+
+        const inputCargo = bienFormRef.current.elements['funcionarioCargo'];
+        const inputDoc = bienFormRef.current.elements['funcionarioDoc'];
+
+        if (match) {
+            if (inputCargo) inputCargo.value = match.cargo || '';
+            if (inputDoc) inputDoc.value = match.cedula || '';
+        } else {
+            if (inputCargo) inputCargo.value = '';
+            if (inputDoc) inputDoc.value = '';
+        }
+    };
+
+    const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
     return (
         <div className={STYLES.modalOverlay}>
-          {/* Se amplía el borde redondeado del contenedor principal y se añade overflow-hidden para los efectos de fondo */}
           <div className={STYLES.modalContent + " max-w-4xl !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-darkbg-border shadow-2xl"}>
             
-            {/* CABECERA REDISEÑADA CON GLOW Y DEGRADADOS */}
             <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center group overflow-hidden">
               <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-bl from-brand-primary/20 to-sky-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
               
@@ -131,7 +153,7 @@ export default function BienModal({
                   </div>
                 </div>
                 
-                {/* 3. LOCALIZACIÓN BASE */}
+                {/* 3. LOCALIZACIÓN BASE Y CUSTODIO */}
                 <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
                   <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-[24px]"></div>
                   
@@ -147,19 +169,28 @@ export default function BienModal({
                       </label>
                   </div>
 
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                    <div className="group relative">
+                        <label className={STYLES.label}>C.I. Custodio</label>
+                        <input name="funcionarioDoc" defaultValue={bienEditing?.funcionarioDoc} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
+                    </div>
+                    <div className="group relative md:col-span-2">
+                        <label className={STYLES.label}>Custodio Designado (Nombre)</label>
+                        <input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} onChange={handleCustodioChange} className={`${STYLES.input}`} placeholder="Escribe o selecciona..." />
+                        <datalist id="lista-funcionarios-modal-bien">
+                            {funcionariosPadron.map(f => <option key={f.id || f.cedula} value={f.nombre} />)}
+                        </datalist>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="group relative">
-                        <label className={STYLES.label}>Custodio Designado</label>
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                        <input list="lista-funcionarios-modal-bien" name="funcionario" defaultValue={bienEditing?.funcionario} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Nombre completo..." />
-                        <datalist id="lista-funcionarios-modal-bien">
-                            {funcionariosConDatos.map(f => <option key={f.nombre} value={f.nombre} />)}
-                        </datalist>
+                        <label className={STYLES.label}>Cargo Funcional</label>
+                        <input name="funcionarioCargo" defaultValue={bienEditing?.funcionarioCargo} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-800 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
                     </div>
                     <div className="group relative">
                         <label className={STYLES.label}>Ubicación Operativa</label>
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                        <input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Oficina / Laboratorio..." />
+                        <input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={`${STYLES.input}`} placeholder="Oficina / Laboratorio..." />
                         <datalist id="lista-ubicaciones-modal-bien">
                             {ubicacionesUnicas.map(u => <option key={u} value={u} />)}
                         </datalist>

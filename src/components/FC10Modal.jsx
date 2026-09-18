@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos }) {
     const [isReturning, setIsReturning] = useState(false);
+    const [step, setStep] = useState(1); // Control del Wizard
     const savedOrg = JSON.parse(localStorage.getItem('unp_last_org_data') || '{}');
     const safeFuncionarios = funcionariosConDatos || [];
 
@@ -10,6 +11,21 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     }, [fc10Editing]);
 
     if (!fc10TargetBien) return null; 
+
+    // Función para validar el paso actual antes de avanzar
+    const nextStep = () => {
+        const currentSection = document.getElementById(`step-${step}`);
+        if (currentSection) {
+            const inputs = currentSection.querySelectorAll('input[required], select[required]');
+            for (let input of inputs) {
+                if (!input.value) {
+                    input.reportValidity(); // Muestra el mensaje nativo de HTML5
+                    return; 
+                }
+            }
+        }
+        setStep(prev => Math.min(prev + 1, 3));
+    };
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -39,7 +55,14 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                 <form onSubmit={saveFC10} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
                     <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
                         
-                        {/* RESUMEN DEL BIEN A ASIGNAR */}
+                        {/* BARRA DE PROGRESO WIZARD */}
+                        <div className="flex gap-2">
+                            {[1, 2, 3].map(i => (
+                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-brand-primary' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
+                            ))}
+                        </div>
+
+                        {/* RESUMEN DEL BIEN A ASIGNAR (Visible en todos los pasos) */}
                         <div className="bg-white dark:bg-darkbg-card border border-zinc-200/60 dark:border-darkbg-border rounded-[20px] p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-4 shadow-sm relative overflow-hidden">
                             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-primary"></div>
                             <div className="pl-3">
@@ -54,172 +77,174 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                             </div>
                         </div>
 
-                        {/* 1. DEPENDENCIA ORGANIZACIONAL */}
-                        <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 rounded-l-[24px]"></div>
-                            <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
-                                <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 flex items-center justify-center border border-indigo-100 dark:border-indigo-800"><i className="fa-solid fa-sitemap"></i></div>
-                                1. Dependencia Organizacional
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Unidad</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="unidad" required defaultValue={fc10Editing?.unidad || savedOrg.unidad} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cod. Unidad</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="unidadCod" required defaultValue={fc10Editing?.unidadCod || savedOrg.unidadCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Repartición</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="reparticion" required defaultValue={fc10Editing?.reparticion || savedOrg.reparticion} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cod. Repart.</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="reparticionCod" required defaultValue={fc10Editing?.reparticionCod || savedOrg.reparticionCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Dependencia</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="dependenciaOrg" required defaultValue={fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cod. Depend.</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="dependenciaCod" required defaultValue={fc10Editing?.dependenciaCod || savedOrg.dependenciaCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Área</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="area" required defaultValue={fc10Editing?.area || savedOrg.area} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cod. Área</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="areaCod" required defaultValue={fc10Editing?.areaCod || savedOrg.areaCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 2. FUNCIONARIO RESPONSABLE */}
-                        <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-[24px]"></div>
-                            <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
-                                <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 flex items-center justify-center border border-emerald-100 dark:border-emerald-800"><i className="fa-solid fa-user-tie"></i></div>
-                                2. Funcionario Responsable
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Nombre y Apellido</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input 
-                                        list="funcionarios-list-fc10" 
-                                        name="funcionarioNombre" 
-                                        required 
-                                        defaultValue={fc10Editing?.funcionarioNombre || fc10TargetBien.funcionario} 
-                                        className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`}
-                                        onChange={(e) => {
-                                            const match = safeFuncionarios.find(f => f.nombre.toLowerCase() === e.target.value.toLowerCase());
-                                            if (match) {
-                                                const form = e.target.form;
-                                                if (form) {
-                                                    if (match.doc && form.elements['funcionarioDoc']) form.elements['funcionarioDoc'].value = match.doc;
-                                                    if (match.cargo && form.elements['funcionarioCargo']) form.elements['funcionarioCargo'].value = match.cargo;
-                                                }
-                                            }
-                                        }}
-                                    />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cédula de Identidad</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="funcionarioDoc" required defaultValue={fc10Editing?.funcionarioDoc} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cargo Funcional</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="funcionarioCargo" required defaultValue={fc10Editing?.funcionarioCargo} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 3. DETALLES DE ASIGNACIÓN */}
-                        <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                            <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 rounded-l-[24px]"></div>
-                            <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
-                                <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-500 dark:bg-amber-900/20 flex items-center justify-center border border-amber-100 dark:border-amber-800"><i className="fa-solid fa-clipboard-check"></i></div>
-                                3. Detalles de Asignación
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Lugar de Entrega</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || 'Pilar'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Fecha Asignación</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Estado del Bien</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="estadoConservacion" required defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <div className="group relative">
-                                    <label className={STYLES.label}>Cantidad</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="cantidad" required defaultValue={fc10Editing?.cantidad || '1'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} readOnly />
-                                </div>
-                                <div className="md:col-span-4 group relative">
-                                    <label className={STYLES.label}>Observaciones Adicionales</label>
-                                    <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                    <input name="observaciones" defaultValue={fc10Editing?.observaciones} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                </div>
-                                <input type="hidden" name="valorTotal" value={fc10TargetBien.valorUnitario} />
-                            </div>
-                        </div>
-
-                        {/* DEVOLUCIÓN */}
-                        {fc10Editing && (
+                        {/* PASO 1: DEPENDENCIA ORGANIZACIONAL */}
+                        <div id="step-1" className={step === 1 ? "block animate-fade-in" : "hidden"}>
                             <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 rounded-l-[24px]"></div>
-                                
-                                <label className="flex items-center gap-3 cursor-pointer group/check w-fit">
-                                    <input type="checkbox" checked={isReturning} onChange={(e) => setIsReturning(e.target.checked)} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer transition-transform group-hover/check:scale-110" />
-                                    <span className="text-sm font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Registrar Devolución y Liberar Bien</span>
-                                </label>
-                                
-                                {isReturning && (
-                                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5 animate-fade-in mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border">
-                                        <div className="group relative">
-                                            <label className={STYLES.label}>Lugar Devolución</label>
-                                            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                            <input name="devolucionLugar" required={isReturning} defaultValue={fc10Editing?.devolucionLugar || 'Pilar'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                        </div>
-                                        <div className="group relative">
-                                            <label className={STYLES.label}>Fecha Devolución</label>
-                                            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                            <input type="date" name="devolucionFecha" required={isReturning} defaultValue={fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`} />
-                                        </div>
-                                        <div className="group relative">
-                                            <label className={STYLES.label}>Receptor (Nombre)</label>
-                                            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                            <input name="devolucionReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionReceptor} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                        </div>
-                                        <div className="group relative">
-                                            <label className={STYLES.label}>Cargo Receptor</label>
-                                            <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                            <input name="devolucionCargoReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionCargoReceptor} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
-                                        </div>
+                                <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 rounded-l-[24px]"></div>
+                                <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
+                                    <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 flex items-center justify-center border border-indigo-100 dark:border-indigo-800"><i className="fa-solid fa-sitemap"></i></div>
+                                    Paso 1: Dependencia Organizacional
+                                </h3>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Unidad</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="unidad" required defaultValue={fc10Editing?.unidad || savedOrg.unidad} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
                                     </div>
-                                )}
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cod. Unidad</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="unidadCod" required defaultValue={fc10Editing?.unidadCod || savedOrg.unidadCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Repartición</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="reparticion" required defaultValue={fc10Editing?.reparticion || savedOrg.reparticion} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cod. Repart.</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="reparticionCod" required defaultValue={fc10Editing?.reparticionCod || savedOrg.reparticionCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Dependencia</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="dependenciaOrg" required defaultValue={fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cod. Depend.</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="dependenciaCod" required defaultValue={fc10Editing?.dependenciaCod || savedOrg.dependenciaCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Área</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="area" required defaultValue={fc10Editing?.area || savedOrg.area} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cod. Área</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="areaCod" required defaultValue={fc10Editing?.areaCod || savedOrg.areaCod} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                </div>
                             </div>
-                        )}
+                        </div>
+
+                        {/* PASO 2: FUNCIONARIO RESPONSABLE */}
+                        <div id="step-2" className={step === 2 ? "block animate-fade-in" : "hidden"}>
+                            <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
+                                <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-[24px]"></div>
+                                <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
+                                    <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 flex items-center justify-center border border-emerald-100 dark:border-emerald-800"><i className="fa-solid fa-user-tie"></i></div>
+                                    Paso 2: Funcionario Responsable
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Nombre y Apellido</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input 
+                                            list="funcionarios-list-fc10" 
+                                            name="funcionarioNombre" 
+                                            required 
+                                            defaultValue={fc10Editing?.funcionarioNombre || fc10TargetBien.funcionario} 
+                                            className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`}
+                                            onChange={(e) => {
+                                                const match = safeFuncionarios.find(f => f.nombre.toLowerCase() === e.target.value.toLowerCase());
+                                                if (match) {
+                                                    const form = e.target.form;
+                                                    if (form) {
+                                                        if (match.doc && form.elements['funcionarioDoc']) form.elements['funcionarioDoc'].value = match.doc;
+                                                        if (match.cargo && form.elements['funcionarioCargo']) form.elements['funcionarioCargo'].value = match.cargo;
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cédula de Identidad</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="funcionarioDoc" required defaultValue={fc10Editing?.funcionarioDoc} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cargo Funcional</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="funcionarioCargo" required defaultValue={fc10Editing?.funcionarioCargo} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* PASO 3: DETALLES DE ASIGNACIÓN */}
+                        <div id="step-3" className={step === 3 ? "block animate-fade-in" : "hidden"}>
+                            <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
+                                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 rounded-l-[24px]"></div>
+                                <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
+                                    <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-500 dark:bg-amber-900/20 flex items-center justify-center border border-amber-100 dark:border-amber-800"><i className="fa-solid fa-clipboard-check"></i></div>
+                                    Paso 3: Detalles de Asignación
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-amber-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Lugar de Entrega</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || 'Pilar'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-amber-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Fecha Asignación</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-amber-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Estado del Bien</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="estadoConservacion" required defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <div className="group relative focus-within:ring-2 focus-within:ring-amber-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Cantidad</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="cantidad" required defaultValue={fc10Editing?.cantidad || '1'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner text-zinc-500`} readOnly />
+                                    </div>
+                                    <div className="md:col-span-4 group relative focus-within:ring-2 focus-within:ring-amber-500/50 rounded-2xl">
+                                        <label className={STYLES.label}>Observaciones Adicionales</label>
+                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
+                                        <input name="observaciones" defaultValue={fc10Editing?.observaciones} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                    </div>
+                                    <input type="hidden" name="valorTotal" value={fc10TargetBien.valorUnitario} />
+                                </div>
+                            </div>
+
+                            {/* DEVOLUCIÓN (Opcional) */}
+                            {fc10Editing && (
+                                <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section mt-8">
+                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 rounded-l-[24px]"></div>
+                                    
+                                    <label className="flex items-center gap-3 cursor-pointer group/check w-fit">
+                                        <input type="checkbox" checked={isReturning} onChange={(e) => setIsReturning(e.target.checked)} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer transition-transform group-hover/check:scale-110" />
+                                        <span className="text-sm font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Registrar Devolución y Liberar Bien</span>
+                                    </label>
+                                    
+                                    {isReturning && (
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 animate-fade-in mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border">
+                                            <div className="group relative focus-within:ring-2 focus-within:ring-rose-500/50 rounded-2xl">
+                                                <label className={STYLES.label}>Lugar Devolución</label>
+                                                <input name="devolucionLugar" required={isReturning} defaultValue={fc10Editing?.devolucionLugar || 'Pilar'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                            </div>
+                                            <div className="group relative focus-within:ring-2 focus-within:ring-rose-500/50 rounded-2xl">
+                                                <label className={STYLES.label}>Fecha Devolución</label>
+                                                <input type="date" name="devolucionFecha" required={isReturning} defaultValue={fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`} />
+                                            </div>
+                                            <div className="group relative focus-within:ring-2 focus-within:ring-rose-500/50 rounded-2xl">
+                                                <label className={STYLES.label}>Receptor (Nombre)</label>
+                                                <input name="devolucionReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionReceptor} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                            </div>
+                                            <div className="group relative focus-within:ring-2 focus-within:ring-rose-500/50 rounded-2xl">
+                                                <label className={STYLES.label}>Cargo Receptor</label>
+                                                <input name="devolucionCargoReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionCargoReceptor} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
                         <datalist id="funcionarios-list-fc10">
                             {safeFuncionarios.map(f => <option key={f.nombre} value={f.nombre} />)}
@@ -227,10 +252,21 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                     </div>
                     
                     <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 rounded-b-[32px]">
-                        <button type="button" onClick={() => setIsFC10ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
-                        <button type="submit" className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 shadow-lg shadow-brand-primary/20`}>
-                            <i className="fa-solid fa-floppy-disk text-xs"></i> Guardar Expediente FC-10
-                        </button>
+                        {step === 1 ? (
+                            <button type="button" onClick={() => setIsFC10ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
+                        ) : (
+                            <button type="button" onClick={() => setStep(step - 1)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Anterior</button>
+                        )}
+                        
+                        {step < 3 ? (
+                            <button type="button" onClick={nextStep} className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 shadow-lg shadow-brand-primary/20`}>
+                                Siguiente Paso <i className="fa-solid fa-arrow-right text-xs ml-1"></i>
+                            </button>
+                        ) : (
+                            <button type="submit" className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 shadow-lg shadow-brand-primary/20`}>
+                                <i className="fa-solid fa-floppy-disk text-xs mr-1"></i> Guardar FC-10
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

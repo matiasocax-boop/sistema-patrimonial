@@ -15,6 +15,23 @@ import FC11Modal from './components/FC11Modal';
 import localforage from 'localforage';
 import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
+import CSVPreviewModal from './components/CSVPreviewModal';
+import { 
+    formatCurrency, formatCI, generateId, parseDateInfo, 
+    formatDateText, getEstadoAbbr, normalizeStr, decodeText, getPlaceholderLogo 
+} from './utils/helpers';
+import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
+import { fetchAllRows } from './services/patrimonioService';
+import LogoutModal from './components/modals/LogoutModal';
+import ResolucionBajaModal from './components/modals/ResolucionBajaModal';
+import DeleteConfirmModal from './components/modals/DeleteConfirmModal';
+import DependenciaConfirmModal from './components/modals/DependenciaConfirmModal';
+import QRModal from './components/modals/QRModal';
+import ConsolidadoFC10Modal from './components/modals/ConsolidadoFC10Modal';
+import UsuarioModal from './components/modals/UsuarioModal';
+import NuevoFuncionarioModal from './components/modals/NuevoFuncionarioModal';
+import FuncionarioModal from './components/modals/FuncionarioModal';
+import ScannerModal from './components/modals/ScannerModal';
 
 const STYLES = {
     input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
@@ -35,173 +52,43 @@ const ESTADOS_CONSERVACION = ["Muy bueno", "Bueno", "Regular", "Malo", "Inutiliz
 const MOTIVOS_FC11 = ["Traspaso", "Préstamo", "Inservible", "Faltante"];
 const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "Baja" }, { id: "T", nombre: "Traspaso" }, { id: "C/D", nombre: "Compra o Donación" }];
 
-const formatCurrency = (value) => { if (!value) return "0"; const number = parseInt(value.toString().replace(/\D/g, ''), 10); return isNaN(number) ? "0" : new Intl.NumberFormat('es-PY').format(number); };
-const formatCI = (value) => { if (!value) return ""; return value.toString().replace(/\D/g, '').replace(/\B(?=(\d{3})+(?!\d))/g, "."); };
-const generateId = () => { if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID(); return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) { const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8); return v.toString(16); }); };
-
-const parseDateInfo = (dateStr) => { if (!dateStr) return { year: null, month: null }; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if (p.length === 3) { if (p[0].length === 4) return { year: p[0], month: p[1].padStart(2, '0') }; if (p[2].length === 4) return { year: p[2], month: p[1].padStart(2, '0') }; } return { year: null, month: null }; };
-const formatDateText = (dateStr) => { if(!dateStr) return ''; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if(p.length === 3) { if(p[0].length === 4) return `${p[2]}-${p[1]}-${p[0]}`; if(p[2].length === 4) return `${p[0]}-${p[1]}-${p[2]}`; } return str; };
-const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
-const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
-
-const decodeText = (buffer) => {
-    let text = new TextDecoder('utf-8').decode(buffer);
-    if (text.includes('')) {
-        text = new TextDecoder('iso-8859-1').decode(buffer);
-    }
-    return text;
-};
-
-const generateSimpleQR = async (bien) => { 
-    const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
-    const qrText = `CÓDIGO: ${bien.rotulo||''}\nCTA: ${cuentaCompleta}\nDESC: ${bien.descripcion||''}\nADQ: ${bien.fechaAdquisicion||''}\nVALOR: Gs. ${formatCurrency(bien.valorUnitario)}\nPROPIEDAD UNP - PARAGUAY`;
-    try {
-        if (window.QRCode) {
-            return await window.QRCode.toDataURL(qrText, { width: 1024, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
-        }
-        return '';
-    } catch (err) { console.error("Error generando QR", err); return ''; }
-};
-
-const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
-    return new Promise(async (resolve) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 732;
-        canvas.height = 1181;
-
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 4;
-
-        const headerHeight = 220;
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(0, 0, canvas.width, headerHeight);
-
-        ctx.beginPath();
-        ctx.moveTo(0, headerHeight);
-        ctx.lineTo(canvas.width, headerHeight);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#cccccc';
-        ctx.stroke();
-
-        ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        let textX = canvas.width / 2;
-        let textSpace = canvas.width;
-        const logoSize = 130;
-        const logoPadding = 40;
-
-        if (appLogoStr) {
-            textX = (canvas.width + logoSize + logoPadding) / 2;
-            textSpace = canvas.width - logoSize - logoPadding * 2;
-        }
-
-        ctx.font = 'bold 36px Arial';
-        ctx.fillText('UNIVERSIDAD NACIONAL', textX, 70, textSpace);
-        ctx.font = '900 44px Arial';
-        ctx.fillText('DE PILAR', textX, 120, textSpace);
-
-        ctx.fillStyle = '#cc0000';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText('DPTO. DE BIENES PATRIMONIALES', textX, 175, textSpace);
-        
-        ctx.fillStyle = '#000000';
-        ctx.textAlign = 'center';
-        
-        const rotuloText = bien.rotulo || 'S/R';
-        let codigoFontSize = 72;
-        if (rotuloText.length > 12) codigoFontSize = 60;
-        if (rotuloText.length > 16) codigoFontSize = 50;
-
-        ctx.font = `900 ${codigoFontSize}px Arial`;
-        ctx.fillText(rotuloText, canvas.width / 2, headerHeight + 80, canvas.width - 60);
-
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = '#555555';
-        ctx.fillText('CÓDIGO PATRIMONIAL', canvas.width / 2, headerHeight + 25);
-
-        const qrDataUrl = await generateSimpleQR(bien);
-        const qrImg = new Image();
-        qrImg.crossOrigin = "Anonymous";
-        qrImg.onload = () => {
-            const qrSize = 560;
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 5;
-            ctx.drawImage(qrImg, (canvas.width - qrSize) / 2, headerHeight + 140, qrSize, qrSize);
-            
-            ctx.shadowColor = 'transparent';
-
-            const footerY = canvas.height - 240;
-            const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
-            
-            ctx.fillStyle = '#f0f2f5';
-            ctx.beginPath();
-            ctx.roundRect((canvas.width - 400) / 2, footerY - 10, 400, 60, 10);
-            ctx.fill();
-
-            ctx.fillStyle = '#333333';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, canvas.width / 2, footerY + 20);
-
-            ctx.beginPath();
-            ctx.moveTo(40, footerY + 80);
-            ctx.lineTo(canvas.width - 40, footerY + 80);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.stroke();
-
-            ctx.fillStyle = '#cc0000';
-            ctx.font = '900 36px Arial';
-            ctx.fillText('PROPIEDAD DE LA UNP', canvas.width / 2, footerY + 130);
-
-            ctx.fillStyle = '#000000';
-            ctx.font = 'bold 26px Arial';
-            ctx.fillText('Bienes del Estado Paraguayo', canvas.width / 2, footerY + 180);
-            
-            ctx.font = 'italic 18px Arial';
-            ctx.fillStyle = '#888888';
-            const today = new Date().toLocaleDateString('es-PY');
-            ctx.fillText(`Emitido: ${today}`, canvas.width / 2, footerY + 220);
-
-            if (appLogoStr) {
-                const logoImg = new Image();
-                logoImg.crossOrigin = "Anonymous";
-                logoImg.onload = () => {
-                    ctx.drawImage(logoImg, logoPadding, (headerHeight - logoSize) / 2, logoSize, logoSize); 
-                    resolve(canvas.toDataURL('image/png'));
-                };
-                logoImg.onerror = () => resolve(canvas.toDataURL('image/png'));
-                logoImg.src = appLogoStr;
-            } else {
-                resolve(canvas.toDataURL('image/png'));
-            }
-        };
-        qrImg.src = qrDataUrl;
-    });
-};
-
-const getPlaceholderLogo = () => { const canvas = document.createElement('canvas'); canvas.width = 200; canvas.height = 200; const ctx = canvas.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,200,200); ctx.fillStyle = '#121212'; ctx.font = 'bold 40px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('LOGO', 100, 115); ctx.lineWidth = 4; ctx.strokeRect(0,0,200,200); return canvas.toDataURL('image/png'); };
-
 function SkeletonLoader() { 
     return (
-        <div className="animate-pulse space-y-6 p-6 w-full"> 
-            {[1, 2, 3, 4, 5].map(i => ( 
-                <div key={i} className="flex gap-4 items-center border-b border-zinc-100 dark:border-darkbg-border pb-4"> 
-                    <div className="h-4 bg-zinc-200 dark:bg-darkbg-border rounded w-1/4"></div> 
-                    <div className="h-4 bg-zinc-200 dark:bg-darkbg-border rounded w-1/4"></div> 
-                    <div className="h-8 bg-zinc-200 dark:bg-darkbg-border rounded-md w-24 ml-auto"></div> 
-                </div> 
-            ))} 
-        </div> 
+        <div className="w-full flex-1 bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden flex flex-col min-h-[550px] animate-pulse">
+            {/* Cabecera del esqueleto */}
+            <div className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 border-b border-zinc-200/80 dark:border-darkbg-border px-8 py-4 flex justify-between hidden md:flex">
+                <div className="h-3 w-48 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-3 w-32 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
+                <div className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
+            </div>
+            
+            {/* Filas del esqueleto (Híbrido: Tarjetas móvil / Filas desktop) */}
+            <div className="p-4 md:p-0 divide-y divide-transparent md:divide-zinc-100 md:dark:divide-darkbg-border/60">
+                {[1, 2, 3, 4, 5].map(i => ( 
+                    <div key={i} className="mb-4 md:mb-0 p-4 md:px-6 md:py-4 border border-zinc-200/80 md:border-0 rounded-2xl md:rounded-none flex flex-col md:flex-row md:items-center gap-4"> 
+                        {/* Columna 1 */}
+                        <div className="flex items-center gap-3 flex-1">
+                            <div className="h-10 w-10 shrink-0 bg-zinc-200 dark:bg-zinc-800 rounded-xl"></div>
+                            <div className="space-y-2 flex-1">
+                                <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-1/3"></div>
+                                <div className="h-2 bg-zinc-100 dark:bg-zinc-800/50 rounded w-2/3"></div>
+                            </div>
+                        </div>
+                        {/* Columna 2 */}
+                        <div className="flex-1 space-y-2 mt-2 md:mt-0 pt-2 border-t border-dashed md:border-none md:pt-0 border-zinc-100 dark:border-darkbg-border">
+                            <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2"></div>
+                            <div className="h-2 bg-zinc-100 dark:bg-zinc-800/50 rounded w-1/3"></div>
+                        </div>
+                        {/* Columna 3 (Acciones) */}
+                        <div className="flex justify-end gap-2 mt-2 pt-2 border-t md:border-none md:pt-0 border-zinc-100 dark:border-darkbg-border shrink-0">
+                            <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
+                            <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
+                            <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
+                        </div>
+                    </div> 
+                ))} 
+            </div>
+        </div>
     );
 }
 
@@ -229,8 +116,8 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(true);
-  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(true);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -238,275 +125,313 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   // NUEVOS ESTADOS: Confirmación de cambio de dependencia
   const [showDependenciaConfirm, setShowDependenciaConfirm] = useState(false);
   const [pendingDependencia, setPendingDependencia] = useState('');
   const [bienes, setBienes] = useState([]);
-  const [dependenciaActual, setDependenciaActual] = useState(isAdmin ? 'Rectorado' : (currentUser?.dependencia || 'Rectorado'));
-
-  useEffect(() => {
-    const checkMaintenance = async () => {
-      try {
-        const { data, error } = await supabase.from('configuracion_sistema').select('*').limit(1).single();
-        if (data) {
-          setIsMaintenanceMode(data.en_mantenimiento);
-          setSystemConfig({ version: data.version_actual, notes: data.notas_actualizacion });
-        } else {
-          setIsMaintenanceMode(false);
-        }
-      } catch (err) {
-        setIsMaintenanceMode(false);
-      } finally {
-        setIsCheckingMaintenance(false);
-      }
-    };
-    checkMaintenance();
-  }, []);
-
-  useEffect(() => { if (darkMode) { document.documentElement.classList.add('dark'); localStorage.setItem('theme', 'dark'); } else { document.documentElement.classList.remove('dark'); localStorage.setItem('theme', 'light'); } }, [darkMode]);
-  useEffect(() => { localStorage.setItem('pdf_size', pdfPaperSize); }, [pdfPaperSize]);
-
-  const handleLogout = useCallback(() => { 
-      setIsAuthenticated(false); setCurrentUser(null); 
-      localStorage.removeItem('is_logged_in'); localStorage.removeItem('current_user'); localStorage.removeItem('auth_token'); 
-      setLoginUser(''); setLoginPass(''); setActiveTab('dashboard'); 
-      setShowLogoutConfirm(false);
-      addToast("Sesión cerrada correctamente", "info");
-  }, []);
-  // NUEVAS FUNCIONES: Manejo seguro de dependencias
-  const requestDependenciaChange = (nuevaDependencia) => {
-      if (nuevaDependencia !== dependenciaActual) {
-          setPendingDependencia(nuevaDependencia);
-          setShowDependenciaConfirm(true);
-      }
-  };
-
-  const confirmDependenciaChange = () => {
-      setDependenciaActual(pendingDependencia);
-      clearAllFilters(); // Limpiamos la vista para evitar que queden filtros viejos aplicados
-      setShowDependenciaConfirm(false);
-      setPendingDependencia('');
-      addToast(`Entorno de trabajo cambiado a ${pendingDependencia}`, "info");
-  };
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [dependenciaActual, setDependenciaActual] = useState(() => {
+    if (currentUser?.dependencia) return currentUser.dependencia;
+    return isAdmin ? 'Rectorado' : 'Rectorado';
+});
+ 
+  const [currentPaginaFuncionarios, setCurrentPaginaFuncionarios] = useState(1);
+  const itemsPorPaginaFuncs = 20;
+  const [isFuncionarioModalOpen, setIsFuncionarioModalOpen] = useState(false);
+  const [funcionarioToEdit, setFuncionarioToEdit] = useState(null);
+  const [isNewFuncionarioModalOpen, setIsNewFuncionarioModalOpen] = useState(false);
+  // AÑADE ESTA LÍNEA JUNTO AL RESTO DE TUS ESTADOS:
+  const [todasDependencias] = useState(DEPENDENCIAS_UNP);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isBulkQR, setIsBulkQR] = useState(false);
+  const [qrTargetBien, setQrTargetBien] = useState(null);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   
+  const [isBienModalOpen, setIsBienModalOpen] = useState(false);
+  const [bienEditing, setBienEditing] = useState(null);
+  const bienFormRef = useRef(null);
+
+  const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false);
+  const [fc10TargetBien, setFc10TargetBien] = useState(null);
+  const [fc10Editing, setFc10Editing] = useState(null);
+
+  const [isFC11ModalOpen, setIsFC11ModalOpen] = useState(false);
+  const [fc11TargetBien, setFc11TargetBien] = useState(null);
+  const [fc11Editing, setFc11Editing] = useState(null);
+  const [fc11FormNumber, setFc11FormNumber] = useState('');
+
+  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false);
+  const [fc04Editing, setFc04Editing] = useState(null);
+  const [fc04Items, setFc04Items] = useState([]);
+  const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
+
+  const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false);
+  const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+
+  const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
+  const [usuarioEditing, setUsuarioEditing] = useState(null);
+
+  const [isCSVPreviewOpen, setIsCSVPreviewOpen] = useState(false);
+  const [csvPreviewData, setCsvPreviewData] = useState({ validos: [], duplicados: [], errores: [] });
+  const [pendingFuncionariosToImport, setPendingFuncionariosToImport] = useState([]);
+
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [resolucionBaja, setResolucionBaja] = useState(null);
+  const [motivoResolucion, setMotivoResolucion] = useState('');
+
+  const [dbError, setDbError] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
   useEffect(() => {
-    const handleOnline = () => { setIsOnline(true); addToast("Conexión a la red restablecida.", "success"); };
-    const handleOffline = () => { setIsOnline(false); addToast("Sin conexión. Operando en modo local.", "warning"); };
+    const handleOnline = () => { 
+        setIsOnline(true); 
+        addToast("Conexión a la red restablecida.", "success"); 
+    };
+    
+    const handleOffline = () => { 
+        setIsOnline(false); 
+        addToast("Sin conexión. Operando en modo local.", "warning"); 
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
+    // Verificación activa cada 10 segundos para detectar caídas reales al instante
+    const intervalCheck = setInterval(async () => {
+        try {
+            // Hacemos una consulta ultraligera a Supabase para comprobar conectividad real
+            const { error } = await supabase.from('bens').select('id').limit(1);
+            if (error) throw error;
+            
+            if (!isOnline) {
+                setIsOnline(true);
+                addToast("Conexión a la red restablecida.", "success");
+            }
+        } catch (err) {
+            if (isOnline) {
+                setIsOnline(false);
+                addToast("Sin conexión. Operando en modo local.", "warning");
+            }
+        }
+    }, 10000);
+
     return () => { 
         window.removeEventListener('online', handleOnline); 
-        window.removeEventListener('offline', handleOffline); 
+        window.removeEventListener('offline', handleOffline);
+        clearInterval(intervalCheck);
     };
-  }, []);
+  }, [isOnline]);
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    let inactivityTimer;
-    const resetTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(() => {
-        handleLogout();
-        addToast("Sesión cerrada por inactividad prolongada (35 min).", "warning");
-      }, 35 * 60 * 1000);
-    };
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('keypress', resetTimer);
-    resetTimer(); 
-    return () => {
-      clearTimeout(inactivityTimer);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('keypress', resetTimer);
-    };
-  }, [isAuthenticated, handleLogout]);
+  const fileInputRef = useRef(null);
+  const fileInputFuncionariosRef = useRef(null);
 
+  // DECLARACIÓN DE ESTADOS DE LISTAS Y BÚSQUEDA (COLOCADOS ANTES DE SER USADOS)
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
   const [usuariosList, setUsuariosList] = useState([]); 
-
+  const [funcionariosPadron, setFuncionariosPadron] = useState([]); 
   const [estructurasDB, setEstructurasDB] = useState([]);
-  const [searchInput, setSearchInput] = useState(''); const [searchTerm, setSearchTerm] = useState(''); 
-  const [filtroFuncionario, setFiltroFuncionario] = useState(''); const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
-  const [filtroAnio, setFiltroAnio] = useState(''); const [filtroMes, setFiltroMes] = useState(''); 
-  
+
+
+  const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
+  const [searchInput, setSearchInput] = useState(''); 
+  const [searchTerm, setSearchTerm] = useState(''); 
+  const [filtroFuncionario, setFiltroFuncionario] = useState(''); 
+  const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
+  const [filtroAnio, setFiltroAnio] = useState(''); 
+  const [filtroMes, setFiltroMes] = useState(''); 
   const [filtroSubcuenta, setFiltroSubcuenta] = useState(''); 
   const [filtroAnalitico1, setFiltroAnalitico1] = useState(''); 
   const [filtroAnalitico2, setFiltroAnalitico2] = useState('');
+  const [filtroQR, setFiltroQR] = useState('ALL'); 
+  const [filtroFC10, setFiltroFC10] = useState('ALL'); 
+  const [filtroEstado, setFiltroEstado] = useState('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); 
+  const [fc10Month, setFc10Month] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+  const [searchConsolidadoModal, setSearchConsolidadoModal] = useState('');
+  // AHORA SÍ PODEMOS DECLARAR ESTAS CONSTANTES SIN ERRORES:
+  const hasFilters = Boolean(
+    searchInput || filtroFuncionario || filtroUbicacion || filtroAnio || 
+    filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || 
+    filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL'
+  );
 
-  const [filtroQR, setFiltroQR] = useState('ALL'); const [filtroFC10, setFiltroFC10] = useState('ALL'); const [filtroEstado, setFiltroEstado] = useState('ALL');
-  
-  const hasFilters = Boolean(filtroFuncionario || filtroUbicacion || filtroAnio || filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || searchInput);
+  const fc10Map = useMemo(() => {
+    const map = new Map();
+    fc10List.forEach(fc => {
+      if (fc.bienId && !fc.devolucionFecha) map.set(fc.bienId, fc);
+    });
+    return map;
+  }, [fc10List]);
 
-  useEffect(() => { const timer = setTimeout(() => { setSearchTerm(searchInput); setCurrentPage(1); }, 300); return () => clearTimeout(timer); }, [searchInput]);
-  const [currentPage, setCurrentPage] = useState(1); const itemsPerPage = 10;
-  const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); const [fc10Month, setFc10Month] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
-  
-  const [isBienModalOpen, setIsBienModalOpen] = useState(false); const [bienEditing, setBienEditing] = useState(null);
-  const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false); const [fc10TargetBien, setFc10TargetBien] = useState(null); const [fc10Editing, setFc10Editing] = useState(null);
-  const [isFC11ModalOpen, setIsFC11ModalOpen] = useState(false); const [fc11TargetBien, setFc11TargetBien] = useState(null); const [fc11Editing, setFc11Editing] = useState(null); const [fc11FormNumber, setFc11FormNumber] = useState('');
-  const [isFC04ModalOpen, setIsFC04ModalOpen] = useState(false); const [fc04Editing, setFc04Editing] = useState(null); const [fc04Items, setFc04Items] = useState([]); const [fc04SinMovimiento, setFc04SinMovimiento] = useState(false);
-  const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false); const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
-  
-  const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
-  const [usuarioEditing, setUsuarioEditing] = useState(null); 
-
-  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [qrTargetBien, setQrTargetBien] = useState(null);
-  const [isBulkQR, setIsBulkQR] = useState(false);
-
-  const [resolucionBaja, setResolucionBaja] = useState(null);
-  const [motivoResolucion, setMotivoResolucion] = useState('');
-  const [notificaciones, setNotificaciones] = useState([]);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
-
-  const [itemToDelete, setItemToDelete] = useState(null); const [dbError, setDbError] = useState(false);
-  
-  const fileInputRef = useRef(null); const bienFormRef = useRef(null); 
-
-  const todasDependencias = DEPENDENCIAS_UNP;
-  const fc10Map = useMemo(() => { const map = new Map(); fc10List.forEach(fc => { if(!fc.devolucionFecha) map.set(fc.bienId, fc); }); return map; }, [fc10List]);
-
-  const fetchAllRows = async (tableName) => {
-    let allData = [];
-    let rangeSize = 1000;
-    let from = 0;
-    let to = rangeSize - 1;
-    let keepFetching = true;
-
-    while (keepFetching) {
-      const { data, error } = await supabase
-        .from(tableName)
-        .select('*')
-        .range(from, to);
-
-      if (error || !data || data.length === 0) {
-        keepFetching = false;
-      } else {
-        allData = [...allData, ...data];
-        if (data.length < rangeSize) {
-          keepFetching = false;
-        } else {
-          from += rangeSize;
-          to += rangeSize;
-        }
-      }
-    }
-    return { data: allData };
+  const requestDependenciaChange = (newDep) => {
+    setPendingDependencia(newDep);
+    setShowDependenciaConfirm(true);
   };
 
-  const fetchData = useCallback(async (isSilent = false) => {
+  const confirmDependenciaChange = () => {
+    setDependenciaActual(pendingDependencia);
+    setShowDependenciaConfirm(false);
+    clearAllFilters();
+    addToast(`Entorno cambiado a ${pendingDependencia}`, "success");
+  };
+  
+  // 1. Filtramos solo los registros que son funcionarios (excluyendo los separadores de la paginación)
+  const funcionariosPurosDependencia = useMemo(() => {
+      let lista = funcionariosPadron.filter(f => f.dependencia === dependenciaActual);
+      
+      if (searchFuncionarioInput.trim() !== '') {
+          const termino = searchFuncionarioInput.toLowerCase().trim();
+          lista = lista.filter(f => 
+              String(f.cedula || '').toLowerCase().includes(termino) || 
+              String(f.nombre || '').toLowerCase().includes(termino) ||
+              String(f.cargo || '').toLowerCase().includes(termino)
+          );
+      }
+
+      return lista.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
+  }, [funcionariosPadron, dependenciaActual, searchFuncionarioInput]);
+
+  // 2. Calculamos el total de páginas exactas basándonos solo en los funcionarios puros
+  const totalPagesFuncs = Math.ceil(funcionariosPurosDependencia.length / itemsPorPaginaFuncs);
+
+  // 3. Cortamos la porción correspondiente a la página actual
+  const funcionariosPaginados = useMemo(() => {
+      const start = (currentPaginaFuncionarios - 1) * itemsPorPaginaFuncs;
+      const subLista = funcionariosPurosDependencia.slice(start, start + itemsPorPaginaFuncs);
+
+      // Agregamos los separadores alfabéticos únicamente para los elementos de esta página
+      const listaConSeparadores = [];
+      let letraActual = '';
+
+      subLista.forEach(f => {
+          const primeraLetra = String(f.nombre || '').trim().charAt(0).toUpperCase();
+          if (primeraLetra !== letraActual) {
+              letraActual = primeraLetra;
+              listaConSeparadores.push({ esSeparador: true, letra: letraActual });
+          }
+          listaConSeparadores.push(f);
+      });
+
+      return listaConSeparadores;
+  }, [funcionariosPurosDependencia, currentPaginaFuncionarios]);
+
+ const fetchData = useCallback(async (isSilent = false) => {
     try {
-      // Solo mostramos la animación de carga si NO es silencioso
       if (!isSilent) setIsLoading(true);
 
-      let todosLosNuevosBienes = [];
-      let rangeSize = 1000;
-      let from = 0;
-      let to = rangeSize - 1;
-      let keepFetchingBienes = true;
+      // Creamos un timeout de seguridad de 8 segundos por si Supabase no responde
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout de red')), 8000)
+      );
 
-      while (keepFetchingBienes) {
-        // Consultamos directo sin el filtro restrictivo de fechas para garantizar sincronía total
-        let query = supabase.from('bens').select('id, data, updated_at');
-        const { data: batch, error } = await query.range(from, to);
+      const fetchPromise = (async () => {
+        let todosLosNuevosBienes = [];
+        let rangeSize = 1000;
+        let from = 0;
+        let to = rangeSize - 1;
+        let keepFetchingBienes = true;
 
-        if (error || !batch || batch.length === 0) {
-          keepFetchingBienes = false;
-        } else {
-          todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
-          if (batch.length < rangeSize) {
+        while (keepFetchingBienes) {
+          let query = supabase.from('bens').select('id, data, updated_at');
+          const { data: batch, error } = await query.range(from, to);
+
+          if (error || !batch || batch.length === 0) {
             keepFetchingBienes = false;
           } else {
-            from += rangeSize;
-            to += rangeSize;
+            todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
+            if (batch.length < rangeSize) {
+              keepFetchingBienes = false;
+            } else {
+              from += rangeSize;
+              to += rangeSize;
+            }
           }
         }
-      }
 
-      if (todosLosNuevosBienes.length > 0) {
-        const mapaBienes = new Map();
-        todosLosNuevosBienes.forEach(item => {
-            const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-            mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
-        });
-        const inventarioFinal = Array.from(mapaBienes.values());
-        await localforage.setItem('bienes_cache', inventarioFinal);
-        setBienes(inventarioFinal);
-      }
-
-      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios] = await Promise.all([ 
-          fetchAllRows('fc10'), fetchAllRows('fc11'), fetchAllRows('fc04'), 
-          fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios')
-      ]);
-
-      const parseDirect = (resData) => {
-          if (!resData) return [];
-          return resData.map(item => {
-              if (item.data) {
-                  let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-                  return { id: item.id, ...parsed };
-              }
-              return item;
+        if (todosLosNuevosBienes.length > 0) {
+          const mapaBienes = new Map();
+          todosLosNuevosBienes.forEach(item => {
+              const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+              mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
           });
-      };
+          const inventarioFinal = Array.from(mapaBienes.values());
+          await localforage.setItem('bienes_cache', inventarioFinal);
+          setBienes(inventarioFinal);
+        }
 
-      setFc10List(parseDirect(resFc10.data)); 
-      setFc11List(parseDirect(resFc11.data));
-      setFc04List(parseDirect(resFc04.data)); 
-      setEstructurasDB(parseDirect(resEstructuras.data));
-      setNotificaciones(parseDirect(resAuditoria.data));
-      setUsuariosList(parseDirect(resUsuarios.data));
+        const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
+            fetchAllRows('fc10'), fetchAllRows('fc11'), fetchAllRows('fc04'), 
+            fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios'), fetchAllRows('funcionarios')
+        ]);
 
-      setDbError(false);
+        const parseDirect = (resData) => {
+            if (!resData) return [];
+            return resData.map(item => {
+                if (item.data) {
+                    let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+                    return { id: item.id, ...parsed };
+                }
+                return item;
+            });
+        };
+
+        setFc10List(parseDirect(resFc10.data)); 
+        setFc11List(parseDirect(resFc11.data));
+        setFc04List(parseDirect(resFc04.data)); 
+        setEstructurasDB(parseDirect(resEstructuras.data));
+        setNotificaciones(parseDirect(resAuditoria.data));
+        setUsuariosList(parseDirect(resUsuarios.data));
+        setFuncionariosPadron(parseDirect(resFuncionarios.data));
+        setDbError(false);
+      })();
+
+      await Promise.race([fetchPromise, timeoutPromise]);
+
     } catch (error) { 
         console.error("Error crítico de datos:", error);
         if (!isSilent) setDbError(true);
+        
+        try {
+            const cachedBienes = await localforage.getItem('bienes_cache');
+            if (cachedBienes && cachedBienes.length > 0) {
+                setBienes(cachedBienes);
+            }
+        } catch (e) {}
     } finally { 
-        // Solo quitamos la carga si NO es silencioso
-        if (!isSilent) setIsLoading(false); 
+        // Aseguramos que el estado de carga se apague sí o sí
+        setIsLoading(false); 
     }
-  }, []); 
+  }, []);
 
+  const clearAllFilters = () => { 
+      setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); 
+      setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); 
+      setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); 
+      setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
+  };
+  // --- MOTOR DE ARRANQUE DE DATOS ---
   useEffect(() => { 
-      if (!isAuthenticated) return;
-      
-      // 1. Carga inicial visual al abrir el sistema
-      fetchData(false); 
-      
-      // 2. Suscripción a WebSockets: Sincronización real e instantánea sin gastar Egress
-      const realtimeChannel = supabase
-          .channel('cambios-globales')
-          .on(
-              'postgres_changes',
-              { event: '*', schema: 'public' }, // Escucha Inserts, Updates o Deletes
-              (payload) => {
-                  // Solo descarga los datos si hubo un cambio real en la base de datos
-                  fetchData(true); 
-              }
-          )
-          .subscribe();
-
-      // Limpieza de la conexión al cerrar
-      return () => {
-          supabase.removeChannel(realtimeChannel);
-      };
-  }, [isAuthenticated, fetchData]);
-      
-  
-  const clearAllFilters = () => { setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); };
-  
+      if (isAuthenticated) {
+          fetchData(false); 
+          cargarNotificaciones();
+      }
+  }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
+  // -----------------------------------
   const handleLogin = async (e) => { 
     e.preventDefault(); 
     try {
         const { data: usuario, error } = await supabase
             .from('usuarios')
             .select('*')
-            .eq('username', loginUser)
-            .single();
+            .eq('username', loginUser.trim())
+            .maybeSingle();
 
-        if (error || !usuario || usuario.password !== loginPass) {
+        if (error || !usuario || usuario.password !== loginPass.trim()) {
             setLoginError(true);
             addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
             return;
@@ -514,7 +439,8 @@ export default function App() {
 
         const userSession = {
             ...usuario,
-            role: usuario.cargo === 'admin' ? 'admin' : 'user'
+            role: usuario.cargo === 'admin' ? 'admin' : 'user',
+            dependencia: usuario.dependencia || 'Rectorado' // <--- Asegura capturar la dependencia
         };
 
         localStorage.setItem('is_logged_in', 'true'); 
@@ -523,52 +449,69 @@ export default function App() {
         setLoginError(false); 
         setCurrentUser(userSession); 
         setIsAuthenticated(true); 
+        setDependenciaActual(userSession.dependencia); // <--- Establece el entorno del usuario
         
-        addToast(`Bienvenido, ${usuario.nombre}`, "success"); 
+        addToast(`Bienvenido, ${usuario.nombre} (${userSession.dependencia})`, "success"); 
     } catch (error) {
         setLoginError(true);
         addToast("Error al conectar con la base de datos", "error");
     }
   };
-  
+  const handleLogout = () => {
+    localStorage.removeItem('is_logged_in');
+    localStorage.removeItem('current_user');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setShowLogoutConfirm(false);
+  };
   const handleLogoUpload = (e) => { 
     const file = e.target.files[0]; 
     if (!file) return; 
+     new FileReader(); 
     const reader = new FileReader(); 
-    reader.onload = (event) => { 
-        const img = new Image(); 
-        img.onload = () => { 
-            const canvas = document.createElement('canvas'); 
-            const maxSize = 300; 
-            let width = img.width; 
-            let height = img.height; 
-            if (width > height) { 
-                if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
-            } else { 
-                if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
-            } 
-            canvas.width = width; 
-            canvas.height = height; 
-            const ctx = canvas.getContext('2d'); 
-            
-            ctx.clearRect(0, 0, width, height); 
-            ctx.drawImage(img, 0, 0, width, height); 
-            
-            const compressedLogo = canvas.toDataURL('image/png'); 
-            localStorage.setItem('logoOficial', compressedLogo); 
-            setAppLogo(compressedLogo); 
-            addToast("Logo oficial actualizado sin fondo opaco", "success"); 
-        }; 
-        img.src = event.target.result; 
+reader.onload = (event) => { 
+    const img = new Image(); 
+    img.onload = () => { 
+        const canvas = document.createElement('canvas'); 
+        const maxSize = 300; 
+        let width = img.width; 
+        let height = img.height; 
+        if (width > height) { 
+            if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
+        } else { 
+            if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
+        } 
+        canvas.width = width; 
+        canvas.height = height; 
+        const ctx = canvas.getContext('2d'); 
+        
+        ctx.clearRect(0, 0, width, height); 
+        ctx.drawImage(img, 0, 0, width, height); 
+        
+        const compressedLogo = canvas.toDataURL('image/png'); 
+        localStorage.setItem('logoOficial', compressedLogo); 
+        setAppLogo(compressedLogo); 
+        addToast("Logo oficial actualizado sin fondo opaco", "success"); 
     }; 
+    img.src = event.target.result; 
+};
     reader.readAsDataURL(file); 
     e.target.value = null; 
   };
 
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
-      // 1. Buscamos en los FC-10
-      fc10List.forEach(fc => { 
+      
+      // 1. Padrón oficial de la dependencia
+      funcionariosPadron.filter(f => f.dependencia === dependenciaActual).forEach(f => {
+          const nombreSeguro = String(f.nombre).trim();
+          if(!map.has(normalizeStr(nombreSeguro))) {
+              map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: f.cedula || '', cargo: f.cargo || '' });
+          }
+      });
+
+      // 2. FC-10 de la dependencia actual
+      fc10List.filter(fc => fc.dependencia === dependenciaActual).forEach(fc => { 
           if (fc.funcionarioNombre && String(fc.funcionarioNombre).trim() !== "") { 
               const nombreSeguro = String(fc.funcionarioNombre).trim(); 
               if(!map.has(normalizeStr(nombreSeguro))) { 
@@ -576,8 +519,9 @@ export default function App() {
               } 
           } 
       }); 
-      // 2. Buscamos también directo en los bienes registrados para no perder ningún custodio
-      bienes.forEach(b => {
+
+      // 3. Bienes de la dependencia actual
+      bienes.filter(b => b.dependencia === dependenciaActual).forEach(b => {
           if (b.funcionario && String(b.funcionario).trim() !== "") {
               const nombreSeguro = String(b.funcionario).trim();
               if(!map.has(normalizeStr(nombreSeguro))) {
@@ -585,8 +529,9 @@ export default function App() {
               }
           }
       });
+
       return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); 
-  }, [fc10List, bienes]);
+  }, [fc10List, bienes, funcionariosPadron, dependenciaActual]);
 
   const funcionariosUnicos = useMemo(() => { 
       const funcMap = new Map(); 
@@ -640,8 +585,9 @@ export default function App() {
 
   const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
   
-  const filteredBienes = useMemo(() => { 
-    let filtered = bienes.filter(b => b.dependencia === dependenciaActual); 
+ const filteredBienes = useMemo(() => { 
+    // Compara ignorando mayúsculas y espacios extra
+    let filtered = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual));
     if (filtroFuncionario) filtered = filtered.filter(b => String(b.funcionario||'').trim() === filtroFuncionario); 
     if (filtroUbicacion) filtered = filtered.filter(b => String(b.ubicacion||'').trim() === filtroUbicacion); 
     if (filtroAnio) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).year === filtroAnio); 
@@ -654,19 +600,43 @@ export default function App() {
     if (filtroQR === 'NO') filtered = filtered.filter(b => b.hasQR !== true); 
     if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
     if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
-    if (searchTerm) { const term = String(searchTerm).toLowerCase(); filtered = filtered.filter(b => String(b.rotulo || '').toLowerCase().includes(term) || String(b.descripcion || '').toLowerCase().includes(term) || String(b.cuenta || '').toLowerCase().includes(term) || String(b.ubicacion || '').toLowerCase().includes(term) || String(b.funcionario || '').toLowerCase().includes(term) ); } 
-    filtered.sort((a, b) => { const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; const numA = getSuffixNum(a.rotulo); const numB = getSuffixNum(b.rotulo); if (numA !== numB) return numA - numB; return String(a.rotulo || '').localeCompare(String(b.rotulo || '')); }); 
+    
+    // CORRECCIÓN: Unificar búsqueda con searchInput y searchTerm
+    const activeSearch = searchTerm || searchInput;
+    if (activeSearch) { 
+        const term = String(activeSearch).toLowerCase().trim(); 
+        filtered = filtered.filter(b => 
+            String(b.rotulo || '').toLowerCase().includes(term) || 
+            String(b.descripcion || '').toLowerCase().includes(term) || 
+            String(b.cuenta || '').toLowerCase().includes(term) || 
+            String(b.ubicacion || '').toLowerCase().includes(term) || 
+            String(b.funcionario || '').toLowerCase().includes(term) ||
+            String(b.funcionarioDoc || '').toLowerCase().includes(term)
+        ); 
+    } 
+
+    filtered.sort((a, b) => { 
+        const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; 
+        const numA = getSuffixNum(a.rotulo); 
+        const numB = getSuffixNum(b.rotulo); 
+        if (numA !== numB) return numA - numB; 
+        return String(a.rotulo || '').localeCompare(String(b.rotulo || '')); 
+    }); 
+    
     return filtered; 
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm, searchInput]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
-  
+  const [isConsolidatedFC10ModalOpen, setIsConsolidatedFC10ModalOpen] = useState(false);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
-  
-  const solicitudesBaja = useMemo(() => { return bienes.filter(b => b.solicitudBaja === true && b.dependencia === dependenciaActual); }, [bienes, dependenciaActual]);
+  const solicitudesBaja = useMemo(() => { 
+      return notificaciones.filter(
+          n => n.tipo === 'BAJA_BIEN' && n.estado === 'PENDIENTE' && n.dependencia === dependenciaActual
+      );
+  }, [notificaciones, dependenciaActual]);
 
   const handleDownloadLabelPNG = async (bien) => { setIsProcessing({ active: true, text: 'Generando Etiqueta...' }); setTimeout(async () => { try { const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if (dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`); addToast("Etiqueta descargada con éxito", "success"); } } catch (e) { addToast("Error al generar la etiqueta", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
   const handleDownloadSimpleQR = async (bien) => { setIsProcessing({ active: true, text: 'Procesando imagen QR...' }); try { const dataUrl = await generateSimpleQR(bien); if(dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `QR_${cleanRotulo}.png`); addToast("Código QR simple descargado", "success"); } } catch (e) { addToast("Error al descargar el QR", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } };
@@ -729,50 +699,6 @@ export default function App() {
       } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
     }, 100);
   };
-
-  const buildFC10PDFDoc = (fcs, bienesAListar) => {
-        const fc = fcs[0]; 
-        const { jsPDF } = window.jspdf; 
-        const doc = new jsPDF('p', 'mm', pdfPaperSize); 
-        const pageWidth = doc.internal.pageSize.width; 
-        const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); 
-        const monthNames = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"]; 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const fechaDocumento = fc.entregadoFecha || fc.fechaGeneracion || todayStr; 
-        let gYear = "2024", gMonth = "01";
-        if (fechaDocumento && fechaDocumento.includes('-')) {
-            const parts = fechaDocumento.split('-');
-            gYear = parts[0];
-            gMonth = parts[1];
-        }
-        const copias = ['ORIGINAL', 'DUPLICADO'];
-        for(let i = 0; i < 2; i++) {
-            if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE RESPONSABILIDAD INDIVIDUAL FC-10", pageWidth / 2, 38, { align: 'center' });
-            doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-            doc.setFontSize(10); doc.text(`PERIODO DE ELABORACIÓN: ${monthNames[parseInt(gMonth)-1] || ''} ${gYear}`, pageWidth / 2, 45, { align: 'center' });
-            let finalY = 52;
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '1. DATOS DE LA DEPENDENCIA ORGANIZACIONAL', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }, { content: 'CÓDIGO', styles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] } }], [`Institución (Entidad): UNIVERSIDAD NACIONAL DE PILAR`, `28`], [`Unidad Jerárquica: ${fc.unidad || ''}`, `${fc.unidadCod || ''}`], [`Repartición Administrativa: ${fc.reparticion || ''}`, `${fc.reparticionCod || ''}`], [`Dependencia Específica: ${fc.dependenciaOrg || ''}`, `${fc.dependenciaCod || ''}`], [`Área o Departamento: ${fc.area || ''}`, `${fc.areaCod || ''}`] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 1: { cellWidth: 35, halign: 'center', fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [{ content: '2. DATOS DEL FUNCIONARIO RESPONSABLE', colSpan: 2, styles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] } }], ["Nombre y Apellido:", fc.funcionarioNombre || ''], ["Cédula de Identidad N°:", formatCI(fc.funcionarioDoc || '')], ["Cargo que desempeña:", fc.funcionarioCargo || ''] ], styles: { fontSize: 8.5, cellPadding: 2.5, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, columnStyles: { 0: { cellWidth: 65, fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 4;
-            const tableRows = fcs.map((fcItem, idx) => { const b = bienesAListar[idx] || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (fcItem.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO', formatCurrency(fcItem.valorTotal || b.valorUnitario) ]; });
-            const totalGral = fcs.reduce((acc, fcItem, idx) => { const v = String(fcItem.valorTotal || bienesAListar[idx]?.valorUnitario || 0).replace(/\D/g, ''); return acc + (parseInt(v, 10) || 0); }, 0); tableRows.push([{content: `TOTAL GENERAL (${fcs.length} bienes)`, colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatCurrency(totalGral), styles: {fontStyle: 'bold', halign: 'right'}}]);
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR", "Valor Unitario (Gs.)"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 30 }, 1: { halign: 'center', cellWidth: 24 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 28 }, 4: { halign: 'center', cellWidth: 22 }, 5: { halign: 'center', cellWidth: 9 }, 6: { halign: 'right', fontStyle: 'bold', cellWidth: 28 } } }); finalY = doc.lastAutoTable.finalY + 4;
-            if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.text("Observaciones:", 14, finalY); finalY += 5; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' }); finalY += 6;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, head: [["TIPO DE MOVIMIENTO", "LUGAR", "FECHA", "RECEPTOR (Solo si es devolución)"]], body: [ ["ENTREGA", fc.entregadoLugar || '-', formatDateText(fc.entregadoFecha) || '-', ''], ["DEVOLUCIÓN", fc.devolucionLugar || '', formatDateText(fc.devolucionFecha) || '', fc.devolucionReceptor ? `${fc.devolucionReceptor} - ${fc.devolucionCargoReceptor}` : ''] ], styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, halign: 'center' }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', textColor: [32,33,36] }, columnStyles: { 0: { fontStyle: 'bold' } } }); finalY = doc.lastAutoTable.finalY + 8;
-            if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "normal"); doc.setFontSize(7.5); doc.text("Con la firma del presente documento, el funcionario asume la total responsabilidad por la tenencia, uso y debida conservación del bien patrimonial detallado. Asimismo, se obliga a informar al Departamento de Bienes Patrimoniales sobre su renuncia, traslado o desvinculación del cargo, así como reportar inmediatamente cualquier daño, pérdida o hurto del bien asignado para su gestión, en estricto cumplimiento del Manual de Normas y Procedimientos para la Administración, Uso, Custodia, Clasificación y Contabilización de los Bienes del Estado del Ministerio de Economía y Finanzas.", 14, finalY, { maxWidth: pageWidth - 28, align: 'justify', lineHeightFactor: 1.5 });
-            if (finalY > pageHeight - 60) { doc.addPage(); finalY = 30; } else { finalY += 35; }
-            doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(20, finalY, 90, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Firma del Funcionario Responsable", 55, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text(`Aclaración: ${fc.funcionarioNombre || ''}`, 20, finalY + 10); doc.text(`C.I.: ${formatCI(fc.funcionarioDoc || '')}`, 20, finalY + 15);
-            doc.line(120, finalY, 190, finalY); doc.setFont("helvetica", "bold"); doc.text("Visto Bueno (Jefe Inmediato)", 155, finalY + 5, { align: 'center' }); doc.setFont("helvetica", "normal"); doc.text("Aclaración:", 120, finalY + 10);
-        }
-        return { doc, fechaDocumento, fc };
-  };
-
   const handleGenerateFC10PDF = (fcsData, bienesData) => {
     const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
     const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
@@ -794,7 +720,34 @@ export default function App() {
       }
     }, 100);
   };
+  const handleGenerateConsolidatedFC10PDF = (funcionarioNombreSeleccionado) => {
+    const vigentes = bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && b.estadoConservacion !== 'De Baja');
+    const bienesDelFuncionario = vigentes.filter(b => normalizeStr(b.funcionario) === normalizeStr(funcionarioNombreSeleccionado));
+    
+    if (bienesDelFuncionario.length === 0) return addToast("No se encontraron bienes activos para este funcionario.", "warning");
 
+    const funcionarioPadronInfo = funcionariosPadron.find(f => normalizeStr(f.nombre) === normalizeStr(funcionarioNombreSeleccionado)) || {
+        cedula: 'S/D',
+        cargo: 'Funcionario'
+    };
+
+    const fc10Base = {
+        funcionarioNombre: funcionarioNombreSeleccionado,
+        funcionarioDoc: funcionarioPadronInfo.cedula,
+        funcionarioCargo: funcionarioPadronInfo.cargo || 'Funcionario'
+    };
+
+    const fcsVirtuales = bienesDelFuncionario.map(b => ({
+        ...fc10Base,
+        bienId: b.id,
+        estadoConservacion: b.estadoConservacion,
+        valorTotal: b.valorUnitario,
+        entregadoFecha: b.fechaAdquisicion || new Date().toISOString().split('T')[0]
+    }));
+
+    handleGenerateFC10PDF(fcsVirtuales, bienesDelFuncionario);
+    setIsConsolidatedFC10ModalOpen(false);
+  };
   const handleExportFC10CSV = () => {
     const fcsAnuales = fc10List.filter(fc => {
         if (fc.dependencia !== dependenciaActual) return false;
@@ -1121,30 +1074,7 @@ export default function App() {
       if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Masiva_Bienes.csv");
       addToast("Plantilla Excel (CSV) base descargada", "success");
   };
-
-  const handleExportInventarioCSV = () => {
-      if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
-      setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
-      setTimeout(() => {
-          let csvContent = "\uFEFFCuenta;Subcuenta;Analitico 1;Analitico 2;Rotulo;Descripcion;Dependencia;Ubicacion;Funcionario;Fecha Adquisicion;Valor Unitario (Gs.);Estado Conservacion;Vida Util;Tiene FC10;Tiene QR\n";
-          filteredBienes.forEach(b => {
-              const row = [
-                  b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-',
-                  b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
-                  b.dependencia || '-', b.ubicacion || '-', b.funcionario || '-',
-                  formatDateText(b.fechaAdquisicion) || '-', b.valorUnitario || '0',
-                  b.estadoConservacion || '-', b.vidaUtil || '-',
-                  b.hasFC10 ? 'SI' : 'NO', b.hasQR ? 'SI' : 'NO'
-              ];
-              csvContent += row.join(';') + "\n";
-          });
-          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-          if (window.saveAs) window.saveAs(blob, `Reporte_Inventario_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
-          setIsProcessing({ active: false, text: '' });
-          addToast("Reporte Excel descargado exitosamente", "success");
-      }, 100);
-  };
-
+ 
   const handleFileUpload = (e) => {
     const file = e.target.files[0]; if (!file) return; setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
     setTimeout(() => {
@@ -1199,6 +1129,235 @@ export default function App() {
       }; reader.readAsArrayBuffer(file); e.target.value = null;
     }, 100);
   };
+  const handleExportInventarioCSV = () => {
+      if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
+      setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
+      setTimeout(() => {
+          let csvContent = "\uFEFFCuenta;Subcuenta;Analitico 1;Analitico 2;Rotulo;Descripcion;Dependencia;Ubicacion;Funcionario;Fecha Adquisicion;Valor Unitario (Gs.);Estado Conservacion;Vida Util;Tiene FC10;Tiene QR\n";
+          filteredBienes.forEach(b => {
+              const row = [
+                  b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-',
+                  b.rotulo || '-', `"${(b.descripcion || '').replace(/"/g, '""')}"`,
+                  b.dependencia || '-', b.ubicacion || '-', b.funcionario || '-',
+                  formatDateText(b.fechaAdquisicion) || '-', b.valorUnitario || '0',
+                  b.estadoConservacion || '-', b.vidaUtil || '-',
+                  b.hasFC10 ? 'SI' : 'NO', b.hasQR ? 'SI' : 'NO'
+              ];
+              csvContent += row.join(';') + "\n";
+          });
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          if (window.saveAs) window.saveAs(blob, `Reporte_Inventario_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+          setIsProcessing({ active: false, text: '' });
+          addToast("Reporte Excel descargado exitosamente", "success");
+      }, 100);
+  };
+  const sincronizarBienesConPadron = async () => {
+    let actualizados = 0;
+    const nuevosBienes = bienes.map(b => {
+        if (b.funcionario && String(b.funcionario).trim() !== "") {
+            const match = funcionariosPadron.find(f => 
+                normalizeStr(f.nombre) === normalizeStr(b.funcionario) && 
+                (f.dependencia === b.dependencia || !f.dependencia)
+            );
+            if (match) {
+                actualizados++;
+                return { ...b, funcionarioDoc: match.cedula, funcionarioCargo: match.cargo };
+            }
+        }
+        return b;
+    });
+
+    if (actualizados > 0) {
+        setBienes(nuevosBienes);
+        try {
+            for (const b of nuevosBienes) {
+                const payload = { id: b.id, data: b };
+                await supabase.from('bens').update(payload).eq('id', b.id);
+            }
+            await localforage.setItem('bienes_cache', nuevosBienes);
+            addToast(`Se sincronizaron y guardaron ${actualizados} bienes con el padrón.`, "success");
+            await fetchData(true);
+        } catch (err) {
+            console.error(err);
+            addToast("Error al guardar la sincronización en la base de datos.", "error");
+        }
+    } else {
+        addToast("No se encontraron coincidencias de nombres entre los bienes y el padrón.", "warning");
+    }
+  };
+  const handleFileUploadFuncionarios = (e) => {
+    const file = e.target.files[0]; if (!file) return; 
+    setIsProcessing({ active: true, text: 'Leyendo planilla de funcionarios...' });
+    
+    setTimeout(() => {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const buffer = event.target.result;
+        
+        // FORZAR LA DECODIFICACIÓN EN UTF-8 PARA CORREGIR TILDES Y Ñ
+        const decoder = new TextDecoder('utf-8');
+        const text = decoder.decode(buffer);
+        
+        const lines = text.split(/\r?\n/); 
+        
+        if (lines.length < 1) { 
+            addToast("El archivo CSV está vacío.", "warning"); 
+            setIsProcessing({ active: false, text: '' }); 
+            return; 
+        }
+        
+        const validos = [];
+        const duplicados = [];
+        const errores = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = String(lines[i]).trim(); 
+          if (!line) continue;
+          
+          const separator = line.includes(';') ? ';' : ',';
+          const parts = line.split(separator).map(p => p.replace(/"/g, '').trim());
+          
+          if (i === 0 && (parts[0].toLowerCase().includes('cedula') || parts[0].toLowerCase().includes('c.i.'))) {
+              continue;
+          }
+          
+          if (parts.length < 2) {
+              errores.push({ linea: i + 1, motivo: 'Estructura insuficiente (faltan columnas)' });
+              continue;
+          }
+
+          const cedulaCSV = parts[0].replace(/\./g, '');
+          const nombreCSV = parts[1]; // Aquí ya se leerá correctamente "Delcy Maximina Amarilla Fernández"
+          const cargoCSV = parts[2] || '';
+
+          if (!cedulaCSV || !nombreCSV) {
+              errores.push({ linea: i + 1, motivo: 'Cédula o Nombre vacíos' });
+              continue;
+          }
+
+          const isDuplicateDB = funcionariosPadron.some(f => String(f.cedula).trim() === cedulaCSV && f.dependencia === dependenciaActual);
+          const isDuplicateBatch = validos.some(f => String(f.cedula).trim() === cedulaCSV);
+          const huérfanoExistente = funcionariosPadron.find(f => f.cedula === 'S/C' && normalizeStr(f.nombre) === normalizeStr(nombreCSV) && f.dependencia === dependenciaActual);
+
+          const nuevoFunc = { 
+              id: huérfanoExistente ? huérfanoExistente.id : generateId(), 
+              cedula: cedulaCSV, 
+              nombre: nombreCSV, 
+              cargo: cargoCSV, 
+              dependencia: dependenciaActual,
+              esActualizacion: !!huérfanoExistente 
+          };
+
+          if (isDuplicateDB || isDuplicateBatch) {
+              duplicados.push(nuevoFunc);
+          } else {
+              validos.push(nuevoFunc);
+          }
+        }
+
+        setIsProcessing({ active: false, text: '' });
+        setPendingFuncionariosToImport(validos);
+        setCsvPreviewData({ validos, duplicados, errores, tipo: 'funcionarios' });
+        setIsCSVPreviewOpen(true);
+      }; 
+      
+      // CAMBIAR A READASARRAYBUFFER PARA PERMITIR EL DECODER UTF-8
+      reader.readAsArrayBuffer(file); 
+      e.target.value = null;
+    }, 100);
+  };
+  const handleSaveManualFuncionario = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      const nuevoFunc = {
+          id: generateId(),
+          cedula: f.get('cedula').replace(/\./g, '').trim(),
+          nombre: f.get('nombre').trim(),
+          cargo: f.get('cargo').trim(),
+          dependencia: dependenciaActual
+      };
+
+      if (!nuevoFunc.cedula || !nuevoFunc.nombre) return addToast("Cédula y Nombre son obligatorios.", "warning");
+
+      try {
+          const { error } = await supabase.from('funcionarios').insert([nuevoFunc]);
+          if (error) throw error;
+          await fetchData();
+          addToast("Funcionario registrado exitosamente", "success");
+          setIsNewFuncionarioModalOpen(false);
+      } catch (err) {
+          addToast("Error al registrar el funcionario en la base de datos.", "error");
+      }
+  };
+
+  const handleDownloadTemplateFuncionarios = () => {
+      const csvContent = "\uFEFFCédula;Nombre Completo;Cargo\n1234567;Juan Pérez;Asistente Administrativo\n7654321;María Gómez;Directora de Área";
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Funcionarios.csv");
+      addToast("Plantilla CSV del padrón descargada", "success");
+  };
+  const confirmCSVImportFuncionarios = async () => {
+    if (pendingFuncionariosToImport.length === 0) return;
+    setIsProcessing({ active: true, text: 'Sincronizando funcionarios...' });
+    
+    try {
+        const porActualizar = pendingFuncionariosToImport.filter(f => f.esActualizacion);
+        const porInsertar = pendingFuncionariosToImport.filter(f => !f.esActualizacion);
+
+        if (porInsertar.length > 0) {
+            // Limpiamos el objeto para quitar 'esActualizacion' antes de insertar
+            const payloadInsert = porInsertar.map(({ esActualizacion, ...rest }) => rest);
+            const { error: errIns } = await supabase.from('funcionarios').insert(payloadInsert);
+            if (errIns) throw errIns;
+        }
+
+        for (const act of porActualizar) {
+            const { error: errUpd } = await supabase.from('funcionarios')
+                .update({ cedula: act.cedula, cargo: act.cargo, nombre: act.nombre })
+                .eq('id', act.id);
+            if (errUpd) throw errUpd;
+        }
+        
+        await fetchData();
+        addToast(`¡Éxito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
+    } catch (error) {
+        console.error(error);
+        addToast("Error al sincronizar con la base de datos.", "error");
+    } finally {
+        setIsProcessing({ active: false, text: '' });
+        setIsCSVPreviewOpen(false);
+        setPendingFuncionariosToImport([]);
+    }
+  };
+  const handleDeleteFuncionario = (id) => {
+    setItemToDelete({ type: 'funcionario', id });
+  };
+const handleEditFuncionario = (funcionario) => {
+    setFuncionarioToEdit(funcionario);
+    setIsFuncionarioModalOpen(true);
+  };
+
+  const saveFuncionarioEdit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const nuevoNombre = formData.get('nombre').trim();
+    const nuevoCargo = formData.get('cargo').trim();
+
+    try {
+        const { error } = await supabase
+          .from('funcionarios')
+          .update({ nombre: nuevoNombre, cargo: nuevoCargo })
+          .eq('id', funcionarioToEdit.id);
+        
+        if (error) throw error;
+        await fetchData();
+        addToast("Funcionario actualizado exitosamente", "success");
+        setIsFuncionarioModalOpen(false);
+    } catch (err) {
+        addToast("Error al actualizar el funcionario", "error");
+    }
+  };
+
 
   const saveUsuario = async (e) => {
     e.preventDefault();
@@ -1208,7 +1367,6 @@ export default function App() {
     try {
         let res;
         if (usuarioEditing) {
-            // Agregamos la dependencia a los datos que se actualizan
             const updateData = { nombre: userData.nombre, cargo: userData.cargo, dependencia: userData.dependencia };
             if (userData.password) updateData.password = userData.password;
             res = await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
@@ -1236,16 +1394,54 @@ export default function App() {
     if (!form || !form.reportValidity()) return;
 
     setIsSaving(true);
+    setIsProcessing({ active: true, text: 'Guardando y sincronizando activo...' });
+
     const formData = new FormData(form); 
     const rotuloInput = formData.get('rotulo').trim(); 
     const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && b.dependencia === dependenciaActual && (!bienEditing || b.id !== bienEditing.id)); 
     if (isDuplicate) { 
         addToast(`El rótulo "${rotuloInput}" ya está registrado en esta dependencia.`, "error"); 
         setIsSaving(false);
+        setIsProcessing({ active: false, text: '' });
         return; 
     }
+
+    const funcNombre = formData.get('funcionario').trim();
+    let funcDoc = formData.get('funcionarioDoc')?.trim() || '';
+    let funcCargo = formData.get('funcionarioCargo')?.trim() || '';
+
+    // Autocompletar desde el padrón si existe coincidencia exacta por nombre o cédula
+    if (funcNombre) {
+        const matchPadron = funcionariosPadron.find(f => 
+            normalizeStr(f.nombre) === normalizeStr(funcNombre) || 
+            String(f.cedula).trim() === funcDoc.replace(/\./g, '')
+        );
+        if (matchPadron) {
+            funcDoc = matchPadron.cedula;
+            funcCargo = matchPadron.cargo || funcCargo;
+        }
+    }
     
-    const bienData = { id: bienEditing ? bienEditing.id : generateId(), dependencia: dependenciaActual, cuenta: formData.get('cuenta') || '', subcuenta: formData.get('subcuenta') || '', analitico1: formData.get('analitico1') || '', analitico2: formData.get('analitico2') || '', descripcion: formData.get('descripcion'), fechaAdquisicion: formData.get('fechaAdquisicion'), rotulo: rotuloInput, valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), funcionario: formData.get('funcionario').trim(), ubicacion: formData.get('ubicacion').trim(), estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', vidaUtil: formData.get('vidaUtil') || '', hasFC10: bienEditing ? bienEditing.hasFC10 : false, hasQR: formData.get('hasQR') === 'on' };
+    const bienData = { 
+        id: bienEditing ? bienEditing.id : generateId(), 
+        dependencia: dependenciaActual, 
+        cuenta: formData.get('cuenta') || '', 
+        subcuenta: formData.get('subcuenta') || '', 
+        analitico1: formData.get('analitico1') || '', 
+        analitico2: formData.get('analitico2') || '', 
+        descripcion: formData.get('descripcion'), 
+        fechaAdquisicion: formData.get('fechaAdquisicion'), 
+        rotulo: rotuloInput, 
+        valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), 
+        funcionario: funcNombre, 
+        funcionarioDoc: funcDoc, 
+        funcionarioCargo: funcCargo, 
+        ubicacion: formData.get('ubicacion').trim(), 
+        estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', 
+        vidaUtil: formData.get('vidaUtil') || '', 
+        hasFC10: bienEditing ? bienEditing.hasFC10 : false, 
+        hasQR: formData.get('hasQR') === 'on' 
+    };
     
     try { 
         let res;
@@ -1257,6 +1453,15 @@ export default function App() {
         }
 
         if (!res.error) {
+            if (funcNombre && funcDoc) {
+                const funcExists = funcionariosPadron.find(f => f.cedula === funcDoc && f.dependencia === dependenciaActual);
+                if (!funcExists) {
+                    const newFunc = { id: generateId(), cedula: funcDoc, nombre: funcNombre, cargo: funcCargo, dependencia: dependenciaActual };
+                    await supabase.from('funcionarios').insert([newFunc]);
+                    setFuncionariosPadron(prev => [...prev, newFunc]);
+                }
+            }
+
             setBienes(prev => {
                 if (bienEditing) {
                     return prev.map(b => b.id === bienData.id ? bienData : b);
@@ -1276,7 +1481,7 @@ export default function App() {
             await localforage.setItem('bienes_cache', nuevoCache);
 
             if (keepOpen) {
-                addToast(`"${rotuloInput}" guardado.`, "success");
+                addToast(`"${rotuloInput}" guardado y sincronizado.`, "success");
                 form.elements['rotulo'].value = '';
                 form.elements['descripcion'].value = '';
                 if(form.elements['hasQR']) form.elements['hasQR'].checked = false;
@@ -1284,7 +1489,7 @@ export default function App() {
                 setBienEditing(null);
             } else {
                 setIsBienModalOpen(false); 
-                addToast("Bien guardado exitosamente", "success"); 
+                addToast("Bien guardado y actualizado con el padrón", "success"); 
             }
         } else {
             addToast("Error al guardar en el servidor.", "error");
@@ -1293,6 +1498,7 @@ export default function App() {
         addToast("Error al guardar.", "error"); 
     } finally {
         setIsSaving(false);
+        setIsProcessing({ active: false, text: '' });
     }
   };
 
@@ -1420,111 +1626,6 @@ export default function App() {
         addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
     } catch (error) { console.error(error); addToast("Error al guardar.", "error"); }
   };
-
-  const confirmDeleteAction = async () => {
-    if (!itemToDelete) return; 
-    const { type, id, username, item } = itemToDelete;
-    
-    try { 
-        let res = { error: null };
-        
-        if (type === 'requestBaja') {
-            const updatedBien = { ...item, solicitudBaja: true, bajaSolicitadaPor: currentUser?.username || 'Usuario' };
-            res = await supabase.from('bens').update({ data: updatedBien }).eq('id', id);
-            if (!res.error) {
-                setBienes(prev => prev.map(b => b.id === id ? updatedBien : b));
-                addToast("Solicitud de baja enviada a revisión.", "warning");
-            }
-        }
-        else {
-            if (type === 'bien') {
-                if (item.estadoConservacion === 'De Baja') {
-                    res = await supabase.from('bens').delete().eq('id', id);
-                } else {
-                    const updatedItem = { ...item, estadoConservacion: 'De Baja' };
-                    res = await supabase.from('bens').update({ data: updatedItem }).eq('id', id);
-                }
-            }
-            else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
-            else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
-            else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
-            else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
-
-            if (!res.error) {
-                if (type === 'bien') {
-                    if (item.estadoConservacion === 'De Baja') {
-                        setBienes(prev => prev.filter(b => b.id !== id));
-                        const cacheActual = await localforage.getItem('bienes_cache') || [];
-                        await localforage.setItem('bienes_cache', cacheActual.filter(b => b.id !== id));
-                    } else {
-                        setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
-                        const cacheActual = await localforage.getItem('bienes_cache') || [];
-                        await localforage.setItem('bienes_cache', cacheActual.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
-                    }
-                }
-                else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id)); 
-                else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
-                
-                addToast(type === 'bien' && item.estadoConservacion !== 'De Baja' ? "Bien pasado a estado de baja" : "Registro eliminado permanentemente", "success"); 
-            } else {
-                addToast(res.error.message || "No se pudo completar en el servidor.", "error");
-            }
-        }
-        fetchData();
-    } catch (e) { 
-        addToast("Error de red al procesar la solicitud.", "error");
-    } finally {
-        setItemToDelete(null); 
-    }
-  };
-  
-  const submitResolucionBaja = async (e) => {
-      e.preventDefault();
-      const { bien, accion } = resolucionBaja;
-      setIsProcessing({ active: true, text: 'Procesando resolución...' });
-
-      try {
-          const updatedBien = { 
-              ...bien, 
-              solicitudBaja: false, 
-              estadoConservacion: accion === 'aprobar' ? 'De Baja' : bien.estadoConservacion 
-          };
-
-          const res = await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
-          
-          if (!res.error) {
-              setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
-              
-              if (bien.bajaSolicitadaPor) {
-                  const notif = {
-                      id: generateId(),
-                      tipoRegistro: 'NOTIFICACION',
-                      usuarioDestino: bien.bajaSolicitadaPor,
-                      titulo: accion === 'aprobar' ? 'Solicitud de Baja Aprobada' : 'Solicitud de Baja Rechazada',
-                      mensaje: accion === 'aprobar' 
-                          ? `La solicitud de baja para el bien "${bien.rotulo}" fue aprobada. ${motivoResolucion ? 'Observaciones: ' + motivoResolucion : ''}`
-                          : `Se rechaza la eliminación del bien "${bien.rotulo}". Motivo: ${motivoResolucion}`,
-                      leido: false,
-                      fecha: new Date().toISOString(),
-                      bienId: bien.id,
-                      accion: accion
-                  };
-                  await supabase.from('auditoria').insert([{ id: notif.id, data: notif }]);
-                  setNotificaciones(prev => [notif, ...prev]);
-              }
-              
-              addToast(accion === 'aprobar' ? "Baja aprobada exitosamente." : "Solicitud rechazada.", "success");
-          }
-      } catch (e) { 
-          addToast("Error al procesar la resolución.", "error"); 
-      } finally {
-          setIsProcessing({ active: false, text: '' });
-          setResolucionBaja(null);
-      }
-  };
-
   const markAsRead = async (notif) => {
       if(notif.leido) return;
       const updated = {...notif, leido: true};
@@ -1563,8 +1664,16 @@ export default function App() {
           case 'openFC10': openFC10Modal(item); break; 
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
-          case 'deleteBien': setItemToDelete({type:'bien', id:item.id, item}); break; 
-          case 'requestBaja': setItemToDelete({type:'requestBaja', id:item.id, item}); break;
+          case 'deleteBien': 
+              if (isAdmin) {
+                  setItemToDelete({ type: 'bien', id: item.id, item }); 
+              } else {
+                  setItemToDelete({ type: 'requestBaja', id: item.id, item });
+              }
+              break; 
+          case 'requestBaja': 
+              setItemToDelete({ type: 'requestBaja', id: item.id, item });
+              break;
           case 'printFC10': handleGenerateFC10PDF([extraData], [item]); break; 
           default: break; 
       } 
@@ -1618,6 +1727,122 @@ export default function App() {
       </div>
     </div>
   );
+  const renderPaginationFuncionarios = () => (
+    <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
+      <span className="text-sm text-zinc-500 font-medium">
+        Mostrando <span className="font-bold text-zinc-900 dark:text-white">
+          {(currentPaginaFuncionarios - 1) * itemsPorPaginaFuncs + (funcionariosPurosDependencia.length > 0 ? 1 : 0)} - {Math.min(currentPaginaFuncionarios * itemsPorPaginaFuncs, funcionariosPurosDependencia.length)}
+        </span> de {funcionariosPurosDependencia.length}
+      </span>
+      <div className="flex gap-2">
+        <button 
+          disabled={currentPaginaFuncionarios <= 1} 
+          onClick={() => setCurrentPaginaFuncionarios(prev => prev - 1)} 
+          className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer"
+        >
+          Anterior
+        </button>
+        <button 
+          disabled={currentPaginaFuncionarios >= totalPagesFuncs || totalPagesFuncs === 0} 
+          onClick={() => setCurrentPaginaFuncionarios(prev => prev + 1)} 
+          className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer"
+        >
+          Siguiente
+        </button>
+      </div>
+    </div>
+  );
+  const submitResolucionBaja = async (e) => {
+      e.preventDefault();
+      const { bien, accion } = resolucionBaja;
+      setIsProcessing({ active: true, text: 'Procesando resolución...' });
+
+      try {
+          const notifPendiente = notificaciones.find(
+              n => n.tipo === 'BAJA_BIEN' && (n.bienId === bien.id || n.bien_id === bien.id) && n.estado === 'PENDIENTE'
+          );
+
+          if (notifPendiente) {
+              const notifActualizada = { ...notifPendiente, estado: accion === 'aprobar' ? 'APROBADO' : 'RECHAZADO' };
+              await supabase.from('notificaciones').update({ data: notifActualizada }).eq('id', notifPendiente.id);
+          }
+
+          if (accion === 'aprobar') {
+              const bienReal = bienes.find(b => b.id === bien.id);
+              if (bienReal) {
+                  const updatedBien = { ...bienReal, estadoConservacion: 'De Baja' };
+                  await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
+                  setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
+                  
+                  const cacheActual = await localforage.getItem('bienes_cache') || [];
+                  await localforage.setItem('bienes_cache', cacheActual.map(b => b.id === bien.id ? updatedBien : b));
+              }
+          }
+          
+          addToast(accion === 'aprobar' ? "Baja aprobada exitosamente." : "Solicitud rechazada.", "success");
+          await fetchData(true);
+      } catch (e) { 
+          addToast("Error al procesar la resolución.", "error"); 
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+          setResolucionBaja(null);
+      }
+  };
+
+  // --- INICIO DE CÓDIGO RESTAURADO ---
+  const cargarNotificaciones = async () => {
+      const { data, error } = await supabase.from('notificaciones').select('*');
+      if (!error && data) {
+          const parsed = data.map(item => {
+              const d = item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item;
+              return { id: item.id, ...d };
+          });
+          setNotificaciones(parsed);
+      }
+  };
+
+  const solicitarBajaBien = async (bien) => {
+      const solicitudId = generateId();
+      const nuevaSolicitud = { id: solicitudId, bienId: bien.id, rotulo: bien.rotulo, descripcion: bien.descripcion, ubicacion: bien.ubicacion, funcionario: bien.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: bien.dependencia, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', created_at: new Date().toISOString() };
+      const { error } = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
+      if (!error) { addToast("Solicitud enviada.", "success"); cargarNotificaciones(); }
+  };
+
+  const confirmDeleteAction = async () => {
+      if (!itemToDelete) return; 
+      const { type, id, username, item } = itemToDelete;
+      try { 
+          let res = { error: null };
+          if (type === 'requestBaja') {
+              const solicitudId = generateId();
+              const nuevaSolicitud = { id: solicitudId, bienId: item.id || id, rotulo: item.rotulo, descripcion: item.descripcion, ubicacion: item.ubicacion, funcionario: item.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: item.dependencia, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', created_at: new Date().toISOString() };
+              res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
+              if (!res.error) { addToast("Solicitud enviada.", "success"); cargarNotificaciones(); }
+          } else {
+              if (type === 'bien') {
+                  if (item.estadoConservacion === 'De Baja') { res = await supabase.from('bens').delete().eq('id', id); } 
+                  else { res = await supabase.from('bens').update({ data: { ...item, estadoConservacion: 'De Baja' } }).eq('id', id); }
+              }
+              else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
+              else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
+              else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
+              else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
+              else if (type === 'funcionario') res = await supabase.from('funcionarios').delete().eq('id', id);
+
+              if (!res.error) addToast("Acción completada", "success");
+          }
+          fetchData(false);
+      } catch (e) { addToast("Error de red.", "error"); } 
+      finally { setItemToDelete(null); }
+  };
+
+  useEffect(() => {
+      if (isAuthenticated) {
+          fetchData(false);
+          cargarNotificaciones();
+      }
+  }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
+  // --- FIN DE CÓDIGO RESTAURADO ---
 
   if (isCheckingMaintenance) {
       return (
@@ -1648,22 +1873,35 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base">
+    <div className={`${darkMode ? 'dark' : ''} flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`}>
       <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+      <input type="file" accept=".csv" className="hidden" ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
       
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
+      <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none">
         
         {!isOnline && (
-          <div className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-amber-500 text-white transition-all animate-slide-up mb-2">
-            <i className="fa-solid fa-wifi-slash text-lg"></i>
+          <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
+            <i className="fa-solid fa-wifi-slash text-base"></i>
             <span className="flex-1">Sin conexión a red (Modo Local)</span>
           </div>
         )}
 
         {toasts.map(t => (
-          <div key={t.id} className={`pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-md shadow-lg text-sm font-medium bg-[#323232] text-white transition-all animate-slide-up`}>
-            <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-green-400' : t.type === 'error' ? 'fa-circle-exclamation text-red-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-orange-400' : 'fa-circle-info text-blue-400'} text-lg`}></i>
-            <span className="flex-1">{t.message}</span>
+          <div key={t.id} className="pointer-events-auto flex items-center gap-3.5 px-5 py-4 min-w-[320px] max-w-md rounded-[20px] shadow-2xl text-xs font-bold bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-100 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800 transition-all animate-slide-up">
+            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-inner ${
+              t.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50' : 
+              t.type === 'error' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50' : 
+              t.type === 'warning' ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/50' : 
+              'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/50'
+            }`}>
+              <i className={`fa-solid ${
+                t.type === 'success' ? 'fa-circle-check text-sm' : 
+                t.type === 'error' ? 'fa-circle-exclamation text-sm' : 
+                t.type === 'warning' ? 'fa-triangle-exclamation text-sm' : 
+                'fa-circle-info text-sm'
+              }`}></i>
+            </div>
+            <span className="flex-1 leading-relaxed">{t.message}</span>
           </div>
         ))}
         
@@ -1690,145 +1928,6 @@ export default function App() {
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
-             
-                {activeTab === 'aprobaciones' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shadow-2xs">
-                          <i className="fa-solid fa-check-to-slot text-xl"></i>
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Centro de Aprobaciones</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Revisión de solicitudes de exclusión de patrimonio enviadas por funcionarios</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
-                        {solicitudesBaja.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-center h-full min-h-[380px]">
-                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 mb-5 text-emerald-500 ring-1 ring-emerald-500/20 shadow-2xs">
-                                    <i className="fa-solid fa-check-double text-3xl"></i>
-                                </div>
-                                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Todo al día</h3>
-                                <p className="mt-1.5 text-xs font-semibold text-zinc-400 max-w-sm">No existen solicitudes de baja pendientes de revisión para esta dependencia.</p>
-                            </div>
-                        ) : (
-                            <div className="flex-1 overflow-auto custom-scrollbar">
-                              <table className="min-w-full text-left">
-                                <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                                  <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                    <th className="py-3.5 pl-6 pr-4 w-1/3">Bien Solicitado</th>
-                                    <th className="px-4 py-3.5 w-1/3">Custodio Actual</th>
-                                    <th className="relative py-3.5 pl-4 pr-6 text-right">Acción de Revisión</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                                  {solicitudesBaja.map(b => (
-                                    <tr key={b.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
-                                        <td className="py-4 pl-6 pr-4 align-middle">
-                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm font-mono">{b.rotulo}</div>
-                                            <div className="text-xs font-medium text-zinc-500 mt-1 line-clamp-1">{b.descripcion}</div>
-                                        </td>
-                                        <td className="px-4 py-4 align-middle">
-                                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{b.funcionario || 'No asignado'}</div>
-                                            <div className="text-[11px] text-zinc-400 mt-0.5">{b.ubicacion || 'Sin ubicación'}</div>
-                                        </td>
-                                        <td className="relative py-4 pl-4 pr-6 align-middle text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => openResolucionModal(b, 'rechazar')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border shadow-2xs hover:shadow-xs transition-all cursor-pointer">
-                                                    <i className="fa-solid fa-xmark text-red-500"></i> Rechazar
-                                                </button>
-                                                <button onClick={() => openResolucionModal(b, 'aprobar')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-xs hover:shadow-md cursor-pointer">
-                                                    <i className="fa-solid fa-check"></i> Aprobar Baja
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                        )}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === 'usuarios' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                          <i className="fa-solid fa-users-gear text-xl"></i>
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión de cuentas y roles de acceso al sistema</p>
-                        </div>
-                      </div>
-                      
-                      <button onClick={() => { setUsuarioEditing(null); setIsUsuarioModalOpen(true); }} className={STYLES.btnPrimary}>
-                        <i className="fa-solid fa-user-plus"></i> Nuevo Usuario
-                      </button>
-                    </div>
-
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
-                        <div className="flex-1 overflow-auto custom-scrollbar">
-                          <table className="min-w-full text-left">
-                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                              <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                <th className="py-3.5 pl-6 pr-4 w-1/3">Usuario y Nombre</th>
-                                <th className="px-4 py-3.5 w-1/3">Rol de Sistema</th>
-                                <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                              {usuariosList.map(u => (
-                                <tr key={u.username} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50 transition-colors border-b border-zinc-50 dark:border-darkbg-border/30">
-                                    <td className="py-3 pl-6 pr-4 align-middle">
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-bold text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-sm">
-                                              {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
-                                          </div>
-                                          <div>
-                                              <div className="font-semibold text-zinc-900 dark:text-white text-sm">{u.nombre}</div>
-                                              <div className="text-xs text-zinc-500 mt-0.5">@{u.username}</div>
-                                          </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-middle">
-                                        {u.cargo === 'admin' 
-                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-900/20 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-shield-halved text-[10px]"></i> Administrador</span>
-                                            : <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 shadow-sm"><i className="fa-solid fa-user text-[10px]"></i> Funcionario</span>
-                                        }
-                                    </td>
-                                    <td className="relative py-3 pl-4 pr-6 align-middle text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary transition-colors cursor-pointer" title="Editar">
-                                              <i className="fa-solid fa-pen-to-square"></i>
-                                          </button>
-                                          {u.username !== currentUser.username && (
-                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="text-zinc-400 hover:text-red-500 transition-colors cursor-pointer" title="Eliminar">
-                                                  <i className="fa-solid fa-trash-can"></i>
-                                              </button>
-                                          )}
-                                        </div>
-                                    </td>
-                                </tr>
-                              ))}
-                              {usuariosList.length === 0 && (
-                                <tr>
-                                  <td colSpan="3" className="p-12 text-center text-sm font-medium text-zinc-400 italic">No hay usuarios registrados en el sistema.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                    </div>
-                  </div>
-                )}
-
                 {activeTab === 'dashboard' && (
                   <div className="space-y-6 animate-fade-in pb-8">
                     
@@ -2006,7 +2105,6 @@ export default function App() {
                     </div>
                   </div>
                 )}
-
                 {activeTab === 'inventario' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-8">
                     
@@ -2140,7 +2238,287 @@ export default function App() {
                             </tbody>
                           </table>
                         </div>
-                      {renderPagination()}
+                      {renderPaginationFuncionarios()}
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'aprobaciones' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shadow-2xs">
+                          <i className="fa-solid fa-check-to-slot text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Centro de Aprobaciones</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Revisión de solicitudes de exclusión de patrimonio enviadas por funcionarios</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                        {solicitudesBaja.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center p-12 text-center h-full min-h-[380px]">
+                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 mb-5 text-emerald-500 ring-1 ring-emerald-500/20 shadow-2xs">
+                                    <i className="fa-solid fa-check-double text-3xl"></i>
+                                </div>
+                                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Todo al día</h3>
+                                <p className="mt-1.5 text-xs font-semibold text-zinc-400 max-w-sm">No existen solicitudes de baja pendientes de revisión para esta dependencia.</p>
+                            </div>
+                        ) : (
+                            <div className="flex-1 overflow-auto custom-scrollbar">
+                              <table className="min-w-full text-left">
+                                <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                                  <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                    <th className="py-3.5 pl-6 pr-4 w-1/3">Bien Solicitado</th>
+                                    <th className="px-4 py-3.5 w-1/3">Custodio Actual</th>
+                                    <th className="relative py-3.5 pl-4 pr-6 text-right">Acción de Revisión</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                                  {solicitudesBaja.map(b => (
+                                    <tr key={b.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
+                                        <td className="py-4 pl-6 pr-4 align-middle">
+                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm font-mono">{b.rotulo}</div>
+                                            <div className="text-xs font-medium text-zinc-500 mt-1 line-clamp-1">{b.descripcion}</div>
+                                        </td>
+                                        <td className="px-4 py-4 align-middle">
+                                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{b.funcionario || 'No asignado'}</div>
+                                            <div className="text-[11px] text-zinc-400 mt-0.5">{b.ubicacion || 'Sin ubicación'}</div>
+                                        </td>
+                                        <td className="relative py-4 pl-4 pr-6 align-middle text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button onClick={() => openResolucionModal(b, 'rechazar')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border shadow-2xs hover:shadow-xs transition-all cursor-pointer">
+                                                    <i className="fa-solid fa-xmark text-red-500"></i> Rechazar
+                                                </button>
+                                                <button onClick={() => openResolucionModal(b, 'aprobar')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-xs hover:shadow-md cursor-pointer">
+                                                    <i className="fa-solid fa-check"></i> Aprobar Baja
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'usuarios' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
+                          <i className="fa-solid fa-users-gear text-xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
+                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión de cuentas y roles de acceso al sistema</p>
+                        </div>
+                      </div>
+                      
+                      <button onClick={() => { setUsuarioEditing(null); setIsUsuarioModalOpen(true); }} className={STYLES.btnPrimary}>
+                        <i className="fa-solid fa-user-plus"></i> Nuevo Usuario
+                      </button>
+                    </div>
+
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                        <div className="flex-1 overflow-auto custom-scrollbar">
+                          <table className="min-w-full text-left">
+                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                              <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
+                                <th className="py-3.5 pl-6 pr-4 w-1/3">Usuario y Nombre</th>
+                                <th className="px-4 py-3.5 w-1/3">Rol de Sistema</th>
+                                <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
+                              {usuariosList.map(u => (
+                                <tr key={u.username} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50 transition-colors border-b border-zinc-50 dark:border-darkbg-border/30">
+                                    <td className="py-3 pl-6 pr-4 align-middle">
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-bold text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-sm">
+                                              {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
+                                          </div>
+                                          <div>
+                                              <div className="font-semibold text-zinc-900 dark:text-white text-sm">{u.nombre}</div>
+                                              <div className="text-xs text-zinc-500 mt-0.5">@{u.username}</div>
+                                          </div>
+                                        </div>
+                                    </td>
+                                    <td className="px-4 py-3 align-middle">
+                                        {u.cargo === 'admin' 
+                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-900/20 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-shield-halved text-[10px]"></i> Administrador</span>
+                                            : <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 shadow-sm"><i className="fa-solid fa-user text-[10px]"></i> Funcionario</span>
+                                        }
+                                    </td>
+                                    <td className="relative py-3 pl-4 pr-6 align-middle text-right">
+                                        <div className="flex items-center justify-end gap-2">
+                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary transition-colors cursor-pointer" title="Editar">
+                                              <i className="fa-solid fa-pen-to-square"></i>
+                                          </button>
+                                          {u.username !== currentUser.username && (
+                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="text-zinc-400 hover:text-red-500 transition-colors cursor-pointer" title="Eliminar">
+                                                  <i className="fa-solid fa-trash-can"></i>
+                                              </button>
+                                          )}
+                                        </div>
+                                    </td>
+                                </tr>
+                              ))}
+                              {usuariosList.length === 0 && (
+                                <tr>
+                                  <td colSpan="3" className="p-12 text-center text-sm font-medium text-zinc-400 italic">No hay usuarios registrados en el sistema.</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                    </div>
+                  </div>
+                )}
+                {activeTab === 'funcionarios' && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-8">
+                    
+                    {/* ENCABEZADO Y ACCIONES UNIFICADAS */}
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                      
+                      {/* TÍTULO E INFORMACIÓN */}
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-inner">
+                          <i className="fa-solid fa-address-book text-2xl"></i>
+                        </div>
+                        <div>
+                          <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Padrón de Funcionarios</h2>
+                          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
+                            <span>Directorio oficial de personal de <span className="text-brand-primary dark:text-brand-accent">{dependenciaActual}</span></span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
+                              {funcionariosPurosDependencia.length} registrados
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* BARRA DE ACCIONES Y BUSCADOR */}
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="relative w-full sm:w-56">
+                          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
+                          <input 
+                            type="text"
+                            placeholder="Buscar C.I. o nombre..."
+                            value={searchFuncionarioInput}
+                            onChange={(e) => {
+                                setSearchFuncionarioInput(e.target.value);
+                                setCurrentPaginaFuncionarios(1);
+                            }}
+                            className="block w-full rounded-xl border border-zinc-200 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-10 pr-3 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card outline-none transition-all shadow-inner"
+                          />
+                        </div>
+
+                        <button onClick={sincronizarBienesConPadron} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary shadow-2xs transition-all cursor-pointer">
+                          <i className="fa-solid fa-rotate text-brand-primary"></i> Sincronizar
+                        </button>
+
+                        <button onClick={handleDownloadTemplateFuncionarios} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 shadow-2xs transition-all cursor-pointer">
+                          <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
+                        </button>
+
+                        <button onClick={() => fileInputFuncionariosRef.current?.click()} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 shadow-2xs transition-all cursor-pointer">
+                          <i className="fa-solid fa-file-import text-emerald-600"></i> Importar
+                        </button>
+
+                        <button onClick={() => setIsNewFuncionarioModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-600/20 transition-all cursor-pointer">
+                          <i className="fa-solid fa-user-plus"></i> Nuevo
+                        </button>
+                      </div>
+
+                    </div>
+
+                    {/* TABLA DE FUNCIONARIOS ESTILIZADA */}
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] flex flex-col overflow-hidden relative min-h-[450px]">
+                        <div className="flex-1 overflow-auto custom-scrollbar">
+                          <table className="min-w-full text-left border-collapse">
+                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
+                              <tr className="text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                                <th className="py-4 pl-8 pr-4">Cédula de Identidad</th>
+                                <th className="px-4 py-4 w-1/3">Nombre Completo</th>
+                                <th className="px-4 py-4 w-1/3">Cargo Institucional</th>
+                                <th className="relative py-4 pl-4 pr-8 text-right"><span className="sr-only">Acciones</span></th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                              {funcionariosPaginados.map((f, idx) => {
+                                if (f.esSeparador) {
+                                    return (
+                                        <tr key={`sep-${f.letra}-${idx}`} className="bg-zinc-100/80 dark:bg-zinc-950/80 border-y border-zinc-200/60 dark:border-zinc-800">
+                                            <td colSpan="4" className="py-3 pl-8 pr-4 font-black text-xs text-brand-primary dark:text-brand-accent uppercase tracking-widest">
+                                                <span className="inline-flex items-center gap-2.5">
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-brand-primary shadow-sm"></span>
+                                                    Sección {f.letra}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    );
+                                }
+
+                                const inicial = f.nombre ? f.nombre.charAt(0).toUpperCase() : 'F';
+
+                                return (
+                                  <tr key={f.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group">
+                                      <td className="py-4 pl-8 pr-4 align-middle font-mono font-bold text-zinc-700 dark:text-zinc-300 text-sm">
+                                          {formatCI(f.cedula)}
+                                      </td>
+                                      <td className="px-4 py-4 align-middle">
+                                          <div className="flex items-center gap-3.5">
+                                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-black text-xs shadow-inner border border-zinc-200/60 dark:border-zinc-700/60">
+                                                  {inicial}
+                                              </div>
+                                              <span className="font-extrabold text-zinc-900 dark:text-white text-sm">{f.nombre}</span>
+                                          </div>
+                                      </td>
+                                      <td className="px-4 py-4 align-middle text-zinc-600 dark:text-zinc-400 text-xs font-bold uppercase tracking-wide">
+                                          <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700/60">
+                                              {f.cargo || 'Funcionario'}
+                                          </span>
+                                      </td>
+                                      <td className="relative py-4 pl-4 pr-8 align-middle text-right">
+                                          <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                                              <button 
+                                                  onClick={() => handleEditFuncionario(f)} 
+                                                  className="h-9 w-9 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                                                  title="Editar funcionario"
+                                              >
+                                                  <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                              </button>
+                                              <button 
+                                                  onClick={() => handleDeleteFuncionario(f.id)} 
+                                                  className="h-9 w-9 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                                                  title="Eliminar funcionario"
+                                              >
+                                                  <i className="fa-solid fa-trash-can text-xs"></i>
+                                              </button>
+                                          </div>
+                                      </td>
+                                  </tr>
+                                );
+                              })}
+                              {funcionariosPurosDependencia.length === 0 && (
+                                <tr>
+                                  <td colSpan="4" className="p-16 text-center">
+                                      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
+                                          <i className="fa-solid fa-users-slash text-2xl"></i>
+                                      </div>
+                                      <span className="text-sm font-bold text-zinc-400">No hay funcionarios registrados en esta dependencia.</span>
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {renderPaginationFuncionarios()}
                     </div>
                   </div>
                 )}
@@ -2224,7 +2602,7 @@ export default function App() {
                 )}
 
                 {activeTab === 'fc10' && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
                       <div className="flex items-center gap-3">
                         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
@@ -2236,14 +2614,15 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* CONTENEDOR DE CONTROLES SUPERIOR */}
                       <div className="flex flex-wrap gap-3 items-center">
-                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
-                        <button onClick={handleExportFC10CSV} className={STYLES.btnSecondary}>
-                            <i className="fa-solid fa-file-csv text-emerald-500"></i> Exportar CSV
+                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
+                        {/* NUEVO BOTÓN CONSOLIDADO */}
+                        <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " !bg-brand-primary flex items-center gap-2"}>
+                            <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
                         </button>
                       </div>
-                    </div>
-                    
+                    </div>                    
                     <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
                       {isLoading ? (
                         <SkeletonLoader />
@@ -2262,8 +2641,7 @@ export default function App() {
                             const isDevuelto = !!fc.devolucionFecha;
                             return (
                               <div key={fc.id} className="bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200 dark:border-darkbg-border shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
-                                <div className={`absolute top-0 left-0 w-full h-1 ${isDevuelto ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-brand-primary'}`}></div>
-                                
+                                <div className={`absolute top-0 left-0 w-full h-1 ${isDevuelto ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-brand-primary'}`}></div>                           
                                 <div className="p-5 flex-1 flex flex-col">
                                     <div className="flex justify-between items-start mb-4">
                                         <div className="flex flex-col gap-1.5">
@@ -2287,32 +2665,20 @@ export default function App() {
                                                 <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="text-zinc-500 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md transition cursor-pointer" title="Eliminar"><i className="fa-solid fa-trash-can"></i></button>
                                             )}
                                         </div>
-                                    </div>
-                                    
+                                    </div>                                   
                                     <div className="mt-2">
                                         <h4 className="font-bold text-zinc-900 dark:text-white text-sm uppercase tracking-tight">{fc.funcionarioNombre}</h4>
                                         <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">{fc.funcionarioCargo}</p>
                                     </div>
                                 </div>
-                                
-                                <div className="bg-zinc-50/80 dark:bg-darkbg-main/80 border-t border-zinc-100 dark:border-darkbg-border p-4">
-                                    <div className="flex items-start gap-2.5">
-                                        <i className="fa-solid fa-tag text-zinc-400 mt-0.5 text-xs"></i>
-                                        <div>
-                                            <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 font-mono tracking-tight">{bien.rotulo}</p>
-                                            <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-1 mt-0.5 font-medium">{bien.descripcion || 'Sin descripción técnica'}</p>
-                                        </div>
-                                    </div>
-                                </div>
                               </div>
-                            )
+                            );
                           })}
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
-
+                </div>
+            )}
                 {activeTab === 'fc11' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
@@ -2325,15 +2691,13 @@ export default function App() {
                           <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
                         </div>
                       </div>
-
                       <div className="flex flex-wrap gap-3 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
                         <button onClick={handleExportFC11CSV} className={STYLES.btnSecondary}>
                             <i className="fa-solid fa-file-csv text-emerald-500"></i> Exportar CSV
                         </button>
                       </div>
-                    </div>
-                    
+                    </div>                    
                     <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
                       {isLoading ? ( <SkeletonLoader /> ) : filteredFC11.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
@@ -2349,7 +2713,6 @@ export default function App() {
                             const depRemitente = fc.dependenciaRemitente || fc.remitente || '';
                             const depDestinataria = fc.dependenciaDestinataria || fc.destinatario || '';
                             const esSalida = depRemitente === dependenciaActual;
-
                             return (
                               <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group relative overflow-hidden`}>
                                 <div className={`absolute top-0 left-0 w-full h-1 ${esSalida ? 'bg-zinc-500' : 'bg-brand-primary'}`}></div>
@@ -2387,8 +2750,7 @@ export default function App() {
                       )}
                     </div>
                   </div>
-                )}
-                
+                )}                
                 {activeTab === 'ayuda' && (
                   <div className="space-y-8 animate-fade-in">
                     <div className="relative rounded-2xl overflow-hidden bg-brand-primary dark:bg-brand-dark px-6 py-12 sm:px-12 sm:py-16 shadow-lg">
@@ -2401,7 +2763,6 @@ export default function App() {
                             <p className="text-lg font-medium leading-8 text-brand-light">Documentación oficial para la correcta administración y trazabilidad del ciclo de vida de los bienes institucionales dentro de la universidad.</p>
                         </div>
                     </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div className="lg:col-span-5">
                             <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
@@ -2431,178 +2792,125 @@ export default function App() {
                         </div>
                     </div>
                   </div>
-                )}
+               )}
             </div>
           </main>
       </div>
 
-      {isScannerOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md !p-0 overflow-hidden"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <i className="fa-solid fa-camera text-brand-primary"></i> Escanear Código QR
-              </h2>
-              <button 
-                onClick={() => {
-                    setIsScannerOpen(false);
-                    if (window.html5QrCode && window.html5QrCode.isScanning) {
-                        window.html5QrCode.stop().catch(() => {});
-                    }
-                }} 
-                className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"
-              >
-                <i className="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-            
-            <div className="p-6 bg-black flex flex-col items-center justify-center relative">
-                <div id="reader" className="w-full rounded-2xl overflow-hidden"></div>
-                <p className="text-xs text-zinc-400 mt-4 text-center">Enfoque el código QR de la etiqueta patrimonial dentro del recuadro.</p>
-            </div>
-
-            <div className={STYLES.modalFooter}>
-                <button 
-                    onClick={() => {
-                        setIsScannerOpen(false);
-                        if (window.html5QrCode && window.html5QrCode.isScanning) {
-                            window.html5QrCode.stop().catch(() => {});
-                        }
-                    }} 
-                    className={STYLES.btnSecondary}
-                >
-                    Cancelar
-                </button>
-            </div>
-          </div>
-        </div>
+      {/* Modales y componentes flotantes */}
+      {isCSVPreviewOpen && (
+          <CSVPreviewModal 
+              isOpen={isCSVPreviewOpen}
+              onClose={() => setIsCSVPreviewOpen(false)}
+              onConfirm={confirmCSVImportFuncionarios}
+              data={csvPreviewData}
+              STYLES={STYLES}
+          />
       )}
-
-      {isQRModalOpen && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
-                  <i className="fa-solid fa-qrcode mr-2 text-brand-primary"></i> 
-                  {isBulkQR ? 'Descarga Masiva de Códigos' : 'Descargar Etiqueta'}
-              </h2>
-              <button onClick={() => setIsQRModalOpen(false)} className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors"><i className="fa-solid fa-xmark"></i></button>
-            </div>
-            <div className={STYLES.modalBody}>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4">
-                  Seleccione el formato de descarga deseado para {isBulkQR ? 'los bienes filtrados' : `el bien ${qrTargetBien?.rotulo}`}.
-              </p>
-              
-              <div className="space-y-4">
-                  <button 
-                      onClick={() => isBulkQR ? handleBulkLabelPNGZip() : handleDownloadLabelPNG(qrTargetBien)} 
-                      className="w-full flex items-center p-4 border-2 border-zinc-200 dark:border-darkbg-border rounded-xl hover:border-brand-primary hover:bg-brand-light/30 dark:hover:bg-brand-primary/10 transition-all text-left group cursor-pointer"
-                  >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-colors shadow-sm">
-                          <i className="fa-solid fa-print text-xl"></i>
-                      </div>
-                      <div className="ml-4">
-                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Formato Etiqueta (PNG)</h3>
-                          <p className="text-xs text-zinc-500 mt-1">62mm x 100mm. Diseñado para impresoras térmicas Brother (Rojo/Negro).</p>
-                      </div>
-                  </button>
-
-                  <button 
-                      onClick={() => isBulkQR ? handleBulkSimpleQRZip() : handleDownloadSimpleQR(qrTargetBien)} 
-                      className="w-full flex items-center p-4 border-2 border-zinc-200 dark:border-darkbg-border rounded-xl hover:border-brand-primary hover:bg-brand-light/30 dark:hover:bg-brand-primary/10 transition-all text-left group cursor-pointer"
-                  >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary group-hover:bg-brand-primary group-hover:text-white transition-colors shadow-sm">
-                          <i className="fa-solid fa-file-image text-xl"></i>
-                      </div>
-                      <div className="ml-4">
-                          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Código Simple (PNG)</h3>
-                          <p className="text-xs text-zinc-500 mt-1">Solo el gráfico QR en alta resolución (1024x1024 px).</p>
-                      </div>
-                  </button>
-              </div>
-            </div>
-            <div className={STYLES.modalFooter}>
-              <button onClick={() => setIsQRModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* ... demás modales ... */}
+      <FuncionarioModal 
+    isOpen={isFuncionarioModalOpen}
+    onClose={() => setIsFuncionarioModalOpen(false)}
+    funcionarioToEdit={funcionarioToEdit}
+    saveFuncionarioEdit={saveFuncionarioEdit}
+    STYLES={STYLES}
+/>
+      <ScannerModal 
+    isOpen={isScannerOpen}
+    onClose={() => {
+        setIsScannerOpen(false);
+        if (window.html5QrCode && window.html5QrCode.isScanning) {
+            window.html5QrCode.stop().catch(() => {});
+        }
+    }}
+    STYLES={STYLES}
+/>
+      <QRModal 
+    isOpen={isQRModalOpen}
+    onClose={() => setIsQRModalOpen(false)}
+    isBulk={isBulkQR}
+    bien={qrTargetBien}
+    onDownloadLabel={handleDownloadLabelPNG}
+    onDownloadSimpleQR={handleDownloadSimpleQR}
+    onBulkLabelZip={handleBulkLabelPNGZip}
+    onBulkSimpleZip={handleBulkSimpleQRZip}
+    STYLES={STYLES}
+/>
       {isFC03ModalOpen && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-lg !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-darkbg-border shadow-2xl"}>
-            
-            {/* CABECERA CON GLOW ÁMBAR */}
-            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center group overflow-hidden">
-              <div className="absolute top-0 right-0 -mt-16 -mr-16 w-40 h-40 bg-gradient-to-bl from-amber-500/20 to-orange-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
-              
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10">
+          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-900 animate-slide-up"}>           
+            {/* CABECERA LIMPIA */}
+            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm">
                    <i className="fa-solid fa-file-pdf text-xl"></i>
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
+                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
                   <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
                 </div>
               </div>
-
-              <button onClick={() => setIsFC03ModalOpen(false)} className="relative z-10 rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-darkbg-hover dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border shadow-sm hover:shadow-md">
-                 <i className="fa-solid fa-xmark text-xl"></i>
+              <button onClick={() => setIsFC03ModalOpen(false)} className="rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700">
+                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
-
             {/* CUERPO DEL MODAL */}
-            <div className="p-8 bg-zinc-50/40 dark:bg-darkbg-main/50 space-y-6 relative">
-                <div className="group relative">
-                    <label className={STYLES.label}>Tipo de Reporte</label>
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                    <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
-                        <option value="general">General (Toda la Dependencia)</option>
-                        <option value="ubicacion">Por Ubicación Específica</option>
-                        <option value="funcionario">Por Funcionario Responsable</option>
-                    </select>
-                </div>
-                
+            <div className="p-8 space-y-6 bg-white dark:bg-zinc-900">
+                <div className="space-y-2">
+                    <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Tipo de Reporte</label>
+                    <div className="relative">
+                        <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
+                            <option value="general">General (Toda la Dependencia)</option>
+                            <option value="ubicacion">Por Ubicación Específica</option>
+                            <option value="funcionario">Por Funcionario Responsable</option>
+                        </select>
+                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
+                    </div>
+                </div>               
                 {fc03Config.tipoFiltro === 'ubicacion' && (
-                    <div className="group relative animate-fade-in">
-                        <label className={STYLES.label}>Seleccionar Ubicación</label>
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                        <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
-                            <option value="">Seleccione una ubicación...</option>
-                            {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
-                        </select>
+                    <div className="space-y-2 animate-fade-in">
+                        <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Ubicación</label>
+                        <div className="relative">
+                            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                                <option value="">Seleccione una ubicación...</option>
+                                {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
+                            </select>
+                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
+                        </div>
                     </div>
-                )}
-                
+                )}               
                 {fc03Config.tipoFiltro === 'funcionario' && (
-                    <div className="group relative animate-fade-in">
-                        <label className={STYLES.label}>Seleccionar Funcionario</label>
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                        <select className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner cursor-pointer`} value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
-                            <option value="">Seleccione un funcionario...</option>
-                            {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                    </div>
-                )}
-                
-                <div className="group relative">
-                    <label className={STYLES.label}>Lugar de Emisión</label>
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                    <input type="text" className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner font-bold`} value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
+    <div className="space-y-2 animate-fade-in">
+        <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Funcionario</label>
+        <div className="relative">
+            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                <option value="">Seleccione por Cédula o Nombre...</option>
+                {/* APLICAR .filter AQUÍ */}
+                {funcionariosPadron.filter(f => f.dependencia === dependenciaActual).map(f => (
+                    <option key={f.id || f.cedula} value={f.nombre}>
+                        {f.cedula !== 'S/C' ? `${formatCI(f.cedula)} - ${f.nombre}` : `S/C - ${f.nombre}`}
+                    </option>
+                ))}
+            </select>
+            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
+        </div>
+    </div>
+)}
+                <div className="space-y-2">
+                    <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Lugar de Emisión</label>
+                    <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
             </div>
-
-            {/* BOTONES REDISEÑADOS */}
-            <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 rounded-b-[32px]">
-              <button onClick={() => setIsFC03ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
-              <button onClick={executeGenerateFC03} className={`${STYLES.btnPrimary} !bg-amber-600 hover:!bg-amber-700 !rounded-2xl !py-3 !px-8 shadow-lg shadow-amber-600/20`} disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
+            {/* BOTONES DE ACCIÓN */}
+            <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[32px]">
+              <button onClick={() => setIsFC03ModalOpen(false)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer">Cancelar</button>
+              <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2.5 py-3.5 px-7 rounded-2xl text-sm font-black text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/25 transition-all cursor-pointer disabled:opacity-50" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
                 <i className="fa-solid fa-file-pdf text-xs"></i> Generar Documento
               </button>
             </div>
           </div>
         </div>
       )}
-
       {isFC04ModalOpen && (
           <FC04Modal 
               setIsFC04ModalOpen={setIsFC04ModalOpen}
@@ -2621,7 +2929,6 @@ export default function App() {
               STYLES={STYLES}
           />
       )}
-
       {isFC10ModalOpen && (
           <FC10Modal 
               setIsFC10ModalOpen={setIsFC10ModalOpen}
@@ -2633,7 +2940,6 @@ export default function App() {
               funcionariosConDatos={funcionariosConDatos}
           />
       )}
-
       {isFC11ModalOpen && (
           <FC11Modal 
               setIsFC11ModalOpen={setIsFC11ModalOpen}
@@ -2648,267 +2954,82 @@ export default function App() {
               STYLES={STYLES}
           />
       )}
-
-      {isUsuarioModalOpen && isAdmin && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-lg"}>
-            <div className={STYLES.modalHeader}>
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent font-black">
-                  <i className="fa-solid fa-user-gear text-base"></i>
-                </div>
-                <div>
-                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">
-                    {usuarioEditing ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-                  </h2>
-                  <p className="text-xs text-zinc-400 font-medium">Configure las credenciales y nivel de acceso</p>
-                </div>
-              </div>
-              <button onClick={() => setIsUsuarioModalOpen(false)} className="rounded-xl p-2 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            
-            <form onSubmit={saveUsuario} className="flex flex-col h-full overflow-hidden">
-              <div className={STYLES.modalBody}>
-                <div className="space-y-5">
-                    
-                    <div>
-                      <label className={STYLES.label}>Usuario (Login / ID)</label>
-                      <div className="relative">
-                        <i className="fa-solid fa-at absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                        <input 
-                          type="text" 
-                          name="username" 
-                          required 
-                          defaultValue={usuarioEditing?.username} 
-                          disabled={!!usuarioEditing} 
-                          className={`${STYLES.input} pl-11 ${usuarioEditing ? 'bg-zinc-100 dark:bg-zinc-800/80 cursor-not-allowed text-zinc-500' : ''}`} 
-                          placeholder="Ej. mocampo" 
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={STYLES.label}>Nombre Completo</label>
-                      <div className="relative">
-                        <i className="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                        <input 
-                          type="text" 
-                          name="nombre" 
-                          required 
-                          defaultValue={usuarioEditing?.nombre} 
-                          className={`${STYLES.input} pl-11`} 
-                          placeholder="Ej. Matías Ocampo" 
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={STYLES.label}>
-                        Contraseña {usuarioEditing && <span className="text-zinc-400 font-normal lowercase">(dejar en blanco para conservar)</span>}
-                      </label>
-                      <div className="relative">
-                        <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                        <input 
-                          type="password" 
-                          name="password" 
-                          required={!usuarioEditing} 
-                          className={`${STYLES.input} pl-11`} 
-                          placeholder="••••••••" 
-                          minLength="6" 
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className={STYLES.label}>Rol de Sistema</label>
-                      <div className="relative">
-                        <i className="fa-solid fa-shield-halved absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
-                        <select name="cargo" required defaultValue={usuarioEditing?.cargo || 'user'} className={`${STYLES.input} pl-11 appearance-none cursor-pointer pr-10`}>
-                            <option value="user">Funcionario Local (Solo lectura y creación básica)</option>
-                            <option value="admin">Administrador General (Control Total)</option>
-                        </select>
-                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
-                      </div>
-                    </div>
-                  <div>
-                      <label className={STYLES.label}>Dependencia Asignada</label>
-                      <div className="relative">
-                        <i className="fa-solid fa-building-columns absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
-                        <select name="dependencia" required defaultValue={usuarioEditing?.dependencia || 'Rectorado'} className={`${STYLES.input} pl-11 appearance-none cursor-pointer pr-10`}>
-                            {todasDependencias.map(dep => (
-                                <option key={dep} value={dep}>{dep}</option>
-                            ))}
-                        </select>
-                        <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
-                      </div>
-                    </div>
-                </div>
-              </div>
-              
-              <div className={STYLES.modalFooter}>
-                <button type="button" onClick={() => setIsUsuarioModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar Usuario</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
+      <UsuarioModal 
+    isOpen={isUsuarioModalOpen && isAdmin}
+    onClose={() => setIsUsuarioModalOpen(false)}
+    usuarioEditing={usuarioEditing}
+    saveUsuario={saveUsuario}
+    todasDependencias={todasDependencias}
+    STYLES={STYLES}
+/>
       {isBienModalOpen && (
-          <BienModal 
-              setIsBienModalOpen={setIsBienModalOpen}
-              bienEditing={bienEditing}
-              setBienEditing={setBienEditing}
-              bienFormRef={bienFormRef}
-              saveBien={saveBien}
-              isSaving={isSaving}
-              formatCurrency={formatCurrency}
-              ESTADOS_CONSERVACION={ESTADOS_CONSERVACION}
-              funcionariosConDatos={funcionariosConDatos}
-              ubicacionesUnicas={ubicacionesUnicas}
-              STYLES={STYLES}
-          />
-      )}
-
-      {/* 1. MODAL: CERRAR SESIÓN */}
-      {showLogoutConfirm && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-[360px] !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
-            <div className="p-8 text-center bg-white dark:bg-darkbg-card relative overflow-hidden">
-              {/* Barra superior de color sutil */}
-              <div className="absolute top-0 inset-x-0 h-1 bg-zinc-300 dark:bg-zinc-600"></div>
-              
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-800 mb-6 text-zinc-600 dark:text-zinc-400 ring-8 ring-zinc-50 dark:ring-zinc-900/50 shadow-inner">
-                <i className="fa-solid fa-right-from-bracket text-2xl relative left-0.5"></i>
-              </div>
-              
-              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-2">¿Cerrar Sesión?</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
-                Está a punto de salir de su cuenta actual. Deberá ingresar sus credenciales nuevamente para acceder.
-              </p>
-            </div>
-            
-            {/* Botones encapsulados (estilo SaaS) */}
-            <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
-              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm hover:shadow transition-all cursor-pointer">
-                  Cancelar
-              </button>
-              <button onClick={handleLogout} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-black text-white bg-zinc-900 hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-md transition-all cursor-pointer">
-                  Sí, salir
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 2. MODAL: RESOLUCIÓN DE BAJA (APROBAR/RECHAZAR) */}
-      {resolucionBaja && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-lg !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
-            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card">
-              <div className={`absolute top-0 inset-x-0 h-1 ${resolucionBaja.accion === 'aprobar' ? 'bg-red-500' : 'bg-zinc-800 dark:bg-zinc-400'}`}></div>
-              <div className="flex justify-between items-center">
-                  <h2 className={`text-xl font-black tracking-tight ${resolucionBaja.accion === 'aprobar' ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'} flex items-center gap-3`}>
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${resolucionBaja.accion === 'aprobar' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-100 dark:border-red-900/50' : 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border'}`}>
-                          <i className={`fa-solid ${resolucionBaja.accion === 'aprobar' ? 'fa-check-double' : 'fa-xmark'} text-lg`}></i> 
-                      </div>
-                      {resolucionBaja.accion === 'aprobar' ? 'Aprobar Baja Definitiva' : 'Rechazar Solicitud'}
-                  </h2>
-                  <button onClick={() => setResolucionBaja(null)} className="rounded-2xl p-2.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border"><i className="fa-solid fa-xmark text-xl"></i></button>
-              </div>
-            </div>
-            
-            <form onSubmit={submitResolucionBaja} className="flex flex-col h-full overflow-hidden">
-                <div className="p-8 bg-zinc-50/50 dark:bg-darkbg-main/50 space-y-6">
-                    <div className="bg-white dark:bg-darkbg-card p-6 rounded-3xl border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-primary"></div>
-                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Bien Solicitado:</p>
-                        <p className="text-sm font-black text-zinc-900 dark:text-white">{resolucionBaja.bien.rotulo}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 font-medium leading-relaxed">{resolucionBaja.bien.descripcion}</p>
-                        <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-darkbg-border">
-                            <p className="text-[11px] font-bold text-brand-primary flex items-center gap-1.5"><i className="fa-solid fa-user-clock"></i> Solicitado por: {resolucionBaja.bien.bajaSolicitadaPor || 'Desconocido'}</p>
-                        </div>
-                    </div>
-                    
-                    <div className="group relative">
-                        <label className={STYLES.label}>Motivo / Observación {resolucionBaja.accion === 'aprobar' && <span className="text-zinc-400 font-normal lowercase">(Opcional)</span>}</label>
-                        <div className={`absolute -inset-0.5 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500 ${resolucionBaja.accion === 'aprobar' ? 'bg-gradient-to-r from-red-500 to-rose-500' : 'bg-gradient-to-r from-zinc-500 to-zinc-700'}`}></div>
-                        <textarea 
-                            required={resolucionBaja.accion === 'rechazar'}
-                            value={motivoResolucion} 
-                            onChange={e => setMotivoResolucion(e.target.value)} 
-                            className={`${STYLES.input} relative !rounded-2xl bg-white dark:bg-darkbg-card shadow-inner min-h-[110px] text-sm leading-relaxed resize-none p-4`} 
-                            placeholder="Escribe un mensaje explicativo para el usuario que solicitó la baja..."
-                        ></textarea>
-                        {resolucionBaja.accion === 'aprobar' && <p className="text-[11px] text-red-500 font-bold mt-3 flex items-start gap-1.5"><i className="fa-solid fa-triangle-exclamation mt-0.5"></i> Al aprobar, el bien pasará a estado "De Baja" en todo el sistema. Esta acción es irreversible.</p>}
-                    </div>
-                </div>
-                <div className="flex items-center justify-end gap-3 px-8 py-6 bg-white dark:bg-darkbg-card border-t border-zinc-100 dark:border-darkbg-border">
-                    <button type="button" onClick={() => setResolucionBaja(null)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm transition-all cursor-pointer">Cancelar</button>
-                    <button type="submit" className={`inline-flex items-center justify-center gap-2.5 py-3.5 px-8 rounded-2xl text-sm font-black text-white shadow-md transition-all cursor-pointer ${resolucionBaja.accion === 'aprobar' ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-zinc-900 hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200'}`}>
-                        Confirmar {resolucionBaja.accion === 'aprobar' ? 'Baja Definitiva' : 'Rechazo'}
-                    </button>
-                </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* 3. MODAL: ELIMINAR / SOLICITAR BAJA BÁSICO */}
+    <BienModal 
+        setIsBienModalOpen={setIsBienModalOpen}
+        bienEditing={bienEditing}
+        setBienEditing={setBienEditing}
+        bienFormRef={bienFormRef}
+        saveBien={saveBien}
+        isSaving={isSaving}
+        formatCurrency={formatCurrency}
+        ESTADOS_CONSERVACION={ESTADOS_CONSERVACION}
+        funcionariosConDatos={funcionariosConDatos}
+        ubicacionesUnicas={ubicacionesUnicas}
+        STYLES={STYLES}
+        funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
+    />
+)}
+      <LogoutModal 
+    isOpen={showLogoutConfirm} 
+    onClose={() => setShowLogoutConfirm(false)} 
+    onConfirm={handleLogout} 
+    STYLES={STYLES} 
+/>
+      <ResolucionBajaModal 
+    resolucionBaja={resolucionBaja}
+    setResolucionBaja={setResolucionBaja}
+    submitResolucionBaja={submitResolucionBaja}
+    motivoResolucion={motivoResolucion}
+    setMotivoResolucion={setMotivoResolucion}
+    STYLES={STYLES}
+/>
+      {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
       {itemToDelete && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-[380px] !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
-            <div className="p-8 text-center bg-white dark:bg-darkbg-card relative overflow-hidden">
-              {/* Barra superior de color dinámico */}
-              <div className={`absolute top-0 inset-x-0 h-1 ${itemToDelete.type === 'requestBaja' ? 'bg-orange-500' : 'bg-red-500'}`}></div>
-              
-              <div className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-6 shadow-inner ring-8 ${
-                  itemToDelete.type === 'requestBaja' 
-                      ? 'bg-orange-100 text-orange-600 ring-orange-50 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-900/10' 
-                      : 'bg-red-100 text-red-600 ring-red-50 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-900/10'
-              }`}>
-                <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-arrow-down-short-wide' : 'fa-trash-can'} text-2xl`}></i>
-              </div>
+            <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+                
+                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl mb-4 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400'}`}>
+                    <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-paper-plane' : 'fa-triangle-exclamation'} text-2xl`}></i>
+                </div>
 
-              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-3">
-                  {itemToDelete.type === 'requestBaja' ? '¿Solicitar Baja?' : '¿Confirmar Eliminación?'}
-              </h3>
-              
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
-                {itemToDelete.type === 'requestBaja' 
-                    ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
-                    : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
-                    ? 'El bien pasará a estado "De Baja". Podrá eliminarlo definitivamente volviendo a hacer clic en eliminar.'
-                    : 'Esta acción eliminará físicamente este registro del servidor de forma permanente. Esta acción no se puede deshacer.'}
-              </p>
-              
-              {/* Alerta si se intenta eliminar un administrador */}
-              {itemToDelete.type === 'usuario' && itemToDelete.cargo === 'admin' && (
-                  <div className="mt-6 p-4 bg-red-50 dark:bg-red-900/10 border border-red-200/80 dark:border-red-900/30 rounded-2xl text-left shadow-sm">
-                      <span className="inline-flex items-center rounded-lg bg-red-600 px-2.5 py-1 text-[10px] font-black text-white shadow-sm tracking-widest uppercase mb-2">
-                        <i className="fa-solid fa-shield-halved mr-1.5"></i> Privilegio Admin
-                      </span>
-                      <p className="text-xs text-red-700 dark:text-red-400 font-bold leading-snug">Está a punto de eliminar una cuenta con control total sobre el sistema.</p>
-                  </div>
-              )}
+                <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+                    {itemToDelete.type === 'requestBaja' ? '¿Solicitar baja de este bien?' : '¿Eliminar o dar de baja el registro?'}
+                </h3>
+
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
+                    {itemToDelete.type === 'requestBaja' 
+                        ? `Se enviará una notificación formal al administrador para que evalúe la exclusión del bien con rótulo: "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
+                        : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || ''}" a De Baja o lo removerá del inventario activo.`
+                    }
+                </p>
+
+                <div className="flex gap-3 justify-end">
+                    <button 
+                        onClick={() => setItemToDelete(null)}
+                        className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={confirmDeleteAction}
+                        className={`flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white transition-all shadow-md cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                    >
+                        {itemToDelete.type === 'requestBaja' ? 'Sí, enviar solicitud' : 'Confirmar Acción'}
+                    </button>
+                </div>
+
             </div>
-            
-            <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm hover:shadow transition-all cursor-pointer">
-                  Cancelar
-              </button>
-              <button onClick={confirmDeleteAction} className={`flex-1 py-3.5 px-4 rounded-2xl text-sm font-black text-white shadow-md transition-all cursor-pointer ${
-                  itemToDelete.type === 'requestBaja' 
-                      ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/20' 
-                      : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
-              }`}>
-                {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : (itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja' ? 'Pasar a Baja' : 'Sí, eliminar')}
-              </button>
-            </div>
-          </div>
         </div>
       )}
-
       {showChangelog && (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden"}>
@@ -2941,37 +3062,29 @@ export default function App() {
             </div>
         </div>
       )}
-      {/* MODAL: CAMBIAR DEPENDENCIA */}
-      {showDependenciaConfirm && (
-        <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-[380px] !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
-            <div className="p-8 text-center bg-white dark:bg-darkbg-card relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-brand-primary"></div>
-              
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-6 shadow-inner ring-8 bg-brand-light text-brand-primary ring-brand-primary/10 dark:bg-brand-primary/20 dark:text-brand-accent dark:ring-brand-primary/10">
-                <i className="fa-solid fa-building-columns text-2xl"></i>
-              </div>
-
-              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-3">
-                  Cambiar Entorno
-              </h3>
-              
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
-                ¿Está seguro que desea cambiar el entorno de trabajo a <strong className="text-zinc-800 dark:text-zinc-200">{pendingDependencia}</strong>? Esto recargará los datos y limpiará los filtros actuales.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
-              <button onClick={() => setShowDependenciaConfirm(false)} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm hover:shadow transition-all cursor-pointer">
-                  Cancelar
-              </button>
-              <button onClick={confirmDependenciaChange} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-black text-white bg-[#213f8f] hover:bg-[#182e6b] dark:bg-brand-primary dark:hover:bg-brand-hover shadow-md shadow-[#213f8f]/20 transition-all cursor-pointer border border-transparent">
-                  Sí, Cambiar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConsolidadoFC10Modal 
+    isOpen={isConsolidatedFC10ModalOpen}
+    onClose={() => setIsConsolidatedFC10ModalOpen(false)}
+    bienes={bienes}
+    dependenciaActual={dependenciaActual}
+    funcionariosPadron={funcionariosPadron}
+    handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF}
+    STYLES={STYLES}
+/>
+      <NuevoFuncionarioModal 
+    isOpen={isNewFuncionarioModalOpen}
+    onClose={() => setIsNewFuncionarioModalOpen(false)}
+    onSave={handleSaveManualFuncionario}
+    dependenciaActual={dependenciaActual}
+    STYLES={STYLES}
+/>
+      <DependenciaConfirmModal 
+          showDependenciaConfirm={showDependenciaConfirm}
+          setShowDependenciaConfirm={setShowDependenciaConfirm}
+          confirmDependenciaChange={confirmDependenciaChange}
+          pendingDependencia={pendingDependencia}
+          STYLES={STYLES}
+      />
     </div>
   );
 }
