@@ -1931,8 +1931,8 @@ const handleEditFuncionario = (funcionario) => {
                 {activeTab === 'dashboard' && (
                   <div className="space-y-6 animate-fade-in pb-8">
                     
-                    {/* ENCABEZADO MEJORADO */}
-                    <div className="relative flex flex-col sm:flex-row sm:items-center justify-between bg-white dark:bg-darkbg-card px-8 py-6 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 overflow-hidden group gap-4">
+                    {/* ENCABEZADO MEJORADO (Sin borde duro, con degradado sutil) */}
+                    <div className="relative flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-zinc-50 to-white dark:from-darkbg-main dark:to-darkbg-card px-8 py-6 rounded-[24px] shadow-sm shrink-0 overflow-hidden group gap-4 border border-zinc-100/50 dark:border-darkbg-border/30">
                       <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-br from-brand-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
                       
                       <div className="flex items-center gap-5 relative z-10">
@@ -1948,7 +1948,7 @@ const handleEditFuncionario = (funcionario) => {
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-start sm:justify-end gap-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 bg-zinc-50/80 dark:bg-darkbg-main/80 px-4 py-2.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border relative z-10 backdrop-blur-sm">
+                      <div className="flex items-center justify-start sm:justify-end gap-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 bg-white/80 dark:bg-darkbg-main/80 px-4 py-2.5 rounded-xl shadow-sm relative z-10 backdrop-blur-sm border border-zinc-100 dark:border-darkbg-border">
                         {isOnline ? (
                           <>
                             <span className="relative flex h-2.5 w-2.5">
@@ -1974,7 +1974,7 @@ const handleEditFuncionario = (funcionario) => {
                       <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-triangle-exclamation" colorClass="text-rose-600 dark:text-rose-400" bgIconClass="bg-rose-100/80 dark:bg-rose-900/30" />
                     </div>
 
-                    {/* ACCESOS DIRECTOS REDISEÑADOS */}
+                    {/* ACCESOS DIRECTOS REDISEÑADOS (Mayor contraste) */}
                     <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-6 sm:p-8 relative overflow-hidden group transition-all">
                         <div className="absolute -left-32 -bottom-32 w-64 h-64 bg-brand-primary/5 dark:bg-brand-primary/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
                         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
@@ -1990,16 +1990,16 @@ const handleEditFuncionario = (funcionario) => {
                             </div>
 
                             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 w-full xl:w-auto">
-                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-brand-primary hover:bg-brand-light/30 hover:text-brand-primary dark:hover:border-brand-primary/50 dark:hover:text-brand-accent shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:bg-brand-light/30 hover:text-brand-primary dark:hover:border-brand-primary/50 dark:hover:text-brand-accent shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
                                     <i className="fa-solid fa-calendar-plus text-brand-primary group-hover/btn:scale-110 transition-transform"></i> Ingreso FC-04
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-600 dark:hover:border-purple-500/50 dark:hover:bg-purple-900/10 dark:hover:text-purple-400 shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-600 dark:hover:border-purple-500/50 dark:hover:bg-purple-900/10 dark:hover:text-purple-400 shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
                                     <i className="fa-solid fa-file-zipper text-purple-500 group-hover/btn:scale-110 transition-transform"></i> Paquete QRs
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-900/10 dark:hover:text-emerald-400 shadow-2xs hover:shadow-md transition-all active:scale-95 group/btn">
+                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-900/10 dark:hover:text-emerald-400 shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
                                     <i className="fa-solid fa-file-import text-emerald-500 group-hover/btn:scale-110 transition-transform"></i> Importar CSV
                                 </button>
-                                <div className="relative flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 hover:border-sky-500 hover:bg-sky-50 hover:text-sky-600 dark:hover:border-sky-500/50 dark:hover:bg-sky-900/10 dark:hover:text-sky-400 shadow-2xs hover:shadow-md transition-all active:scale-95 overflow-hidden group/btn">
+                                <div className="relative flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-sky-500 hover:bg-sky-50 hover:text-sky-600 dark:hover:border-sky-500/50 dark:hover:bg-sky-900/10 dark:hover:text-sky-400 shadow-sm hover:shadow-md transition-all active:scale-95 overflow-hidden group/btn">
                                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Actualizar Escudo Institucional" />
                                     <i className="fa-solid fa-image text-sky-500 group-hover/btn:scale-110 transition-transform"></i> Subir Logo
                                 </div>
@@ -2035,7 +2035,7 @@ const handleEditFuncionario = (funcionario) => {
                               </div>
                               <span className="text-2xl font-black text-emerald-500 tracking-tighter drop-shadow-sm">{stats.percFC10.toFixed(1)}%</span>
                             </div>
-                            <div className="h-4 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner p-0.5">
+                            <div className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner p-0.5">
                               <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percFC10}%` }}>
                                 <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
                               </div>
@@ -2056,7 +2056,7 @@ const handleEditFuncionario = (funcionario) => {
                               </div>
                               <span className="text-2xl font-black text-brand-primary tracking-tighter drop-shadow-sm">{stats.percQR.toFixed(1)}%</span>
                             </div>
-                            <div className="h-4 w-full bg-zinc-100 dark:bg-darkbg-main rounded-full overflow-hidden shadow-inner p-0.5">
+                            <div className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner p-0.5">
                               <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percQR}%` }}>
                                 <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
                               </div>
@@ -2238,7 +2238,7 @@ const handleEditFuncionario = (funcionario) => {
                             </tbody>
                           </table>
                         </div>
-                      {renderPaginationFuncionarios()}
+                      {renderPagination()} {/* <--- ESTA ES LA LÍNEA CORREGIDA */}
                     </div>
                   </div>
                 )}
