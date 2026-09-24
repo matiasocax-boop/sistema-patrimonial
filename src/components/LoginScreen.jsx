@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getPlaceholderLogo } from '../utils/helpers';
+import rectoradoBg from '../assets/rectorado-pilar.jpg'; // <--- Importamos la imagen desde assets
 
 export default function LoginScreen({ 
     handleLogin, 
@@ -20,12 +21,12 @@ export default function LoginScreen({
   return (
     <div className={`${darkMode ? 'dark' : ''} relative min-h-screen w-full flex flex-col justify-between bg-zinc-50 dark:bg-zinc-950 font-sans text-zinc-900 dark:text-zinc-100 transition-colors duration-300 overflow-x-hidden select-none`}>
       
-      {/* FONDO INSTITUCIONAL GENERAL CON IMAGEN Y CAPA ADAPTABLE */}
+      {/* FONDO INSTITUCIONAL CON TU IMAGEN DE RECTORADO */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-tr from-white/90 via-zinc-100/80 to-zinc-200/50 dark:from-zinc-950 dark:via-zinc-950/80 dark:to-zinc-900/50 z-10 transition-colors duration-300"></div>
         <img 
-          src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2070&auto=format&fit=crop" 
-          alt="Universidad Nacional de Pilar" 
+          src={rectoradoBg} // <--- Usamos la variable importada
+          alt="Universidad Nacional de Pilar - Rectorado" 
           className="w-full h-full object-cover object-center filter brightness-[0.95] dark:brightness-[0.35] contrast-110 scale-105 transition-all duration-300"
         />
       </div>
@@ -54,11 +55,10 @@ export default function LoginScreen({
             <div className="flex items-center gap-4 bg-white/80 dark:bg-zinc-900/60 p-3.5 rounded-2xl backdrop-blur-xl border border-zinc-200 dark:border-zinc-800 shadow-xl transition-colors duration-300">
               <div className="h-14 w-14 rounded-xl bg-white flex items-center justify-center p-2 shadow-inner border border-zinc-200 shrink-0">
                 <img 
-                  src={appLogo || getPlaceholderLogo()} 
-                  alt="Logo UNP" 
-                  className="h-full w-full object-contain filter drop-shadow-sm" 
-                  onError={(e)=>{e.target.src = getPlaceholderLogo()}} 
-                />
+  src={appLogo || '/publiclogo_unp.png'} 
+  alt="Logo UNP" 
+  className="h-full w-full object-contain filter drop-shadow-sm" 
+/>
               </div>
               <div>
                 <span className="text-[11px] font-black uppercase tracking-wider text-brand-primary dark:text-brand-accent">
@@ -164,7 +164,7 @@ export default function LoginScreen({
         </p>
       </footer>
 
-      {/* MODAL DE RECUPERACIÓN DE CONTRASEÑA Y SOPORTE */}
+      {/* MODAL DE SOPORTE */}
       {showRecoveryModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md z-[999] flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-md p-8 relative animate-slide-up text-zinc-900 dark:text-white">

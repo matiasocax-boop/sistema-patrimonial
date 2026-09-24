@@ -14,6 +14,8 @@ export default function BienModal({
     funcionariosPadron = [],
     STYLES
 }) {
+    const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
+
     const handleCustodioChange = (e) => {
         const valorInput = e.target.value;
         if (!bienFormRef.current) return;
@@ -34,8 +36,6 @@ export default function BienModal({
             if (inputDoc) inputDoc.value = '';
         }
     };
-
-    const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
 
     return (
         <div className={STYLES.modalOverlay}>

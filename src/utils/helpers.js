@@ -29,5 +29,34 @@ export const getPlaceholderLogo = () => {
     ctx.fillText('LOGO', 100, 115); 
     ctx.lineWidth = 4; 
     ctx.strokeRect(0,0,200,200); 
-    return canvas.toDataURL('image/png'); 
+    return canvas.toDataURL('image/png');
+ };
+export const convertirImagenABase64 = async (url) => {
+    try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error("Error al convertir logo a Base64:", error);
+        return null;
+    }
+};
+export const getLogoPorDependencia = (dependencia) => {
+    if (!dependencia) return '/publiclogo_unp.png';
+    const dep = dependencia.toLowerCase();
+    
+    if (dep.includes('agropecuarias')) return '/publiclogo_agro.png';
+    if (dep.includes('aplicadas')) return '/publiclogo_aplicadas.png';
+    if (dep.includes('biomédicas') || dep.includes('biomedicas')) return '/publiclogo_biomedicas.png';
+    if (dep.includes('contables') || dep.includes('economicas')) return '/publiclogo_contables.png';
+    if (dep.includes('tecnologías') || dep.includes('artes') || dep.includes('cta')) return '/publiclogo_cta.png';
+    if (dep.includes('derecho')) return '/publiclogo_derecho.png';
+    if (dep.includes('humanidades')) return '/publiclogo_humanidades.png';
+    
+    return '/publiclogo_unp.png';
 };

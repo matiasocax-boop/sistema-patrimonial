@@ -91,15 +91,43 @@ function SkeletonLoader() {
         </div>
     );
 }
-
 export default function App() {
-  const [toasts, setToasts] = useState([]);
-  const addToast = (message, type = 'success') => { 
-      const id = Date.now() + Math.random().toString(36).substr(2, 9);
-      setToasts(prev => [...prev, { id, message, type }]); 
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500); 
-  };
+  // 1. REGLA DE REACT: TODOS LOS ESTADOS (HOOKS) VAN PRIMERO
+  const urlParams = new URLSearchParams(window.location.search);
+  const publicBienId = urlParams.get('id') || urlParams.get('bienId');
   
+  const [publicBienData, setPublicBienData] = useState(null);
+  // --- INICIO: LÓGICA DEL QR DINÁMICO ---
+  // --- LÓGICA DEL QR DINÁMICO SEGURO ---
+  useEffect(() => {
+    if (publicBienId) {
+      const fetchQRData = async () => {
+        try {
+          // Llamamos a la función segura del servidor que omite RLS para este fin específico
+          const { data, error } = await supabase.rpc('obtener_bien_publico', {
+            p_id: publicBienId
+          });
+
+          if (error) throw error;
+
+          if (data) {
+            // El resultado ya viene como objeto JSON desde la función RPC
+            const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+            setPublicBienData(parsedData);
+          } else {
+            setPublicBienData({ rotulo: "No Encontrado", descripcion: "Este activo no registra datos en el sistema." });
+          }
+        } catch (err) {
+          console.error("Error al buscar el activo por QR:", err);
+          setPublicBienData({ rotulo: "Error de Acceso", descripcion: "No se pudo conectar con el servidor para verificar este activo." });
+        }
+      };
+      
+      fetchQRData();
+    }
+  }, [publicBienId]);
+  // --- FIN: LÓGICA DEL QR DINÁMICO ---
+  const [toasts, setToasts] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
@@ -117,7 +145,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
+  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -126,7 +154,6 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  // NUEVOS ESTADOS: Confirmación de cambio de dependencia
   const [showDependenciaConfirm, setShowDependenciaConfirm] = useState(false);
   const [pendingDependencia, setPendingDependencia] = useState('');
   const [bienes, setBienes] = useState([]);
@@ -134,14 +161,13 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [dependenciaActual, setDependenciaActual] = useState(() => {
     if (currentUser?.dependencia) return currentUser.dependencia;
     return isAdmin ? 'Rectorado' : 'Rectorado';
-});
+  });
  
   const [currentPaginaFuncionarios, setCurrentPaginaFuncionarios] = useState(1);
   const itemsPorPaginaFuncs = 20;
   const [isFuncionarioModalOpen, setIsFuncionarioModalOpen] = useState(false);
   const [funcionarioToEdit, setFuncionarioToEdit] = useState(null);
   const [isNewFuncionarioModalOpen, setIsNewFuncionarioModalOpen] = useState(false);
-  // AÑADE ESTA LÍNEA JUNTO AL RESTO DE TUS ESTADOS:
   const [todasDependencias] = useState(DEPENDENCIAS_UNP);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isBulkQR, setIsBulkQR] = useState(false);
@@ -183,57 +209,15 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [dbError, setDbError] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  useEffect(() => {
-    const handleOnline = () => { 
-        setIsOnline(true); 
-        addToast("Conexión a la red restablecida.", "success"); 
-    };
-    
-    const handleOffline = () => { 
-        setIsOnline(false); 
-        addToast("Sin conexión. Operando en modo local.", "warning"); 
-    };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    // Verificación activa cada 10 segundos para detectar caídas reales al instante
-    const intervalCheck = setInterval(async () => {
-        try {
-            // Hacemos una consulta ultraligera a Supabase para comprobar conectividad real
-            const { error } = await supabase.from('bens').select('id').limit(1);
-            if (error) throw error;
-            
-            if (!isOnline) {
-                setIsOnline(true);
-                addToast("Conexión a la red restablecida.", "success");
-            }
-        } catch (err) {
-            if (isOnline) {
-                setIsOnline(false);
-                addToast("Sin conexión. Operando en modo local.", "warning");
-            }
-        }
-    }, 10000);
-
-    return () => { 
-        window.removeEventListener('online', handleOnline); 
-        window.removeEventListener('offline', handleOffline);
-        clearInterval(intervalCheck);
-    };
-  }, [isOnline]);
-
   const fileInputRef = useRef(null);
   const fileInputFuncionariosRef = useRef(null);
 
-  // DECLARACIÓN DE ESTADOS DE LISTAS Y BÚSQUEDA (COLOCADOS ANTES DE SER USADOS)
   const [fc10List, setFc10List] = useState([]); 
   const [fc11List, setFc11List] = useState([]); 
   const [fc04List, setFc04List] = useState([]);
   const [usuariosList, setUsuariosList] = useState([]); 
   const [funcionariosPadron, setFuncionariosPadron] = useState([]); 
   const [estructurasDB, setEstructurasDB] = useState([]);
-
 
   const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
   const [searchInput, setSearchInput] = useState(''); 
@@ -253,7 +237,7 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); 
   const [fc10Month, setFc10Month] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
   const [searchConsolidadoModal, setSearchConsolidadoModal] = useState('');
-  // AHORA SÍ PODEMOS DECLARAR ESTAS CONSTANTES SIN ERRORES:
+  const [isConsolidatedFC10ModalOpen, setIsConsolidatedFC10ModalOpen] = useState(false);
   const hasFilters = Boolean(
     searchInput || filtroFuncionario || filtroUbicacion || filtroAnio || 
     filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || 
@@ -324,7 +308,6 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
     try {
       if (!isSilent) setIsLoading(true);
 
-      // Creamos un timeout de seguridad de 8 segundos por si Supabase no responde
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout de red')), 8000)
       );
@@ -336,8 +319,13 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
         let to = rangeSize - 1;
         let keepFetchingBienes = true;
 
+        // OPTIMIZACIÓN 1: Solo descargamos los bienes de la dependencia activa.
         while (keepFetchingBienes) {
-          let query = supabase.from('bens').select('id, data, updated_at');
+          let query = supabase
+            .from('bens')
+            .select('id, data, updated_at')
+            .eq('data->>dependencia', dependenciaActual); // <-- El servidor filtra, ahorrando 90% de ancho de banda
+
           const { data: batch, error } = await query.range(from, to);
 
           if (error || !batch || batch.length === 0) {
@@ -360,13 +348,23 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
               mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
           });
           const inventarioFinal = Array.from(mapaBienes.values());
-          await localforage.setItem('bienes_cache', inventarioFinal);
+          
+          // Guardamos en caché separando por dependencia para no mezclar datos offline
+          await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
           setBienes(inventarioFinal);
+        } else {
+          setBienes([]);
         }
 
+       
         const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
-            fetchAllRows('fc10'), fetchAllRows('fc11'), fetchAllRows('fc04'), 
-            fetchAllRows('estructuras'), fetchAllRows('auditoria'), fetchAllRows('usuarios'), fetchAllRows('funcionarios')
+            supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
+            supabase.from('fc11').select('id, data'), 
+            supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
+            supabase.from('estructuras').select('id, data'), 
+            supabase.from('auditoria').select('*'),
+            supabase.from('usuarios').select('*'),
+            supabase.from('funcionarios').select('*')
         ]);
 
         const parseDirect = (resData) => {
@@ -384,9 +382,17 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
         setFc11List(parseDirect(resFc11.data));
         setFc04List(parseDirect(resFc04.data)); 
         setEstructurasDB(parseDirect(resEstructuras.data));
-        setNotificaciones(parseDirect(resAuditoria.data));
-        setUsuariosList(parseDirect(resUsuarios.data));
-        setFuncionariosPadron(parseDirect(resFuncionarios.data));
+        
+        // Procesamiento seguro para Auditoría
+        const audData = resAuditoria.data || [];
+        setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+        
+        setUsuariosList(resUsuarios.data || []);
+        
+        // Procesamiento directo para Funcionarios (columnas planas de la base de datos)
+        const funcsData = resFuncionarios.data || [];
+        setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+        
         setDbError(false);
       })();
 
@@ -397,16 +403,16 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
         if (!isSilent) setDbError(true);
         
         try {
-            const cachedBienes = await localforage.getItem('bienes_cache');
+            // Buscamos el caché específico de esta dependencia
+            const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
             if (cachedBienes && cachedBienes.length > 0) {
                 setBienes(cachedBienes);
             }
         } catch (e) {}
     } finally { 
-        // Aseguramos que el estado de carga se apague sí o sí
         setIsLoading(false); 
     }
-  }, []);
+  }, [dependenciaActual]);
 
   const clearAllFilters = () => { 
       setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); 
@@ -424,24 +430,34 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
   // -----------------------------------
   const handleLogin = async (e) => { 
     e.preventDefault(); 
-    try {
-        const { data: usuario, error } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('username', loginUser.trim())
-            .maybeSingle();
+    setIsProcessing({ active: true, text: 'Verificando credenciales...' });
 
-        if (error || !usuario || usuario.password !== loginPass.trim()) {
+    try {
+        // Llamamos a la función segura en el servidor de Supabase
+        const { data, error } = await supabase.rpc('verificar_login', {
+            p_username: loginUser.trim(),
+            p_password: loginPass.trim()
+        });
+
+        // Si hay error de red o no devuelve datos, el login falla
+        if (error || !data || data.length === 0) {
             setLoginError(true);
             addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
+            setIsProcessing({ active: false, text: '' });
             return;
         }
+
+        const usuario = data[0];
 
         const userSession = {
             ...usuario,
             role: usuario.cargo === 'admin' ? 'admin' : 'user',
-            dependencia: usuario.dependencia || 'Rectorado' // <--- Asegura capturar la dependencia
+            dependencia: usuario.dependencia || 'Rectorado' 
         };
+
+        // EXTREMA SEGURIDAD: Eliminamos la contraseña de la memoria de React 
+        // antes de guardarla en localStorage para que nadie pueda verla.
+        delete userSession.password;
 
         localStorage.setItem('is_logged_in', 'true'); 
         localStorage.setItem('current_user', JSON.stringify(userSession)); 
@@ -449,12 +465,14 @@ const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
         setLoginError(false); 
         setCurrentUser(userSession); 
         setIsAuthenticated(true); 
-        setDependenciaActual(userSession.dependencia); // <--- Establece el entorno del usuario
+        setDependenciaActual(userSession.dependencia); 
         
         addToast(`Bienvenido, ${usuario.nombre} (${userSession.dependencia})`, "success"); 
     } catch (error) {
         setLoginError(true);
         addToast("Error al conectar con la base de datos", "error");
+    } finally {
+        setIsProcessing({ active: false, text: '' });
     }
   };
   const handleLogout = () => {
@@ -628,7 +646,6 @@ reader.onload = (event) => {
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
-  const [isConsolidatedFC10ModalOpen, setIsConsolidatedFC10ModalOpen] = useState(false);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
@@ -720,11 +737,15 @@ reader.onload = (event) => {
       }
     }, 100);
   };
-  const handleGenerateConsolidatedFC10PDF = (funcionarioNombreSeleccionado) => {
+  const handleGenerateConsolidatedFC10PDF = (funcionarioNombreSeleccionado, fechaDesde, fechaHasta) => {
     const vigentes = bienes.filter(b => b.dependencia === dependenciaActual && b.funcionario && b.estadoConservacion !== 'De Baja');
-    const bienesDelFuncionario = vigentes.filter(b => normalizeStr(b.funcionario) === normalizeStr(funcionarioNombreSeleccionado));
+    let bienesDelFuncionario = vigentes.filter(b => normalizeStr(b.funcionario) === normalizeStr(funcionarioNombreSeleccionado));
     
-    if (bienesDelFuncionario.length === 0) return addToast("No se encontraron bienes activos para este funcionario.", "warning");
+    // Aplicamos los filtros de fecha recibidos del modal
+    if (fechaDesde) bienesDelFuncionario = bienesDelFuncionario.filter(b => b.fechaAdquisicion >= fechaDesde);
+    if (fechaHasta) bienesDelFuncionario = bienesDelFuncionario.filter(b => b.fechaAdquisicion <= fechaHasta);
+    
+    if (bienesDelFuncionario.length === 0) return addToast("No se encontraron bienes en este rango de fechas.", "warning");
 
     const funcionarioPadronInfo = funcionariosPadron.find(f => normalizeStr(f.nombre) === normalizeStr(funcionarioNombreSeleccionado)) || {
         cedula: 'S/D',
@@ -1843,7 +1864,124 @@ const handleEditFuncionario = (funcionario) => {
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
   // --- FIN DE CÓDIGO RESTAURADO ---
+  const addToast = (message, type = 'success') => { 
+      const id = Date.now() + Math.random().toString(36).substr(2, 9);
+      setToasts(prev => [...prev, { id, message, type }]); 
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500); 
+  };
 
+  // VISTA DEL QR PÚBLICO
+  // 1. VISTA DEL QR PÚBLICO (Debe ser lo primero absoluto que evalúa la app)
+  // VISTA DEL QR PÚBLICO (MEJORADA Y MODERNA)
+  if (publicBienId) {
+      return (
+          <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center p-4 sm:p-6 text-zinc-100 font-sans selection:bg-brand-primary selection:text-white">
+              <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl backdrop-blur-xl relative overflow-hidden">
+                  
+                  {/* Barra superior de acento institucional */}
+                  <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-brand-primary via-sky-500 to-emerald-500"></div>
+                  
+                  {/* Encabezado */}
+                  <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-800/80">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mb-4 ring-1 ring-brand-primary/20 shadow-inner">
+                          <i className="fa-solid fa-shield-halved text-2xl"></i>
+                      </div>
+
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-accent mb-2 border border-brand-primary/20">
+                          <i className="fa-solid fa-circle-check text-[9px]"></i> Control Patrimonial Oficial
+                      </span>
+
+                      <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                          Universidad Nacional de Pilar
+                      </h1>
+                      <p className="text-xs text-zinc-400 font-medium mt-0.5">
+                          Sistema Integrado de Gestión de Activos
+                      </p>
+                  </div>
+
+                  {publicBienData ? (
+                      <div className="py-6 space-y-5">
+                          
+                          {/* Tarjeta Principal de Identificación */}
+                          <div className="bg-zinc-950/60 p-5 rounded-2xl border border-zinc-800/60 relative overflow-hidden">
+                              <div className="flex justify-between items-start gap-4">
+                                  <div>
+                                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Rótulo / Código de Inventario</p>
+                                      <p className="text-xl sm:text-2xl font-black text-white font-mono mt-0.5 tracking-tight">{publicBienData.rotulo}</p>
+                                  </div>
+                                  {publicBienData.estadoConservacion && (
+                                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
+                                          publicBienData.estadoConservacion === 'De Baja' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                      }`}>
+                                          {publicBienData.estadoConservacion}
+                                      </span>
+                                  )}
+                              </div>
+
+                              <div className="mt-4 pt-3 border-t border-zinc-800/60">
+                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Descripción del Bien</p>
+                                  <p className="text-sm font-bold text-zinc-200 mt-1 leading-relaxed">{publicBienData.descripcion}</p>
+                              </div>
+                          </div>
+
+                          {/* Cuadrícula de Detalles Técnicos */}
+                          <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40">
+                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <i className="fa-solid fa-layer-group text-brand-primary"></i> Cuenta Contable
+                                  </p>
+                                  <p className="text-xs font-mono font-bold text-zinc-200 mt-1.5">{publicBienData.cuenta || 'S/D'}</p>
+                              </div>
+
+                              <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40">
+                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <i className="fa-solid fa-coins text-emerald-400"></i> Valor de Adquisición
+                                  </p>
+                                  <p className="text-xs font-bold text-emerald-400 mt-1.5">Gs. {formatCurrency(publicBienData.valorUnitario)}</p>
+                              </div>
+                          </div>
+
+                          {/* Custodio y Ubicación */}
+                          <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40 space-y-3">
+                              <div>
+                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <i className="fa-solid fa-user-tie text-sky-400"></i> Custodio Responsable
+                                  </p>
+                                  <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.funcionario || 'Sin Asignar'}</p>
+                              </div>
+                              <div className="pt-2 border-t border-zinc-800/40">
+                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                                      <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación Física
+                                  </p>
+                                  <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.ubicacion || 'Sin Ubicación Registrada'}</p>
+                              </div>
+                          </div>
+
+                      </div>
+                  ) : (
+                      <div className="py-16 flex flex-col items-center justify-center text-center">
+                          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary mb-3"></i>
+                          <p className="text-xs text-zinc-400 font-medium">Verificando registro en la base de datos oficial...</p>
+                      </div>
+                  )}
+
+                  {/* Botón de salida */}
+                  <div className="pt-4">
+                      <button 
+                          onClick={() => window.location.href = window.location.origin} 
+                          className="w-full py-3.5 px-6 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-lg border border-zinc-700/50 flex items-center justify-center gap-2"
+                      >
+                          <i className="fa-solid fa-arrow-left"></i> Ir al Sistema Institucional
+                      </button>
+                  </div>
+
+              </div>
+          </div>
+      );
+  }
+
+  // 2. LUEGO EL RESTO DE VALIDACIONES (Mantenimiento, Login, etc.)
+  
   if (isCheckingMaintenance) {
       return (
           <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
@@ -2666,10 +2804,19 @@ const handleEditFuncionario = (funcionario) => {
                                             )}
                                         </div>
                                     </div>                                   
-                                    <div className="mt-2">
-                                        <h4 className="font-bold text-zinc-900 dark:text-white text-sm uppercase tracking-tight">{fc.funcionarioNombre}</h4>
-                                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">{fc.funcionarioCargo}</p>
-                                    </div>
+                                    <div className="mt-2 flex flex-col h-full">
+    <h4 className="font-bold text-zinc-900 dark:text-white text-sm uppercase tracking-tight">{fc.funcionarioNombre}</h4>
+    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">{fc.funcionarioCargo}</p>
+    
+    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50/50 dark:bg-darkbg-main/50 -mx-5 -mb-5 px-5 pb-5 rounded-b-xl">
+        <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate" title={bien.descripcion || 'Descripción no disponible'}>
+            {bien.descripcion || 'Descripción no disponible'}
+        </p>
+        <p className="text-[11px] text-zinc-500 mt-1 font-mono">
+            <i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {bien.rotulo || 'S/Rótulo'}
+        </p>
+    </div>
+</div>
                                 </div>
                               </div>
                             );

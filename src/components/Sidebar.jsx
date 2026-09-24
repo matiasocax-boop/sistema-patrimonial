@@ -1,8 +1,12 @@
 import React from 'react';
+import { getLogoPorDependencia } from '../utils/helpers';
 
 export default function Sidebar({ 
-    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja 
+    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual 
 }) {
+    // Determinamos qué logo mostrar (prioriza el logo subido manualmente, si no, usa el de la dependencia activa)
+    const logoSrc = appLogo || getLogoPorDependencia(dependenciaActual);
+
     return (
         <>
             {isSidebarOpen && (
@@ -15,7 +19,12 @@ export default function Sidebar({
                 <div className="flex h-[90px] shrink-0 items-center justify-between px-7 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card">
                     <div className="flex items-center gap-4 w-full">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden p-2 text-brand-primary">
-                            {appLogo ? <img src={appLogo} alt="Logo" className="w-full h-full object-contain drop-shadow-sm" /> : <i className="fa-solid fa-landmark text-xl"></i>}
+                            <img 
+                                src={logoSrc} 
+                                alt="Logo Institucional" 
+                                className="w-full h-full object-contain drop-shadow-sm" 
+                                onError={(e) => { e.target.src = '/publiclogo_unp.png'; }}
+                            />
                         </div>
                         <div className="min-w-0 flex-1">
                             <h1 className="text-[15px] font-black tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>

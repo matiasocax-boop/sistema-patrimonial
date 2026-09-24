@@ -1,9 +1,11 @@
 // src/utils/pdfGenerators.js
 import { formatCurrency, formatCI, formatDateText, getEstadoAbbr, getPlaceholderLogo } from './helpers';
 
+// --- QR DINÁMICO (Apunta a la URL del sistema con el ID del bien) ---
 export const generateSimpleQR = async (bien) => { 
-    const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
-    const qrText = `CÓDIGO: ${bien.rotulo||''}\nCTA: ${cuentaCompleta}\nDESC: ${bien.descripcion||''}\nADQ: ${bien.fechaAdquisicion||''}\nVALOR: Gs. ${formatCurrency(bien.valorUnitario)}\nPROPIEDAD UNP - PARAGUAY`;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    const qrText = `${baseUrl}/?bienId=${bien.id}`;
+    
     try {
         if (window.QRCode) {
             return await window.QRCode.toDataURL(qrText, { width: 1024, margin: 2, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } });
@@ -12,28 +14,30 @@ export const generateSimpleQR = async (bien) => {
     } catch (err) { console.error("Error generando QR", err); return ''; }
 };
 
+// --- ETIQUETA GRANDE (62x100mm - Vertical) ---
 export const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
     return new Promise(async (resolve) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = 732;
-        canvas.height = 1181;
+        canvas.width = 800;
+        canvas.height = 1290;
 
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.strokeStyle = '#333333';
-        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 16;
+        ctx.strokeRect(8, 8, canvas.width - 16, canvas.height - 16);
 
-        const headerHeight = 220;
-        ctx.fillStyle = '#f8f9fa';
-        ctx.fillRect(0, 0, canvas.width, headerHeight);
+        const headerHeight = 240;
+        ctx.fillStyle = '#f3f4f6';
+        ctx.fillRect(16, 16, canvas.width - 32, headerHeight - 16);
 
         ctx.beginPath();
-        ctx.moveTo(0, headerHeight);
-        ctx.lineTo(canvas.width, headerHeight);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = '#cccccc';
+        ctx.moveTo(16, headerHeight);
+        ctx.lineTo(canvas.width - 16, headerHeight);
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#000000';
         ctx.stroke();
 
         ctx.fillStyle = '#000000';
@@ -41,91 +45,94 @@ export const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
         ctx.textBaseline = 'middle';
         
         let textX = canvas.width / 2;
-        let textSpace = canvas.width;
-        const logoSize = 130;
-        const logoPadding = 40;
+        let textSpace = canvas.width - 40;
+        const logoSize = 160;
+        const logoPadding = 50;
 
         if (appLogoStr) {
             textX = (canvas.width + logoSize + logoPadding) / 2;
             textSpace = canvas.width - logoSize - logoPadding * 2;
         }
 
-        ctx.font = 'bold 36px Arial';
-        ctx.fillText('UNIVERSIDAD NACIONAL', textX, 70, textSpace);
-        ctx.font = '900 44px Arial';
-        ctx.fillText('DE PILAR', textX, 120, textSpace);
+        ctx.font = '900 38px Arial';
+        ctx.fillText('UNIVERSIDAD NACIONAL', textX, 80, textSpace);
+        ctx.font = '900 48px Arial';
+        ctx.fillText('DE PILAR', textX, 135, textSpace);
 
-        ctx.fillStyle = '#cc0000';
-        ctx.font = 'bold 24px Arial';
-        ctx.fillText('DPTO. DE BIENES PATRIMONIALES', textX, 175, textSpace);
+        ctx.fillStyle = '#000000';
+        ctx.font = 'bold 26px Arial';
+        ctx.fillText('DPTO. DE BIENES PATRIMONIALES', textX, 195, textSpace);
         
         ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         
         const rotuloText = bien.rotulo || 'S/R';
-        let codigoFontSize = 72;
-        if (rotuloText.length > 12) codigoFontSize = 60;
-        if (rotuloText.length > 16) codigoFontSize = 50;
+        let codigoFontSize = 90;
+        if (rotuloText.length > 10) codigoFontSize = 75;
+        if (rotuloText.length > 14) codigoFontSize = 60;
 
+        ctx.font = 'bold 28px Arial';
+        ctx.fillStyle = '#444444';
+        ctx.fillText('CÓDIGO PATRIMONIAL', canvas.width / 2, headerHeight + 35);
+
+        ctx.fillStyle = '#000000';
         ctx.font = `900 ${codigoFontSize}px Arial`;
-        ctx.fillText(rotuloText, canvas.width / 2, headerHeight + 80, canvas.width - 60);
-
-        ctx.font = 'bold 24px Arial';
-        ctx.fillStyle = '#555555';
-        ctx.fillText('CÓDIGO PATRIMONIAL', canvas.width / 2, headerHeight + 25);
+        ctx.fillText(rotuloText, canvas.width / 2, headerHeight + 100, canvas.width - 60);
 
         const qrDataUrl = await generateSimpleQR(bien);
         const qrImg = new Image();
         qrImg.crossOrigin = "Anonymous";
         qrImg.onload = () => {
-            const qrSize = 560;
-            ctx.shadowColor = 'rgba(0,0,0,0.1)';
-            ctx.shadowBlur = 10;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 5;
-            ctx.drawImage(qrImg, (canvas.width - qrSize) / 2, headerHeight + 140, qrSize, qrSize);
+            const qrSize = 500;
+            const qrY = headerHeight + 140;
+            ctx.drawImage(qrImg, (canvas.width - qrSize) / 2, qrY, qrSize, qrSize);
             
-            ctx.shadowColor = 'transparent';
-
-            const footerY = canvas.height - 240;
-            const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
-            
-            ctx.fillStyle = '#f0f2f5';
-            ctx.beginPath();
-            ctx.roundRect((canvas.width - 400) / 2, footerY - 10, 400, 60, 10);
-            ctx.fill();
-
-            ctx.fillStyle = '#333333';
-            ctx.font = 'bold 24px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, canvas.width / 2, footerY + 20);
-
-            ctx.beginPath();
-            ctx.moveTo(40, footerY + 80);
-            ctx.lineTo(canvas.width - 40, footerY + 80);
-            ctx.lineWidth = 1;
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.stroke();
-
-            ctx.fillStyle = '#cc0000';
-            ctx.font = '900 36px Arial';
-            ctx.fillText('PROPIEDAD DE LA UNP', canvas.width / 2, footerY + 130);
-
             ctx.fillStyle = '#000000';
             ctx.font = 'bold 26px Arial';
-            ctx.fillText('Bienes del Estado Paraguayo', canvas.width / 2, footerY + 180);
             
-            ctx.font = 'italic 18px Arial';
-            ctx.fillStyle = '#888888';
-            const today = new Date().toLocaleDateString('es-PY');
-            ctx.fillText(`Emitido: ${today}`, canvas.width / 2, footerY + 220);
+            let custodioTexto = `Custodio: ${bien.funcionario || 'Sin Asignar'}`;
+            if (custodioTexto.length > 48) custodioTexto = custodioTexto.substring(0, 45) + '...';
+            
+            let ubicacionTexto = `Ubicación: ${bien.ubicacion || 'Sin Ubicación'}`;
+            if (ubicacionTexto.length > 48) ubicacionTexto = ubicacionTexto.substring(0, 45) + '...';
 
+            const textoY = qrY + qrSize + 40;
+            ctx.fillText(custodioTexto, canvas.width / 2, textoY);
+            ctx.fillText(ubicacionTexto, canvas.width / 2, textoY + 40);
+
+            const ctaBoxY = textoY + 90;
+            
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.roundRect((canvas.width - 500) / 2, ctaBoxY, 500, 70, 15);
+            ctx.fill();
+
+            const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 30px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, canvas.width / 2, ctaBoxY + 35);
+
+            ctx.beginPath();
+            ctx.moveTo(50, ctaBoxY + 110);
+            ctx.lineTo(canvas.width - 50, ctaBoxY + 110);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000000';
+            ctx.stroke();
+
+            ctx.fillStyle = '#000000';
+            ctx.font = '900 42px Arial';
+            ctx.fillText('CONTROL PATRIMONIAL', canvas.width / 2, ctaBoxY + 160);
+
+            ctx.font = 'bold 28px Arial';
+            ctx.fillText('Uso Exclusivo Institucional', canvas.width / 2, ctaBoxY + 210);
+            
             if (appLogoStr) {
                 const logoImg = new Image();
                 logoImg.crossOrigin = "Anonymous";
                 logoImg.onload = () => {
-                    ctx.drawImage(logoImg, logoPadding, (headerHeight - logoSize) / 2, logoSize, logoSize); 
+                    ctx.drawImage(logoImg, logoPadding, (headerHeight - logoSize) / 2 + 10, logoSize, logoSize); 
                     resolve(canvas.toDataURL('image/png'));
                 };
                 logoImg.onerror = () => resolve(canvas.toDataURL('image/png'));
@@ -138,6 +145,97 @@ export const generateProfessionalLabelPNG = async (bien, appLogoStr) => {
     });
 };
 
+// --- ETIQUETA PEQUEÑA (29x90.3mm - Horizontal) ---
+export const generateSmallLabelPNG = async (bien, appLogoStr) => {
+    return new Promise(async (resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 903;
+        canvas.height = 290;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(4, 4, canvas.width - 8, canvas.height - 8);
+
+        const qrDataUrl = await generateSimpleQR(bien);
+        const qrImg = new Image();
+        qrImg.crossOrigin = "Anonymous";
+        qrImg.onload = () => {
+            const qrSize = 250;
+            ctx.drawImage(qrImg, 20, 20, qrSize, qrSize);
+
+            // Línea separadora
+            ctx.beginPath();
+            ctx.moveTo(285, 20);
+            ctx.lineTo(285, 270);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#000000';
+            ctx.stroke();
+
+            const textX = 310;
+            const maxW = 460;
+
+            ctx.fillStyle = '#000000';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+
+            ctx.font = '900 24px Arial';
+            ctx.fillText('UNIVERSIDAD NACIONAL DE PILAR', textX, 25, maxW);
+            
+            ctx.font = 'bold 18px Arial';
+            ctx.fillText('CONTROL PATRIMONIAL', textX, 55, maxW);
+
+            const rotuloText = bien.rotulo || 'S/R';
+            let rSize = 65;
+            if (rotuloText.length > 10) rSize = 50;
+            ctx.font = `900 ${rSize}px Arial`;
+            ctx.fillText(rotuloText, textX, 85, maxW);
+
+            const cuentaCompleta = [bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('-');
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.roundRect(textX, 160, 280, 40, 8);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 22px Arial';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(`CTA: ${cuentaCompleta || 'N/A'}`, textX + 15, 180, 250);
+
+            ctx.fillStyle = '#000000';
+            ctx.textBaseline = 'top';
+            ctx.font = 'bold 20px Arial';
+            
+            let custodio = bien.funcionario || 'Sin Asignar';
+            if(custodio.length > 35) custodio = custodio.substring(0, 32) + '...';
+            ctx.fillText(`Resp: ${custodio}`, textX, 215, 560);
+            
+            let ubicacion = bien.ubicacion || 'Sin Ubicación';
+            if(ubicacion.length > 35) ubicacion = ubicacion.substring(0, 32) + '...';
+            ctx.fillText(`Ubic: ${ubicacion}`, textX, 245, 560);
+
+            if (appLogoStr) {
+                const logoImg = new Image();
+                logoImg.crossOrigin = "Anonymous";
+                logoImg.onload = () => {
+                    const logoSize = 100;
+                    ctx.drawImage(logoImg, canvas.width - logoSize - 25, 25, logoSize, logoSize);
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                logoImg.onerror = () => resolve(canvas.toDataURL('image/png'));
+                logoImg.src = appLogoStr;
+            } else {
+                resolve(canvas.toDataURL('image/png'));
+            }
+        };
+        qrImg.src = qrDataUrl;
+    });
+};
+
+// --- GENERADOR DE PDF FC-10 ---
 export const buildFC10PDFDoc = (fcs, bienesAListar, dependenciaActual, appLogo, pdfPaperSize) => {
     const fc = fcs[0]; 
     const { jsPDF } = window.jspdf; 
