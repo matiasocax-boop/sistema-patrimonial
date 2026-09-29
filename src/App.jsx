@@ -1303,37 +1303,51 @@ const handleFileUpload = (e) => {
       }, 100);
   };
   const sincronizarBienesConPadron = async () => {
-    let actualizados = 0;
-    const nuevosBienes = bienes.map(b => {
+    setIsProcessing({ active: true, text: 'Sincronizando activos con el Padrón de Funcionarios...' });
+
+    try {
+      let actualizados = 0;
+      const bienesAActualizar = [];
+
+      const nuevosBienes = bienes.map(b => {
         if (b.funcionario && String(b.funcionario).trim() !== "") {
-            const match = funcionariosPadron.find(f => 
-                normalizeStr(f.nombre) === normalizeStr(b.funcionario) && 
-                (f.dependencia === b.dependencia || !f.dependencia)
-            );
-            if (match) {
-                actualizados++;
-                return { ...b, funcionarioDoc: match.cedula, funcionarioCargo: match.cargo };
-            }
+          const match = funcionariosPadron.find(f => 
+            normalizeStr(f.nombre) === normalizeStr(b.funcionario) && 
+            (f.dependencia === b.dependencia || !f.dependencia)
+          );
+          if (match && (b.funcionarioDoc !== match.cedula || b.funcionarioCargo !== match.cargo)) {
+            actualizados++;
+            const bienActualizado = { ...b, funcionarioDoc: match.cedula, funcionarioCargo: match.cargo };
+            bienesAActualizar.push(bienActualizado);
+            return bienActualizado;
+          }
         }
         return b;
-    });
+      });
 
-    if (actualizados > 0) {
+      if (actualizados > 0) {
         setBienes(nuevosBienes);
-        try {
-            for (const b of nuevosBienes) {
-                const payload = { id: b.id, data: b };
-                await supabase.from('bens').update(payload).eq('id', b.id);
-            }
-            await localforage.setItem('bienes_cache', nuevosBienes);
-            addToast(`Se sincronizaron y guardaron ${actualizados} bienes con el padrón.`, "success");
-            await fetchData(true);
-        } catch (err) {
-            console.error(err);
-            addToast("Error al guardar la sincronización en la base de datos.", "error");
+
+        // Actualización por lotes para no congelar la app
+        const CHUNK_SIZE = 10;
+        for (let i = 0; i < bienesAActualizar.length; i += CHUNK_SIZE) {
+          const chunk = bienesAActualizar.slice(i, i + CHUNK_SIZE);
+          await Promise.all(
+            chunk.map(b => supabase.from('bens').update({ data: b }).eq('id', b.id))
+          );
         }
-    } else {
-        addToast("No se encontraron coincidencias de nombres entre los bienes y el padrón.", "warning");
+
+        await localforage.setItem(`bienes_cache_${dependenciaActual}`, nuevosBienes);
+        addToast(`¡Sincronización exitosa! Se actualizaron ${actualizados} registros con sus datos oficiales.`, "success");
+        await fetchData(true);
+      } else {
+        addToast("Los activos de esta dependencia ya coinciden exactamente con el padrón oficial.", "info");
+      }
+    } catch (err) {
+      console.error(err);
+      addToast("Error al procesar la sincronización en la base de datos.", "error");
+    } finally {
+      setIsProcessing({ active: false, text: '' });
     }
   };
   const handleFileUploadFuncionarios = (e) => {
@@ -2084,75 +2098,79 @@ const handleEditFuncionario = (funcionario) => {
       setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500); 
   };
 
-  // VISTA DEL QR PÚBLICO
-  // 1. VISTA DEL QR PÚBLICO (Debe ser lo primero absoluto que evalúa la app)
-  // VISTA DEL QR PÚBLICO (MEJORADA Y MODERNA)
-  // --- VISTA PÚBLICA AL ESCANEAR CÓDIGO QR ---
+
+// --- VISTA PÚBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
 if (publicBienId) {
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 sm:p-6 text-zinc-100 font-sans selection:bg-brand-primary">
-      <div className="bg-zinc-900/90 border border-zinc-800 rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl backdrop-blur-xl relative overflow-hidden my-auto">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-100 font-sans selection:bg-sky-500">
+      <div className="bg-slate-900/95 border border-slate-800 rounded-[32px] p-5 sm:p-8 max-w-md w-full shadow-2xl backdrop-blur-2xl relative overflow-hidden my-auto">
         
-        {/* LÍNEA SUPERIOR DE ACENTO INSTITUCIONAL */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary via-sky-500 to-emerald-500"></div>
+        {/* Acento superior de color institucional */}
+        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600"></div>
 
-        {/* CABECERA */}
-        <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-800">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mb-3 border border-brand-primary/20 shadow-inner">
+        {/* Header institucional */}
+        <div className="flex flex-col items-center text-center pb-5 border-b border-slate-800/80">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 mb-3 border border-sky-500/20 shadow-inner">
             <i className="fa-solid fa-shield-halved text-2xl"></i>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-accent mb-2 border border-brand-primary/20">
-            <i className="fa-solid fa-circle-check text-[9px]"></i> Control Patrimonial Oficial
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-sky-500/10 text-sky-300 mb-2 border border-sky-500/20">
+            <i className="fa-solid fa-circle-check text-[9px] text-sky-400"></i> Verificación Oficial de Activo
           </span>
 
-          <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+          <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight">
             Universidad Nacional de Pilar
           </h1>
-          <p className="text-xs text-zinc-400 font-semibold mt-0.5">
-            Sistema Integrado de Gestión de Activos
+          <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+            Sistema Integrado de Gestión Patrimonial
           </p>
         </div>
 
-        {/* DETALLES DEL BIEN O ESTADO DE CARGA */}
+        {/* Contenido principal o Spinner */}
         {publicBienData ? (
-          <div className="py-6 space-y-4">
+          <div className="py-5 space-y-3.5">
             
-            {/* TARJETA PRINCIPAL DEL RÓTULO */}
-            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800/80">
-              <div className="flex justify-between items-start gap-3">
+            {/* Tarjeta de Rótulo y Estado */}
+            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+              <div className="flex justify-between items-center gap-2">
                 <div>
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Rótulo / Código</p>
-                  <p className="text-xl font-black text-white font-mono mt-0.5 tracking-tight">{publicBienData.rotulo || 'S/R'}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Código / Rótulo</p>
+                  <p className="text-xl font-black text-white font-mono tracking-tight mt-0.5">
+                    {publicBienData.rotulo || 'S/Rótulo'}
+                  </p>
                 </div>
                 {publicBienData.estadoConservacion && (
-                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
+                  <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider ${
                     publicBienData.estadoConservacion === 'De Baja' 
-                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
-                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' 
+                      : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                   }`}>
                     {publicBienData.estadoConservacion}
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-zinc-800/80">
-                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Descripción</p>
-                <p className="text-xs sm:text-sm font-extrabold text-zinc-200 mt-1 leading-relaxed">{publicBienData.descripcion || 'Sin descripción'}</p>
+              <div className="mt-3 pt-3 border-t border-slate-800/80">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Descripción General</p>
+                <p className="text-xs sm:text-sm font-bold text-slate-200 mt-1 leading-relaxed">
+                  {publicBienData.descripcion || 'Sin descripción asignada'}
+                </p>
               </div>
             </div>
 
-            {/* CUADRÍCULA DE DATOS TÉCNICOS */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-layer-group text-brand-primary"></i> Cuenta
+            {/* Datos Técnicos en Rejilla Responsiva */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-layer-group text-sky-400"></i> Cuenta
                 </p>
-                <p className="text-xs font-mono font-bold text-zinc-200 mt-1 truncate">{publicBienData.cuenta || 'S/D'}</p>
+                <p className="text-xs font-mono font-bold text-slate-200 mt-1 truncate">
+                  {publicBienData.cuenta || 'Sin Cuenta'}
+                </p>
               </div>
 
-              <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                   <i className="fa-solid fa-coins text-emerald-400"></i> Valor
                 </p>
                 <p className="text-xs font-bold text-emerald-400 mt-1">
@@ -2161,38 +2179,42 @@ if (publicBienId) {
               </div>
             </div>
 
-            {/* RESPONSABLE Y UBICACIÓN */}
-            <div className="bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800/60 space-y-2.5">
+            {/* Custodio y Ubicación */}
+            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div>
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-user-tie text-sky-400"></i> Responsable
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-user-check text-sky-400"></i> Responsable Asignado
                 </p>
-                <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.funcionario || 'Sin Asignar'}</p>
+                <p className="text-xs font-bold text-slate-200 mt-1">
+                  {publicBienData.funcionario || 'Sin Responsable Asignado'}
+                </p>
               </div>
 
-              <div className="pt-2 border-t border-zinc-800/60">
-                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación
+              <div className="pt-2.5 border-t border-slate-800/80">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación Física
                 </p>
-                <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.ubicacion || 'Sin Ubicación'}</p>
+                <p className="text-xs font-bold text-slate-200 mt-1">
+                  {publicBienData.ubicacion || 'Sin Ubicación Registrada'}
+                </p>
               </div>
             </div>
 
           </div>
         ) : (
           <div className="py-12 flex flex-col items-center justify-center text-center">
-            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary mb-3"></i>
-            <p className="text-xs text-zinc-400 font-semibold">Cargando datos oficiales del activo...</p>
+            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-3"></i>
+            <p className="text-xs text-slate-400 font-semibold">Consultando datos de registro...</p>
           </div>
         )}
 
-        {/* PIE Y BOTÓN */}
+        {/* Pie y botón de retorno */}
         <div className="pt-2">
           <button 
             onClick={() => window.location.href = window.location.origin} 
-            className="w-full py-3 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-bold transition-all cursor-pointer border border-zinc-700 flex items-center justify-center gap-2"
+            className="w-full py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2 active:scale-98"
           >
-            <i className="fa-solid fa-arrow-left"></i> Ir a la Plataforma
+            <i className="fa-solid fa-arrow-left"></i> Ir a la Plataforma Principal
           </button>
         </div>
 
@@ -3124,19 +3146,22 @@ if (publicBienId) {
 
                       </div>
 
-                      {/* BARRA DE BÚSQUEDA INTEGRADA EN LA CABECERA */}
-                      <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
-                        <div className="relative w-full">
+                      {/* BARRA DE BÚSQUEDA DEL PADRÓN CORREGIDA */}
+<div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
+  <div className="relative w-full">
     <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
     <input 
       type="text"
-      placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full rounded-xl border border-zinc-200 dark:border-darkbg-border bg-zinc-50/80 dark:bg-darkbg-main py-3 pl-11 pr-4 text-xs font-semibold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
+      placeholder="Buscar funcionario por nombre, apellido o número de cédula..."
+      value={searchFuncionarioInput}
+      onChange={(e) => {
+        setSearchFuncionarioInput(e.target.value);
+        setCurrentPaginaFuncionarios(1); // Resetea la paginación para mostrar resultados desde la página 1
+      }}
+      className="w-full rounded-2xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3.5 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
     />
   </div>
-                      </div>
+</div>
 
                     </div>
 
