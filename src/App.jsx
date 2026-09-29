@@ -32,6 +32,10 @@ import UsuarioModal from './components/modals/UsuarioModal';
 import NuevoFuncionarioModal from './components/modals/NuevoFuncionarioModal';
 import FuncionarioModal from './components/modals/FuncionarioModal';
 import ScannerModal from './components/modals/ScannerModal';
+import UnsavedChangesModal from './components/modals/UnsavedChangesModal';
+import { processOfflineQueue, enqueueOfflineAction } from './services/offlineSyncService';
+import { registrarAuditoria } from './services/auditService';
+import Papa from 'papaparse';
 
 const STYLES = {
     input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
@@ -55,18 +59,15 @@ const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "Baja" },
 function SkeletonLoader() { 
     return (
         <div className="w-full flex-1 bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden flex flex-col min-h-[550px] animate-pulse">
-            {/* Cabecera del esqueleto */}
             <div className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 border-b border-zinc-200/80 dark:border-darkbg-border px-8 py-4 flex justify-between hidden md:flex">
                 <div className="h-3 w-48 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
                 <div className="h-3 w-32 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
                 <div className="h-3 w-24 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
             </div>
             
-            {/* Filas del esqueleto (Híbrido: Tarjetas móvil / Filas desktop) */}
             <div className="p-4 md:p-0 divide-y divide-transparent md:divide-zinc-100 md:dark:divide-darkbg-border/60">
                 {[1, 2, 3, 4, 5].map(i => ( 
                     <div key={i} className="mb-4 md:mb-0 p-4 md:px-6 md:py-4 border border-zinc-200/80 md:border-0 rounded-2xl md:rounded-none flex flex-col md:flex-row md:items-center gap-4"> 
-                        {/* Columna 1 */}
                         <div className="flex items-center gap-3 flex-1">
                             <div className="h-10 w-10 shrink-0 bg-zinc-200 dark:bg-zinc-800 rounded-xl"></div>
                             <div className="space-y-2 flex-1">
@@ -74,12 +75,10 @@ function SkeletonLoader() {
                                 <div className="h-2 bg-zinc-100 dark:bg-zinc-800/50 rounded w-2/3"></div>
                             </div>
                         </div>
-                        {/* Columna 2 */}
                         <div className="flex-1 space-y-2 mt-2 md:mt-0 pt-2 border-t border-dashed md:border-none md:pt-0 border-zinc-100 dark:border-darkbg-border">
                             <div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2"></div>
                             <div className="h-2 bg-zinc-100 dark:bg-zinc-800/50 rounded w-1/3"></div>
                         </div>
-                        {/* Columna 3 (Acciones) */}
                         <div className="flex justify-end gap-2 mt-2 pt-2 border-t md:border-none md:pt-0 border-zinc-100 dark:border-darkbg-border shrink-0">
                             <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
                             <div className="h-8 w-8 bg-zinc-200 dark:bg-zinc-800 rounded-lg"></div>
@@ -91,48 +90,17 @@ function SkeletonLoader() {
         </div>
     );
 }
+
 export default function App() {
-  // 1. REGLA DE REACT: TODOS LOS ESTADOS (HOOKS) VAN PRIMERO
   const urlParams = new URLSearchParams(window.location.search);
   const publicBienId = urlParams.get('id') || urlParams.get('bienId');
   
   const [publicBienData, setPublicBienData] = useState(null);
-  // --- INICIO: LÓGICA DEL QR DINÁMICO ---
-  // --- LÓGICA DEL QR DINÁMICO SEGURO ---
-  useEffect(() => {
-    if (publicBienId) {
-      const fetchQRData = async () => {
-        try {
-          // Llamamos a la función segura del servidor que omite RLS para este fin específico
-          const { data, error } = await supabase.rpc('obtener_bien_publico', {
-            p_id: publicBienId
-          });
-
-          if (error) throw error;
-
-          if (data) {
-            // El resultado ya viene como objeto JSON desde la función RPC
-            const parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-            setPublicBienData(parsedData);
-          } else {
-            setPublicBienData({ rotulo: "No Encontrado", descripcion: "Este activo no registra datos en el sistema." });
-          }
-        } catch (err) {
-          console.error("Error al buscar el activo por QR:", err);
-          setPublicBienData({ rotulo: "Error de Acceso", descripcion: "No se pudo conectar con el servidor para verificar este activo." });
-        }
-      };
-      
-      fetchQRData();
-    }
-  }, [publicBienId]);
-  // --- FIN: LÓGICA DEL QR DINÁMICO ---
   const [toasts, setToasts] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
-  
-  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.cargo === 'admin', [currentUser]);
+  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.cargo === 'cargo', [currentUser]);
   
   const [loginUser, setLoginUser] = useState(''); 
   const [loginPass, setLoginPass] = useState(''); 
@@ -645,6 +613,7 @@ reader.onload = (event) => {
   }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm, searchInput]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
+  const itemsPaginados = paginatedBienes; // <-- AÑADIDO AQUÍ
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
@@ -657,8 +626,115 @@ reader.onload = (event) => {
 
   const handleDownloadLabelPNG = async (bien) => { setIsProcessing({ active: true, text: 'Generando Etiqueta...' }); setTimeout(async () => { try { const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if (dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`); addToast("Etiqueta descargada con éxito", "success"); } } catch (e) { addToast("Error al generar la etiqueta", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
   const handleDownloadSimpleQR = async (bien) => { setIsProcessing({ active: true, text: 'Procesando imagen QR...' }); try { const dataUrl = await generateSimpleQR(bien); if(dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `QR_${cleanRotulo}.png`); addToast("Código QR simple descargado", "success"); } } catch (e) { addToast("Error al descargar el QR", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } };
-  const handleBulkLabelPNGZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Generando Lote de Etiquetas...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP de etiquetas generado", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
-  const handleBulkSimpleQRZip = async () => { if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning"); setIsProcessing({ active: true, text: 'Comprimiendo ZIP de QRs simples...' }); setTimeout(async () => { try { const cleanDepName = dependenciaActual.replace(/\s+/g, '_'); const zip = new window.JSZip(); const folder = zip.folder(`QRs_Simples_${cleanDepName}`); for (let i = 0; i < filteredBienes.length; i++) { const bien = filteredBienes[i]; const dataUrl = await generateSimpleQR(bien); if(dataUrl) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), {base64: true}); } } const content = await zip.generateAsync({type:"blob"}); if(window.saveAs) window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`); addToast("Archivo ZIP generado con éxito", "success"); } catch (error) { addToast("Hubo un error al generar el archivo ZIP.", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
+  const handleBulkLabelPNGZip = async () => {
+    if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
+    
+    setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
+
+    setTimeout(async () => {
+      try {
+        const cleanDepName = dependenciaActual.replace(/\s+/g, '_');
+        const zip = new window.JSZip();
+        const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
+        
+        // PARALELIZACIÓN EN LOTES DE 8 PROCESOS SIMULTÁNEOS
+        const CHUNK_SIZE = 8;
+        const totalBienes = filteredBienes.length;
+
+        for (let i = 0; i < totalBienes; i += CHUNK_SIZE) {
+          const chunk = filteredBienes.slice(i, i + CHUNK_SIZE);
+          
+          setIsProcessing({ 
+            active: true, 
+            text: `Generando etiquetas: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...` 
+          });
+
+          const results = await Promise.all(
+            chunk.map(async (bien) => {
+              const dataUrl = await generateProfessionalLabelPNG(bien, appLogo);
+              return { bien, dataUrl };
+            })
+          );
+
+          results.forEach(({ bien, dataUrl }) => {
+            if (dataUrl) {
+              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+              folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), { base64: true });
+            }
+          });
+        }
+
+        setIsProcessing({ active: true, text: 'Comprimiendo paquete ZIP...' });
+        const content = await zip.generateAsync({ type: "blob" });
+
+        if (window.saveAs) {
+          window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`);
+        }
+        
+        addToast("Archivo ZIP de etiquetas generado con éxito", "success");
+      } catch (error) {
+        console.error("Error en ZIP:", error);
+        addToast("Hubo un error al generar el archivo ZIP.", "error");
+      } finally {
+        setIsProcessing({ active: false, text: '' });
+        setIsQRModalOpen(false);
+      }
+    }, 100);
+  };
+  const handleBulkSimpleQRZip = async () => {
+    if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
+    
+    setIsProcessing({ active: true, text: 'Iniciando compresión de QRs simples...' });
+
+    setTimeout(async () => {
+      try {
+        const cleanDepName = dependenciaActual.replace(/\s+/g, '_');
+        const zip = new window.JSZip();
+        const folder = zip.folder(`QRs_Simples_${cleanDepName}`);
+        
+        const CHUNK_SIZE = 10;
+        const totalBienes = filteredBienes.length;
+
+        for (let i = 0; i < totalBienes; i += CHUNK_SIZE) {
+          const chunk = filteredBienes.slice(i, i + CHUNK_SIZE);
+          
+          setIsProcessing({ 
+            active: true, 
+            text: `Procesando QRs: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...` 
+          });
+
+          const results = await Promise.all(
+            chunk.map(async (bien) => {
+              const dataUrl = await generateSimpleQR(bien);
+              return { bien, dataUrl };
+            })
+          );
+
+          results.forEach(({ bien, dataUrl }) => {
+            if (dataUrl) {
+              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+              folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), { base64: true });
+            }
+          });
+        }
+
+        setIsProcessing({ active: true, text: 'Generando paquete comprimido ZIP...' });
+        const content = await zip.generateAsync({ type: "blob" });
+
+        if (window.saveAs) {
+          window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`);
+        }
+        
+        addToast("Archivo ZIP de QRs generado con éxito", "success");
+      } catch (error) {
+        console.error("Error en ZIP QR:", error);
+        addToast("Hubo un error al generar el archivo ZIP.", "error");
+      } finally {
+        setIsProcessing({ active: false, text: '' });
+        setIsQRModalOpen(false);
+      }
+    }, 100);
+  };
 
   const handleGenerateFC04PDF = (fc) => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
@@ -1095,61 +1171,79 @@ reader.onload = (event) => {
       if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Masiva_Bienes.csv");
       addToast("Plantilla Excel (CSV) base descargada", "success");
   };
- 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0]; if (!file) return; setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
-    setTimeout(() => {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const buffer = event.target.result;
-        const text = decodeText(buffer);
-        const lines = text.split(/\r?\n/); if (lines.length < 2) { addToast("El archivo CSV está vacío o mal formateado.", "warning"); setIsProcessing({active:false, text:''}); return; }
-        const delimiter = lines[0].includes(';') ? ';' : ','; const newBienes = []; let duplicatesSkipped = 0;
-        
-        for (let i = 1; i < lines.length; i++) {
-          const line = String(lines[i]).trim(); if (!line) continue; const row = []; let inQuotes = false; let val = "";
-          for (let char of line) { if (char === '"') inQuotes = !inQuotes; else if (char === delimiter && !inQuotes) { row.push(val); val = ""; } else val += char; } row.push(val);
-          
-          if (row.length >= 8) {
-            const rotuloCSV = String(row[6]||'').replace(/"/g, '').trim(); 
-            const isDuplicateDB = bienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase() && b.dependencia === dependenciaActual); 
-            const isDuplicateCSV = newBienes.some(b => String(b.rotulo).trim().toLowerCase() === rotuloCSV.toLowerCase());
-            
-            if (isDuplicateDB || isDuplicateCSV) { duplicatesSkipped++; continue; }
-            
-            newBienes.push({ 
-                id: generateId(), 
-                dependencia: dependenciaActual, 
-                cuenta: String(row[0]||'').replace(/"/g, ''), 
-                subcuenta: String(row[1]||'').replace(/"/g, ''), 
-                analitico1: String(row[2]||'').replace(/"/g, ''), 
-                analitico2: String(row[3]||'').replace(/"/g, ''), 
-                descripcion: String(row[4]||'').replace(/"/g, ''), 
-                fechaAdquisicion: String(row[5]||'').replace(/"/g, ''), 
-                rotulo: rotuloCSV, 
-                valorUnitario: String(row[7]||'').replace(/"/g, ''), 
-                vidaUtil: String(row[8]||'').replace(/"/g, ''), 
-                funcionario: '', 
-                ubicacion: '', 
-                hasFC10: false, 
-                hasQR: false, 
-                estadoConservacion: 'Muy bueno' 
-            });
-          }
+const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
+const handleFileUpload = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
+
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    encoding: "UTF-8",
+    complete: async (results) => {
+      const newBienes = [];
+      let duplicatesSkipped = 0;
+
+      results.data.forEach(row => {
+        // Mapeo seguro de columnas independientemente del nombre exacto de la cabecera
+        const rotuloCSV = String(row['Nº Rótulo'] || row['Rotulo'] || row['rotulo'] || '').trim();
+        if (!rotuloCSV) return;
+
+        const isDuplicateDB = bienes.some(b => 
+          normalizeStr(b.rotulo) === normalizeStr(rotuloCSV) && 
+          b.dependencia === dependenciaActual
+        );
+
+        if (isDuplicateDB) {
+          duplicatesSkipped++;
+          return;
         }
-        if (newBienes.length > 0) { 
-            try { 
-                const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
-                await supabase.from('bens').insert(payloadNewBienes);
-                await fetchData(); 
-                setActiveTab('inventario'); 
-                addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success"); 
-            } catch (error) { addToast("Error al subir a la BD.", "error"); } 
-        } else { addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning"); }
-        setIsProcessing({ active: false, text: '' });
-      }; reader.readAsArrayBuffer(file); e.target.value = null;
-    }, 100);
-  };
+
+        newBienes.push({
+          id: generateId(),
+          dependencia: dependenciaActual,
+          cuenta: String(row['Cuenta Mayor'] || row['cuenta'] || '').trim(),
+          subcuenta: String(row['Sub-Cuenta'] || row['subcuenta'] || '').trim(),
+          analitico1: String(row['Analítico 1'] || row['analitico1'] || '').trim(),
+          analitico2: String(row['Analítico 2'] || row['analitico2'] || '').trim(),
+          descripcion: String(row['Descripción General'] || row['descripcion'] || '').trim(),
+          fechaAdquisicion: String(row['Fecha Adquisición (YYYY-MM-DD)'] || row['fechaAdquisicion'] || '').trim(),
+          rotulo: rotuloCSV,
+          valorUnitario: String(row['Valor Unitario (Sin puntos)'] || row['valorUnitario'] || '0').replace(/\D/g, ''),
+          vidaUtil: String(row['Vida Útil (Años)'] || row['vidaUtil'] || '').trim(),
+          funcionario: '',
+          ubicacion: '',
+          hasFC10: false,
+          hasQR: false,
+          estadoConservacion: 'Muy bueno'
+        });
+      });
+
+      if (newBienes.length > 0) {
+        try {
+          const payload = newBienes.map(b => ({ id: b.id, data: b }));
+          await supabase.from('bens').insert(payload);
+          await fetchData();
+          addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
+        } catch (error) {
+          addToast("Error al guardar registros en la base de datos.", "error");
+        }
+      } else {
+        addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
+      }
+
+      setIsProcessing({ active: false, text: '' });
+      e.target.value = null;
+    },
+    error: (err) => {
+      console.error(err);
+      addToast("Error al procesar el archivo CSV.", "error");
+      setIsProcessing({ active: false, text: '' });
+    }
+  });
+};
   const handleExportInventarioCSV = () => {
       if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
       setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
@@ -1431,7 +1525,6 @@ const handleEditFuncionario = (funcionario) => {
     let funcDoc = formData.get('funcionarioDoc')?.trim() || '';
     let funcCargo = formData.get('funcionarioCargo')?.trim() || '';
 
-    // Autocompletar desde el padrón si existe coincidencia exacta por nombre o cédula
     if (funcNombre) {
         const matchPadron = funcionariosPadron.find(f => 
             normalizeStr(f.nombre) === normalizeStr(funcNombre) || 
@@ -1465,6 +1558,21 @@ const handleEditFuncionario = (funcionario) => {
     };
     
     try { 
+        // 📍 AQUÍ SE INTERCEPTA EL MODO OFFLINE
+        if (!navigator.onLine) {
+            await enqueueOfflineAction({ type: 'SAVE_BIEN', payload: bienData });
+            
+            // Actualizamos el estado de la app y la caché IndexedDB
+            setBienes(prev => [bienData, ...prev.filter(b => b.id !== bienData.id)]);
+            const cacheActual = (await localforage.getItem(`bienes_cache_${dependenciaActual}`)) || [];
+            await localforage.setItem(`bienes_cache_${dependenciaActual}`, [bienData, ...cacheActual.filter(b => b.id !== bienData.id)]);
+
+            setIsBienModalOpen(false);
+            setIsSaving(false);
+            setIsProcessing({ active: false, text: '' });
+            return addToast(`Guardado localmente. Se sincronizará al recuperar la señal.`, "warning");
+        }
+
         let res;
         const payload = { id: bienData.id, data: bienData };
         if (bienEditing) {
@@ -1474,6 +1582,19 @@ const handleEditFuncionario = (funcionario) => {
         }
 
         if (!res.error) {
+            await registrarAuditoria({
+                usuario: currentUser?.username || 'Usuario',
+                dependencia: dependenciaActual,
+                accion: bienEditing ? 'MODIFICACION' : 'CREACION',
+                entidad: 'BIEN',
+                entidadId: bienData.id,
+                detalles: {
+                    rotulo: bienData.rotulo,
+                    descripcion: bienData.descripcion,
+                    cambios: bienEditing ? { anterior: bienEditing, nuevo: bienData } : bienData
+                }
+            });
+
             if (funcNombre && funcDoc) {
                 const funcExists = funcionariosPadron.find(f => f.cedula === funcDoc && f.dependencia === dependenciaActual);
                 if (!funcExists) {
@@ -1491,7 +1612,7 @@ const handleEditFuncionario = (funcionario) => {
                 }
             });
 
-            const cacheActual = await localforage.getItem('bienes_cache') || [];
+            const cacheActual = await localforage.getItem(`bienes_cache_${dependenciaActual}`) || [];
             let nuevoCache = [...cacheActual];
             const idxCache = nuevoCache.findIndex(b => b.id === bienData.id);
             if (idxCache !== -1) {
@@ -1499,7 +1620,7 @@ const handleEditFuncionario = (funcionario) => {
             } else {
                 nuevoCache.push(bienData);
             }
-            await localforage.setItem('bienes_cache', nuevoCache);
+            await localforage.setItem(`bienes_cache_${dependenciaActual}`, nuevoCache);
 
             if (keepOpen) {
                 addToast(`"${rotuloInput}" guardado y sincronizado.`, "success");
@@ -1838,11 +1959,36 @@ const handleEditFuncionario = (funcionario) => {
               const solicitudId = generateId();
               const nuevaSolicitud = { id: solicitudId, bienId: item.id || id, rotulo: item.rotulo, descripcion: item.descripcion, ubicacion: item.ubicacion, funcionario: item.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: item.dependencia, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', created_at: new Date().toISOString() };
               res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
-              if (!res.error) { addToast("Solicitud enviada.", "success"); cargarNotificaciones(); }
+              
+              if (!res.error) { 
+                addToast("Solicitud enviada.", "success"); 
+                cargarNotificaciones(); 
+
+                await registrarAuditoria({
+                  usuario: currentUser?.username || 'Usuario',
+                  dependencia: dependenciaActual,
+                  accion: 'SOLICITUD_BAJA',
+                  entidad: 'BIEN',
+                  entidadId: item.id || id,
+                  detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion }
+                });
+              }
           } else {
               if (type === 'bien') {
-                  if (item.estadoConservacion === 'De Baja') { res = await supabase.from('bens').delete().eq('id', id); } 
-                  else { res = await supabase.from('bens').update({ data: { ...item, estadoConservacion: 'De Baja' } }).eq('id', id); }
+                  if (item.estadoConservacion === 'De Baja') { 
+                    res = await supabase.from('bens').delete().eq('id', id); 
+                  } else { 
+                    res = await supabase.from('bens').update({ data: { ...item, estadoConservacion: 'De Baja' } }).eq('id', id); 
+                  }
+
+                  await registrarAuditoria({
+                    usuario: currentUser?.username || 'Usuario',
+                    dependencia: dependenciaActual,
+                    accion: 'ELIMINACION_O_BAJA',
+                    entidad: 'BIEN',
+                    entidadId: id,
+                    detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion, estadoPrevio: item?.estadoConservacion }
+                  });
               }
               else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
               else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
@@ -1853,10 +1999,42 @@ const handleEditFuncionario = (funcionario) => {
               if (!res.error) addToast("Acción completada", "success");
           }
           fetchData(false);
-      } catch (e) { addToast("Error de red.", "error"); } 
-      finally { setItemToDelete(null); }
+      } catch (e) { 
+        addToast("Error de red.", "error"); 
+      } finally { 
+        setItemToDelete(null); 
+      }
   };
+  // 📶 Escuchador de estado de red (Offline / Online)
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Cuando regresa internet, vaciamos la cola guardada localmente
+      processOfflineQueue((count) => {
+        addToast(`Se sincronizaron ${count} operaciones guardadas en modo local.`, "success");
+        fetchData(true); // Recargamos los datos para reflejar los cambios reales de Supabase
+      });
+    };
 
+    const handleOffline = () => {
+      setIsOnline(false);
+      addToast("Conexión perdida. Se activó el modo de almacenamiento local.", "warning");
+    };
+
+    // Escuchar eventos nativos del navegador
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Intentar sincronizar por si había algo pendiente al cargar la app
+    if (navigator.onLine) {
+      handleOnline();
+    }
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [fetchData]);
   useEffect(() => {
       if (isAuthenticated) {
           fetchData(false);
@@ -2067,173 +2245,309 @@ const handleEditFuncionario = (funcionario) => {
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
                 {activeTab === 'dashboard' && (
-                  <div className="space-y-6 animate-fade-in pb-8">
+                  <div className="space-y-6 sm:space-y-8 animate-fade-in pb-12">
                     
-                    {/* ENCABEZADO MEJORADO (Sin borde duro, con degradado sutil) */}
-                    <div className="relative flex flex-col sm:flex-row sm:items-center justify-between bg-gradient-to-r from-zinc-50 to-white dark:from-darkbg-main dark:to-darkbg-card px-8 py-6 rounded-[24px] shadow-sm shrink-0 overflow-hidden group gap-4 border border-zinc-100/50 dark:border-darkbg-border/30">
-                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-br from-brand-primary/20 to-purple-500/20 rounded-full blur-3xl opacity-50 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
+                    {/* 1. HERO BANNER INTEGRADO (Responsive para Android/iOS) */}
+                    <div className="relative bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 dark:from-darkbg-card dark:to-zinc-950 p-6 sm:p-8 rounded-[28px] sm:rounded-[36px] border border-zinc-800/80 shadow-2xl overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 group">
                       
-                      <div className="flex items-center gap-5 relative z-10">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-hover text-white font-black text-2xl shadow-lg shadow-brand-primary/20 ring-4 ring-brand-primary/10">
-                          {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
+                      {/* Efectos de luz ambiental de fondo */}
+                      <div className="absolute -top-24 -right-24 w-72 h-72 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
+                      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                      <div className="flex items-center gap-4 sm:gap-6 relative z-10">
+                        <div className="relative shrink-0">
+                            <div className="absolute -inset-1 bg-gradient-to-br from-brand-primary to-purple-600 rounded-2xl sm:rounded-3xl blur-md opacity-75 animate-pulse"></div>
+                            <div className="relative flex h-14 w-14 sm:h-18 sm:w-18 shrink-0 items-center justify-center rounded-2xl sm:rounded-3xl bg-zinc-950 text-white font-black text-xl sm:text-2xl shadow-inner border border-zinc-700/50">
+                              {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
+                            </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">{saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!</h3>
-                          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-1.5">
-                              <i className="fa-solid fa-building-columns text-brand-primary/70"></i>
-                              Dependencia activa: <span className="text-brand-primary dark:text-brand-accent">{dependenciaActual}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/20 text-brand-accent border border-brand-primary/30">
+                                  <i className="fa-solid fa-shield-halved text-[9px]"></i> Panel Institucional
+                              </span>
+                          </div>
+                          <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight truncate">
+                            {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!
+                          </h3>
+                          <p className="text-xs sm:text-sm font-semibold text-zinc-400 mt-1 flex items-center gap-2 truncate">
+                              <i className="fa-solid fa-building-columns text-brand-primary shrink-0"></i>
+                              <span className="truncate">Dependencia: <strong className="text-white font-bold bg-zinc-800/80 px-2.5 py-0.5 rounded-lg border border-zinc-700/50">{dependenciaActual}</strong></span>
                           </p>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center justify-start sm:justify-end gap-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 bg-white/80 dark:bg-darkbg-main/80 px-4 py-2.5 rounded-xl shadow-sm relative z-10 backdrop-blur-sm border border-zinc-100 dark:border-darkbg-border">
+
+                      {/* Estado de sincronización optimizado para táctil */}
+                      <div className="flex items-center gap-3 relative z-10 bg-zinc-950/70 px-4 py-3 rounded-2xl border border-zinc-800/80 backdrop-blur-md shadow-inner self-start md:self-auto shrink-0">
                         {isOnline ? (
                           <>
-                            <span className="relative flex h-2.5 w-2.5">
+                            <span className="relative flex h-3 w-3">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
                             </span> 
-                            Sistema sincronizado
+                            <div className="flex flex-col">
+                                <span className="text-xs font-black text-zinc-200 tracking-wide">Sistema Sincronizado</span>
+                                <span className="text-[10px] font-bold text-zinc-500">Conexión activa a Supabase</span>
+                            </div>
                           </>
                         ) : (
                           <>
-                            <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]"></span> 
-                            Operando en local
+                            <span className="h-3 w-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]"></span> 
+                            <div className="flex flex-col">
+                                <span className="text-xs font-black text-zinc-200 tracking-wide">Modo Local</span>
+                                <span className="text-[10px] font-bold text-zinc-500">Sin conexión de red</span>
+                            </div>
                           </>
                         )}
                       </div>
                     </div>
 
-                    {/* MÉTRICAS PRINCIPALES */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                      <StatCard title="Bienes Activos" value={isLoading ? '...' : stats.totalItems} subtitle="Registrados en inventario" icon="fa-boxes-stacked" colorClass="text-brand-primary" bgIconClass="bg-brand-light/80 dark:bg-brand-primary/20" />
-                      <StatCard title="Bienes con QR" value={isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`} subtitle="Etiquetados y verificados" icon="fa-qrcode" colorClass="text-purple-600 dark:text-purple-400" bgIconClass="bg-purple-100/80 dark:bg-purple-900/30" />
-                      <StatCard title="Sin FC-10" value={isLoading ? '...' : stats.withoutFc10} subtitle="Bienes sin asignación" icon="fa-file-signature" colorClass="text-amber-600 dark:text-amber-400" bgIconClass="bg-amber-100/80 dark:bg-amber-900/30" />
-                      <StatCard title="Pendiente QR" value={isLoading ? '...' : stats.withoutQR} subtitle="Sin etiqueta declarada" icon="fa-triangle-exclamation" colorClass="text-rose-600 dark:text-rose-400" bgIconClass="bg-rose-100/80 dark:bg-rose-900/30" />
+                    {/* 2. TARJETAS DE MÉTRICAS (Grid adaptable 1 col en celular, 2 en tablet, 4 en desktop) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                      
+                      {/* Bienes Activos */}
+                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-primary to-sky-400 opacity-80"></div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                              Bienes Activos
+                            </p>
+                            <h3 className="text-2xl sm:text-3xl font-black text-brand-primary dark:text-brand-accent tracking-tight">
+                              {isLoading ? '...' : stats.totalItems}
+                            </h3>
+                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-brand-primary"></span>
+                              Registrados en inventario
+                            </p>
+                          </div>
+                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary shadow-inner group-hover:scale-110 transition-transform">
+                            <i className="fa-solid fa-boxes-stacked text-xl sm:text-2xl"></i>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bienes con QR */}
+                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-80"></div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                              Bienes con QR
+                            </p>
+                            <h3 className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 tracking-tight">
+                              {isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`}
+                            </h3>
+                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+                              Etiquetados y verificados
+                            </p>
+                          </div>
+                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-500 shadow-inner group-hover:scale-110 transition-transform">
+                            <i className="fa-solid fa-qrcode text-xl sm:text-2xl"></i>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Sin FC-10 */}
+                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-yellow-400 opacity-80"></div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                              Sin FC-10
+                            </p>
+                            <h3 className="text-2xl sm:text-3xl font-black text-amber-500 tracking-tight">
+                              {isLoading ? '...' : stats.withoutFc10}
+                            </h3>
+                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                              Bienes sin asignación
+                            </p>
+                          </div>
+                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 shadow-inner group-hover:scale-110 transition-transform">
+                            <i className="fa-solid fa-file-signature text-xl sm:text-2xl"></i>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pendiente QR */}
+                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-600 opacity-80"></div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
+                              Pendiente QR
+                            </p>
+                            <h3 className="text-2xl sm:text-3xl font-black text-rose-500 tracking-tight">
+                              {isLoading ? '...' : stats.withoutQR}
+                            </h3>
+                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                              Sin etiqueta declarada
+                            </p>
+                          </div>
+                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 shadow-inner group-hover:scale-110 transition-transform">
+                            <i className="fa-solid fa-triangle-exclamation text-xl sm:text-2xl"></i>
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
 
-                    {/* ACCESOS DIRECTOS REDISEÑADOS (Mayor contraste) */}
-                    <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-6 sm:p-8 relative overflow-hidden group transition-all">
-                        <div className="absolute -left-32 -bottom-32 w-64 h-64 bg-brand-primary/5 dark:bg-brand-primary/10 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
-                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6 relative z-10">
+                    {/* 3. ACCIONES RÁPIDAS (Botones adaptables táctiles para Android/iOS) */}
+                    <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-5 sm:p-7 relative overflow-hidden">
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
                             
                             <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-50 dark:bg-darkbg-main text-amber-500 border border-zinc-200/60 dark:border-darkbg-border/60 shadow-inner">
-                                    <i className="fa-solid fa-bolt text-xl drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]"></i>
+                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-inner">
+                                    <i className="fa-solid fa-bolt text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">Acciones Rápidas</h3>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mt-0.5">Atajos operativos para tu gestión diaria</p>
+                                    <h3 className="text-base font-black text-zinc-900 dark:text-white tracking-tight">Acciones Rápidas</h3>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5">Atajos operativos frecuentes para tu gestión diaria</p>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-3 w-full xl:w-auto">
-                                <button onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:bg-brand-light/30 hover:text-brand-primary dark:hover:border-brand-primary/50 dark:hover:text-brand-accent shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
-                                    <i className="fa-solid fa-calendar-plus text-brand-primary group-hover/btn:scale-110 transition-transform"></i> Ingreso FC-04
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
+                                
+                                <button 
+                                  onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} 
+                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-brand-primary hover:bg-brand-light/20 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
+                                >
+                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                        <i className="fa-solid fa-calendar-plus text-sm"></i>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Ingreso FC-04</p>
+                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Nuevo registro</p>
+                                    </div>
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-purple-500 hover:bg-purple-50 hover:text-purple-600 dark:hover:border-purple-500/50 dark:hover:bg-purple-900/10 dark:hover:text-purple-400 shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
-                                    <i className="fa-solid fa-file-zipper text-purple-500 group-hover/btn:scale-110 transition-transform"></i> Paquete QRs
+
+                                <button 
+                                  onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} 
+                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-purple-500 hover:bg-purple-500/10 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
+                                >
+                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                        <i className="fa-solid fa-file-zipper text-sm"></i>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Paquete QRs</p>
+                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Lote masivo</p>
+                                    </div>
                                 </button>
-                                <button onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} className="flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-900/10 dark:hover:text-emerald-400 shadow-sm hover:shadow-md transition-all active:scale-95 group/btn">
-                                    <i className="fa-solid fa-file-import text-emerald-500 group-hover/btn:scale-110 transition-transform"></i> Importar CSV
+
+                                <button 
+                                  onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} 
+                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
+                                >
+                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                        <i className="fa-solid fa-file-import text-sm"></i>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Importar CSV</p>
+                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Carga masiva</p>
+                                    </div>
                                 </button>
-                                <div className="relative flex-1 sm:flex-none flex flex-col sm:flex-row items-center justify-center gap-2.5 rounded-2xl bg-white dark:bg-darkbg-main border-2 border-zinc-100 dark:border-darkbg-border px-5 py-3.5 text-[13px] font-bold text-zinc-700 dark:text-zinc-300 hover:border-sky-500 hover:bg-sky-50 hover:text-sky-600 dark:hover:border-sky-500/50 dark:hover:bg-sky-900/10 dark:hover:text-sky-400 shadow-sm hover:shadow-md transition-all active:scale-95 overflow-hidden group/btn">
+
+                                <div className="relative flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-sky-500 hover:bg-sky-500/10 transition-all active:scale-95 cursor-pointer group text-left overflow-hidden min-h-[52px]">
                                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Actualizar Escudo Institucional" />
-                                    <i className="fa-solid fa-image text-sky-500 group-hover/btn:scale-110 transition-transform"></i> Subir Logo
+                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                                        <i className="fa-solid fa-image text-sm"></i>
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Subir Logo</p>
+                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Escudo oficial</p>
+                                    </div>
                                 </div>
+
                             </div>
                         </div>
                     </div>
 
-                    {/* SECCIÓN INFERIOR DE GRÁFICOS */}
+                    {/* 4. GRÁFICOS Y TENDENCIAS (Disposición responsiva) */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       
-                      {/* ESTADO DE REGULARIZACIÓN */}
-                      <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col relative overflow-hidden group">
-                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-emerald-400 to-emerald-600 opacity-80"></div>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-8 py-5 flex items-center justify-between bg-zinc-50/50 dark:bg-darkbg-main/30">
-                          <h2 className="text-[11px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                             <i className="fa-solid fa-chart-pie text-emerald-500"></i> Estado de Regularización
+                      {/* Estado de Regularización */}
+                      <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col overflow-hidden">
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 sm:px-8 py-5 flex items-center justify-between bg-zinc-50/50 dark:bg-darkbg-main/30">
+                          <h2 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                             <i className="fa-solid fa-chart-pie text-emerald-500"></i> Cobertura Institucional
                           </h2>
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider hidden sm:block bg-zinc-100 dark:bg-darkbg-main px-2 py-1 rounded-md">Metas de cobertura</span>
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1 rounded-md">Metas</span>
                         </div>
                         
-                        <div className="flex flex-1 flex-col p-8 gap-8 justify-center">
+                        <div className="flex flex-1 flex-col p-6 sm:p-8 gap-8 justify-center">
+                          
                           {/* Progreso FC-10 */}
-                          <div className="group/bar">
+                          <div>
                             <div className="flex justify-between items-end mb-3">
-                              <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-inner group-hover/bar:scale-110 transition-transform duration-300">
-                                  <i className="fa-solid fa-file-contract text-base drop-shadow-sm"></i>
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-2xs">
+                                  <i className="fa-solid fa-file-contract text-sm"></i>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black text-zinc-900 dark:text-white tracking-tight">Cobertura FC-10</p>
-                                  <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{stats.withFc10} de {stats.totalItems} activos</p>
+                                  <p className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-wider">Cobertura FC-10</p>
+                                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">{stats.withFc10} de {stats.totalItems} activos asignados</p>
                                 </div>
                               </div>
-                              <span className="text-2xl font-black text-emerald-500 tracking-tighter drop-shadow-sm">{stats.percFC10.toFixed(1)}%</span>
+                              <span className="text-xl font-black text-emerald-500 tracking-tighter">{stats.percFC10.toFixed(1)}%</span>
                             </div>
-                            <div className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner p-0.5">
-                              <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percFC10}%` }}>
-                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
-                              </div>
+                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden p-0.5 border border-zinc-200/50 dark:border-zinc-700/50">
+                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000 shadow-2xs" style={{ width: `${stats.percFC10}%` }}></div>
                             </div>
                           </div>
 
                           {/* Progreso QR */}
-                          <div className="group/bar">
+                          <div>
                             <div className="flex justify-between items-end mb-3">
-                              <div className="flex items-center gap-4">
-                                <div className="h-10 w-10 rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-inner group-hover/bar:scale-110 transition-transform duration-300">
-                                  <i className="fa-solid fa-qrcode text-base drop-shadow-sm"></i>
+                              <div className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-2xs">
+                                  <i className="fa-solid fa-qrcode text-sm"></i>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-black text-zinc-900 dark:text-white tracking-tight">Etiquetado QR</p>
-                                  <p className="text-[11px] text-zinc-500 font-bold mt-0.5">{stats.withQR} de {stats.totalItems} activos</p>
+                                  <p className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-wider">Etiquetado QR</p>
+                                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">{stats.withQR} de {stats.totalItems} activos con código</p>
                                 </div>
                               </div>
-                              <span className="text-2xl font-black text-brand-primary tracking-tighter drop-shadow-sm">{stats.percQR.toFixed(1)}%</span>
+                              <span className="text-xl font-black text-brand-primary tracking-tighter">{stats.percQR.toFixed(1)}%</span>
                             </div>
-                            <div className="h-4 w-full bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden shadow-inner p-0.5">
-                              <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-1000 relative shadow-sm" style={{ width: `${stats.percQR}%` }}>
-                                <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
-                              </div>
+                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden p-0.5 border border-zinc-200/50 dark:border-zinc-700/50">
+                              <div className="h-full bg-brand-primary rounded-full transition-all duration-1000 shadow-2xs" style={{ width: `${stats.percQR}%` }}></div>
                             </div>
                           </div>
 
                         </div>
                       </div>
 
-                      {/* TENDENCIAS OPERATIVAS */}
-                      <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col relative overflow-hidden group">
-                        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-brand-primary to-purple-600 opacity-80"></div>
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-8 py-5 bg-zinc-50/50 dark:bg-darkbg-main/30">
-                          <h2 className="text-[11px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                      {/* Tendencias Operativas */}
+                      <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col overflow-hidden">
+                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 sm:px-8 py-5 bg-zinc-50/50 dark:bg-darkbg-main/30">
+                          <h2 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
                              <i className="fa-solid fa-chart-line text-brand-primary"></i> Tendencias Operativas
                           </h2>
                         </div>
-                        <div className="flex flex-1 flex-col sm:flex-row p-8 gap-10">
+                        <div className="flex flex-1 flex-col sm:flex-row p-6 sm:p-8 gap-8">
                           
-                          <div className="flex-1 flex flex-col border-b border-zinc-100 dark:border-darkbg-border pb-8 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-8">
-                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-6 uppercase tracking-wider">Adquisiciones Anuales</h3>
-                            <div className="flex-1 flex flex-col justify-center gap-5">
+                          <div className="flex-1 flex flex-col border-b sm:border-b-0 sm:border-r border-zinc-100 dark:border-darkbg-border pb-6 sm:pb-0 sm:pr-6">
+                            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mb-5">Adquisiciones Anuales</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-4">
                               {timeStats.adqByYear.length === 0 ? (
                                   <div className="flex flex-col items-center justify-center text-center py-4 opacity-50">
-                                      <i className="fa-solid fa-box-open text-3xl text-zinc-400 mb-2"></i>
-                                      <p className="text-xs font-bold text-zinc-400">Sin adquisiciones.</p>
+                                      <p className="text-xs font-semibold text-zinc-400">Sin adquisiciones.</p>
                                   </div>
                               ) : timeStats.adqByYear.map((item, idx) => {
-                                  const colors = ["bg-brand-primary shadow-brand-primary/40", "bg-purple-500 shadow-purple-500/40", "bg-zinc-400 shadow-zinc-400/40", "bg-zinc-300 shadow-none"];
-                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={`${colors[idx] || "bg-zinc-400"} shadow-sm`} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
+                                  const colors = ["bg-brand-primary", "bg-purple-500", "bg-zinc-400", "bg-zinc-300"];
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
                               })}
                             </div>
                           </div>
 
                           <div className="flex-1 flex flex-col">
-                            <h3 className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-6 uppercase tracking-wider">Asignaciones (FC-10)</h3>
-                            <div className="flex-1 flex flex-col justify-center gap-7">
-                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500 shadow-sm shadow-emerald-500/40" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
-                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-400 dark:bg-zinc-600 shadow-sm" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mb-5">Asignaciones (FC-10)</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-6">
+                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-400 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
                             </div>
                           </div>
 
@@ -2241,206 +2555,411 @@ const handleEditFuncionario = (funcionario) => {
                       </div>
 
                     </div>
+
                   </div>
                 )}
                 {activeTab === 'inventario' && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-8">
+                  <div className="space-y-6 animate-fade-in pb-12">
                     
-                    {/* CABECERA Y HERRAMIENTAS */}
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm shrink-0 relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-bl from-brand-primary/20 to-sky-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
-                      
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-zinc-100 dark:border-darkbg-border/60 relative z-10">
-                        <div className="flex items-center gap-5">
-                          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-hover text-white shadow-lg shadow-brand-primary/20 ring-4 ring-brand-primary/10">
+                    {/* 1. CABECERA PRINCIPAL REESTRUCTURADA */}
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[32px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm relative overflow-hidden">
+                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                        
+                        {/* Identificación de la vista */}
+                        <div className="flex items-center gap-4 sm:gap-5">
+                          <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-inner">
                             <i className="fa-solid fa-boxes-stacked text-2xl"></i>
                           </div>
-                          <div>
-                            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                                Directorio Patrimonial
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-primary">
+                                {filteredBienes.length} Bienes Registrados
+                              </span>
+                            </div>
+                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight truncate">
+                              Directorio Patrimonial
                             </h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-1">Gestión integral e inventario consolidado de activos institucionales</p>
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
+                              Gestión integral e inventario consolidado de activos institucionales
+                            </p>
                           </div>
                         </div>
 
-                        <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className={STYLES.btnPrimary + " !rounded-2xl !px-7 !py-3.5 shadow-md shrink-0"}>
+                        {/* Todos los Botones Originales Restaurados y Estilizados */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button 
+                            onClick={handleDownloadTemplateCSV} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <i className="fa-solid fa-file-excel text-emerald-500 text-sm"></i> Plantilla
+                          </button>
+
+                          <button 
+                            onClick={() => fileInputRef.current?.click()} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <i className="fa-solid fa-file-import text-emerald-500 text-sm"></i> Importar CSV
+                          </button>
+
+                          <button 
+                            onClick={handleExportInventarioCSV} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-sky-500 hover:text-sky-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <i className="fa-solid fa-file-export text-sky-500 text-sm"></i> Exportar CSV
+                          </button>
+
+                          <button 
+                            onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-purple-500 hover:text-purple-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <i className="fa-solid fa-qrcode text-purple-500 text-sm"></i> Lote QRs
+                          </button>
+
+                          <button 
+                            onClick={openFC03Modal} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-amber-500 hover:text-amber-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <i className="fa-solid fa-print text-amber-500 text-sm"></i> Reporte FC-03
+                          </button>
+
+                          <button 
+                            onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
+                            className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary hover:bg-brand-hover px-6 py-3 text-xs font-black text-white shadow-lg shadow-brand-primary/25 transition-all active:scale-95 cursor-pointer"
+                          >
                             <i className="fa-solid fa-plus text-sm"></i> Añadir Registro
-                        </button>
-                      </div>
-
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 pt-6 relative z-10">
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-50 dark:bg-darkbg-main p-2 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border">
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-3">Datos</span>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button disabled={isProcessing.active} onClick={handleDownloadTemplateCSV} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-card border border-zinc-200 dark:border-darkbg-border px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 shadow-sm transition-all cursor-pointer">
-                                <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
-                            </button>
-                            <button disabled={isProcessing.active} onClick={() => fileInputRef.current?.click()} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-card border border-zinc-200 dark:border-darkbg-border px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary shadow-sm transition-all cursor-pointer">
-                                <i className="fa-solid fa-file-import text-brand-primary"></i> Importar CSV
-                            </button>
-                            <button disabled={isProcessing.active} onClick={handleExportInventarioCSV} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-card border border-zinc-200 dark:border-darkbg-border px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-sky-500 hover:text-sky-600 shadow-sm transition-all cursor-pointer">
-                                <i className="fa-solid fa-download text-sky-500"></i> Exportar CSV
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-zinc-50 dark:bg-darkbg-main p-2 rounded-2xl border border-zinc-200/60 dark:border-darkbg-border">
-                          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-3">Salidas</span>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <button disabled={isProcessing.active} onClick={() => { setIsBulkQR(true); setIsQRModalOpen(true); }} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-card border border-zinc-200 dark:border-darkbg-border px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-purple-500 hover:text-purple-600 shadow-sm transition-all cursor-pointer">
-                                <i className="fa-solid fa-file-zipper text-purple-500"></i> Lote QRs
-                            </button>
-                            <button onClick={openFC03Modal} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-card border border-zinc-200 dark:border-darkbg-border px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-amber-500 hover:text-amber-600 shadow-sm transition-all cursor-pointer">
-                                <i className="fa-solid fa-print text-amber-500"></i> Reporte FC-03
-                            </button>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    {/* BUSCADOR Y FILTROS */}
-                    <div className="bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-6 space-y-5 shrink-0 z-20">
-                      <div className="flex flex-col xl:flex-row gap-5 items-center justify-between">
-                        
-                        <div className="w-full xl:w-[400px] shrink-0 relative group">
-                          <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                          <div className="relative">
-                              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-brand-primary text-sm"></i>
-                              <input 
-                                type="text" 
-                                placeholder="Buscar por rótulo, cuenta, responsable..." 
-                                className="block w-full rounded-2xl border border-zinc-200/80 bg-zinc-50/80 py-3.5 pl-12 pr-10 text-zinc-900 placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-bold dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none shadow-inner" 
-                                value={searchInput} 
-                                onChange={(e) => setSearchInput(e.target.value)} 
-                              />
-                              {searchInput && (
-                                <button onClick={() => setSearchInput('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer">
-                                  <i className="fa-solid fa-circle-xmark text-sm"></i>
-                                </button>
-                              )}
-                          </div>
-                        </div>
-
-                        <div className="w-full flex flex-wrap items-center gap-2.5 justify-start xl:justify-end">
-                          <SelectFilter icon="fa-user-tie" value={filtroFuncionario} onChange={e => {setFiltroFuncionario(e.target.value); setCurrentPage(1);}} options={funcionariosUnicos} defaultText="Responsable" />
-                          <SelectFilter icon="fa-door-open" value={filtroUbicacion} onChange={e => {setFiltroUbicacion(e.target.value); setCurrentPage(1);}} options={ubicacionesUnicas} defaultText="Ubicación" />
-                          <SelectFilter icon="fa-calendar-days" value={filtroAnio} onChange={e => {setFiltroAnio(e.target.value); setCurrentPage(1);}} options={aniosUnicos} defaultText="Año" />
-                          <SelectFilter icon="fa-layer-group" value={filtroSubcuenta} onChange={e => {setFiltroSubcuenta(e.target.value); setCurrentPage(1);}} options={subcuentasUnicas} defaultText="Subcuenta" />
-                          <SelectFilter icon="fa-layer-group" value={filtroAnalitico1} onChange={e => {setFiltroAnalitico1(e.target.value); setCurrentPage(1);}} options={analiticos1Unicos} defaultText="Analítico 1" />
-                          <SelectFilter icon="fa-layer-group" value={filtroAnalitico2} onChange={e => {setFiltroAnalitico2(e.target.value); setCurrentPage(1);}} options={analiticos2Unicos} defaultText="Analítico 2" />
-                          <SelectFilter icon="fa-file-signature" value={filtroFC10} onChange={e => {setFiltroFC10(e.target.value); setCurrentPage(1);}} options={[{label:'Asignado', value:'YES'}, {label:'Sin Asignar', value:'NO'}]} defaultText="FC-10" />
-                          
-                          <button onClick={() => { setFiltroEstado(filtroEstado === 'De Baja' ? 'ALL' : 'De Baja'); setCurrentPage(1); }} className={`inline-flex items-center gap-x-1.5 rounded-xl px-4 py-2.5 text-xs font-bold transition-all whitespace-nowrap border cursor-pointer shrink-0 ${filtroEstado === 'De Baja' ? 'bg-rose-600 text-white border-rose-600 shadow-md' : 'bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-400 dark:border-darkbg-border dark:hover:bg-darkbg-hover dark:hover:text-white shadow-sm hover:shadow-md'}`}>
-                            <i className={`fa-solid fa-ban ${filtroEstado === 'De Baja' ? 'text-white' : 'text-rose-500'}`}></i> Bajas
                           </button>
                         </div>
+
                       </div>
-                      
-                      {hasFilters && (
-                          <div className="pt-4 border-t border-zinc-100 dark:border-darkbg-border flex flex-wrap items-center gap-2 animate-fade-in">
-                            <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mr-2 flex items-center gap-1.5">
-                                <i className="fa-solid fa-filter"></i> Filtros activos:
-                            </span>
-                            {searchInput && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setSearchInput('')}>Búsqueda: {searchInput} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroFuncionario && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroFuncionario('')}>{filtroFuncionario} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroUbicacion && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroUbicacion('')}>{filtroUbicacion} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroAnio && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroAnio('')}>Año: {filtroAnio} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroSubcuenta && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroSubcuenta('')}>Subcta: {filtroSubcuenta} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroAnalitico1 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroAnalitico1('')}>An.1: {filtroAnalitico1} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroAnalitico2 && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroAnalitico2('')}>An.2: {filtroAnalitico2} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            {filtroEstado === 'De Baja' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white cursor-pointer hover:bg-rose-700 transition-colors shadow-sm" onClick={() => setFiltroEstado('ALL')}>Solo Bajas <i className="fa-solid fa-xmark"></i></span>}
-                            {filtroFC10 !== 'ALL' && <span className="inline-flex items-center gap-x-1.5 rounded-lg bg-zinc-100 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border cursor-pointer hover:bg-zinc-200 transition-colors shadow-sm" onClick={() => setFiltroFC10('ALL')}>FC-10: {filtroFC10 === 'YES' ? 'Sí' : 'No'} <i className="fa-solid fa-xmark text-zinc-400 hover:text-red-500"></i></span>}
-                            <button onClick={clearAllFilters} className="text-xs font-bold text-brand-primary hover:text-brand-dark ml-auto px-4 py-2 rounded-xl hover:bg-brand-light dark:hover:bg-brand-primary/10 transition-colors cursor-pointer border border-transparent hover:border-brand-primary/20">Limpiar Todos</button>
-                          </div>
-                      )}
                     </div>
 
-                    {/* TABLA PRINCIPAL */}
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[24px] flex flex-col overflow-hidden relative min-h-[550px]">
-                        <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                          <table className="min-w-full text-left">
-                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                              <tr className="text-[11px] font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                                <th className="py-4 pl-8 pr-4">Identificación y Descripción</th>
-                                <th className="px-4 py-4">Localización y Custodio</th>
-                                <th className="px-4 py-4">Condición Física</th>
-                                <th className="relative py-4 pl-4 pr-8 text-right"><span className="sr-only">Acciones</span></th>
+                    {/* 2. PANEL DE BÚSQUEDA Y FILTROS SIMÉTRICOS REDISEÑADOS */}
+<div className="bg-white dark:bg-darkbg-card p-5 sm:p-6 rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-4">
+  
+  {/* Búsqueda Principal */}
+  <div className="relative w-full">
+    <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+    <input 
+      type="text"
+      placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full rounded-2xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3.5 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
+    />
+  </div>
+
+  {/* Rejilla Simétrica de Filtros (8 columnas alineadas) */}
+  <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5 pt-2 border-t border-zinc-100 dark:border-darkbg-border">
+    
+    {/* Responsables */}
+    <div className="relative">
+      <select 
+        value={filtroFuncionario || ''} 
+        onChange={(e) => setFiltroFuncionario(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Responsables: Todos</option>
+        {funcionariosUnicos.map(f => (
+          <option key={f} value={f}>{f}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Ubicaciones */}
+    <div className="relative">
+      <select 
+        value={filtroUbicacion || ''} 
+        onChange={(e) => setFiltroUbicacion(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Ubicación: Todas</option>
+        {ubicacionesUnicas.map(u => (
+          <option key={u} value={u}>{u}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Año */}
+    <div className="relative">
+      <select 
+        value={filtroAnio || ''} 
+        onChange={(e) => setFiltroAnio(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Año: Todos</option>
+        {aniosUnicos.map(a => (
+          <option key={a} value={a}>{a}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Subcuenta */}
+    <div className="relative">
+      <select 
+        value={filtroSubcuenta || ''} 
+        onChange={(e) => setFiltroSubcuenta(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Subcuenta: Todas</option>
+        {subcuentasUnicas.map(s => (
+          <option key={s} value={s}>{s}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Analítico 1 */}
+    <div className="relative">
+      <select 
+        value={filtroAnalitico1 || ''} 
+        onChange={(e) => setFiltroAnalitico1(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Analítico 1: Todos</option>
+        {analiticos1Unicos.map(a1 => (
+          <option key={a1} value={a1}>{a1}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Analítico 2 */}
+    <div className="relative">
+      <select 
+        value={filtroAnalitico2 || ''} 
+        onChange={(e) => setFiltroAnalitico2(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="">Analítico 2: Todos</option>
+        {analiticos2Unicos.map(a2 => (
+          <option key={a2} value={a2}>{a2}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* FC-10 */}
+    <div className="relative">
+      <select 
+        value={filtroFC10 || 'ALL'} 
+        onChange={(e) => setFiltroFC10(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="ALL">FC-10: Todos</option>
+        <option value="YES">Con FC-10</option>
+        <option value="NO">Sin FC-10</option>
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+    {/* Estado */}
+    <div className="relative">
+      <select 
+        value={filtroEstado || 'ALL'} 
+        onChange={(e) => setFiltroEstado(e.target.value)}
+        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
+      >
+        <option value="ALL">Estado: Todos</option>
+        {ESTADOS_CONSERVACION.map(e => (
+          <option key={e} value={e}>{e}</option>
+        ))}
+      </select>
+      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    </div>
+
+  </div>
+
+  {hasFilters && (
+    <div className="flex justify-end pt-1">
+      <button 
+        onClick={clearAllFilters}
+        className="text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1.5 transition-colors cursor-pointer"
+      >
+        <i className="fa-solid fa-filter-circle-xmark"></i> Limpiar Filtros
+      </button>
+    </div>
+  )}
+
+</div>
+
+                    {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
+                    <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] sm:rounded-[32px] overflow-hidden">
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[900px]">
+                          
+                          <thead className="bg-zinc-50/80 dark:bg-darkbg-main/80 border-b border-zinc-200/80 dark:border-darkbg-border">
+                            <tr className="text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                              <th className="py-4 pl-6 sm:pl-8 pr-4">Identificación y Descripción</th>
+                              <th className="px-4 py-4">Localización y Custodio</th>
+                              <th className="px-4 py-4">Condición y Estado</th>
+                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">Acciones</th>
+                            </tr>
+                          </thead>
+
+                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 bg-white dark:bg-darkbg-card">
+                            {itemsPaginados.map((item) => {
+                              
+                              const getCondicionBadge = (cond) => {
+                                const c = (cond || '').toLowerCase();
+                                if (c.includes('muy bueno') || c.includes('excelente')) 
+                                  return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+                                if (c.includes('bueno')) 
+                                  return 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20';
+                                return 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20';
+                              };
+
+                              return (
+                                <tr key={item.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group">
+                                  
+                                  {/* Columna 1: Identificación */}
+                                  <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
+                                    <div className="flex items-start gap-3.5">
+                                      <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-brand-primary font-black text-xs shadow-inner">
+                                        <i className="fa-solid fa-tag text-sm"></i>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-mono font-extrabold text-xs text-brand-primary dark:text-brand-accent bg-brand-primary/10 px-2 py-0.5 rounded-md">
+                                            {item.rotulo || 'S/R'}
+                                          </span>
+                                          {item.fechaAdquisicion && (
+                                            <span className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
+                                              <i className="fa-regular fa-calendar text-[9px]"></i>
+                                              {item.fechaAdquisicion}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <p className="font-extrabold text-zinc-900 dark:text-white text-sm line-clamp-2 leading-snug">
+                                          {item.descripcion}
+                                        </p>
+                                        {item.cuenta && (
+                                          <span className="inline-block text-[10px] font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
+                                            #{item.cuenta}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Columna 2: Localización y Custodio */}
+                                  <td className="px-4 py-4 align-top">
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                                        <i className="fa-solid fa-user-check text-emerald-500 text-xs shrink-0"></i>
+                                        <span className="truncate">{item.funcionario || 'Sin asignación'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                                        <i className="fa-solid fa-location-dot text-rose-500 text-xs shrink-0"></i>
+                                        <span className="truncate">{item.ubicacion || 'Sin ubicación'}</span>
+                                      </div>
+                                    </div>
+                                  </td>
+
+                                  {/* Columna 3: Condición y QR */}
+                                  <td className="px-4 py-4 align-top">
+                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-black border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
+                                        {item.estadoConservacion || 'Regular'}
+                                      </span>
+
+                                      {item.hasQR ? (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
+                                          <i className="fa-solid fa-qrcode text-[10px]"></i> Con QR
+                                        </span>
+                                      ) : (
+                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
+                                          <i className="fa-solid fa-qrcode text-[10px]"></i> Sin QR
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+
+                                  {/* Columna 4: Matriz Completa de Acciones Restaurada */}
+                                  <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      
+                                      {/* Generar QR */}
+                                      <button 
+                                        onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
+                                        className="h-9 w-9 flex items-center justify-center text-purple-600 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Generar Código QR"
+                                      >
+                                        <i className="fa-solid fa-qrcode text-xs"></i>
+                                      </button>
+
+                                      {/* Asignar FC-10 */}
+                                      <button 
+                                        onClick={() => openFC10Modal(item)}
+                                        className="h-9 w-9 flex items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Asignación FC-10"
+                                      >
+                                        <i className="fa-solid fa-file-signature text-xs"></i>
+                                      </button>
+
+                                      {/* Traslado FC-11 */}
+                                      <button 
+                                        onClick={() => openFC11Modal(item)}
+                                        className="h-9 w-9 flex items-center justify-center text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Traslado FC-11"
+                                      >
+                                        <i className="fa-solid fa-truck-fast text-xs"></i>
+                                      </button>
+
+                                      {/* Editar Bien */}
+                                      <button 
+                                        onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }}
+                                        className="h-9 w-9 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Editar Bien"
+                                      >
+                                        <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                      </button>
+
+                                      {/* Eliminar o Solicitar Baja */}
+                                      <button 
+                                        onClick={() => {
+                                          if (isAdmin) {
+                                            setItemToDelete({ type: 'bien', id: item.id, item }); 
+                                          } else {
+                                            setItemToDelete({ type: 'requestBaja', id: item.id, item });
+                                          }
+                                        }}
+                                        className="h-9 w-9 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        title="Eliminar o Solicitar Baja"
+                                      >
+                                        <i className="fa-solid fa-trash-can text-xs"></i>
+                                      </button>
+
+                                    </div>
+                                  </td>
+
+                                </tr>
+                              );
+                            })}
+
+                            {itemsPaginados.length === 0 && (
+                              <tr>
+                                <td colSpan="4" className="p-16 text-center">
+                                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
+                                    <i className="fa-solid fa-boxes-packing text-2xl"></i>
+                                  </div>
+                                  <span className="text-sm font-bold text-zinc-400">No se encontraron bienes coincidentes con los filtros.</span>
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                              {paginatedBienes.map(b => (
-                                <BienRow key={b.id} b={b} fcRecord={fc10Map.get(b.id)} onAction={handleRowAction} isAdmin={isAdmin} />
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      {renderPagination()} {/* <--- ESTA ES LA LÍNEA CORREGIDA */}
-                    </div>
-                  </div>
-                )}
-                {activeTab === 'aprobaciones' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100/80 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shadow-2xs">
-                          <i className="fa-solid fa-check-to-slot text-xl"></i>
-                        </div>
-                        <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Centro de Aprobaciones</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Revisión de solicitudes de exclusión de patrimonio enviadas por funcionarios</p>
-                        </div>
+                            )}
+                          </tbody>
+
+                        </table>
                       </div>
+
+                      {/* Paginación Integrada */}
+                      {renderPagination()}
                     </div>
 
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
-                        {solicitudesBaja.length === 0 ? (
-                            <div className="flex flex-col items-center justify-center p-12 text-center h-full min-h-[380px]">
-                                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-900/20 mb-5 text-emerald-500 ring-1 ring-emerald-500/20 shadow-2xs">
-                                    <i className="fa-solid fa-check-double text-3xl"></i>
-                                </div>
-                                <h3 className="text-lg font-black text-zinc-900 dark:text-white">Todo al día</h3>
-                                <p className="mt-1.5 text-xs font-semibold text-zinc-400 max-w-sm">No existen solicitudes de baja pendientes de revisión para esta dependencia.</p>
-                            </div>
-                        ) : (
-                            <div className="flex-1 overflow-auto custom-scrollbar">
-                              <table className="min-w-full text-left">
-                                <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                                  <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                    <th className="py-3.5 pl-6 pr-4 w-1/3">Bien Solicitado</th>
-                                    <th className="px-4 py-3.5 w-1/3">Custodio Actual</th>
-                                    <th className="relative py-3.5 pl-4 pr-6 text-right">Acción de Revisión</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                                  {solicitudesBaja.map(b => (
-                                    <tr key={b.id} className="hover:bg-zinc-50/80 dark:hover:bg-darkbg-hover/60 transition-colors group">
-                                        <td className="py-4 pl-6 pr-4 align-middle">
-                                            <div className="font-extrabold text-zinc-900 dark:text-white text-sm font-mono">{b.rotulo}</div>
-                                            <div className="text-xs font-medium text-zinc-500 mt-1 line-clamp-1">{b.descripcion}</div>
-                                        </td>
-                                        <td className="px-4 py-4 align-middle">
-                                            <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{b.funcionario || 'No asignado'}</div>
-                                            <div className="text-[11px] text-zinc-400 mt-0.5">{b.ubicacion || 'Sin ubicación'}</div>
-                                        </td>
-                                        <td className="relative py-4 pl-4 pr-6 align-middle text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => openResolucionModal(b, 'rechazar')} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border shadow-2xs hover:shadow-xs transition-all cursor-pointer">
-                                                    <i className="fa-solid fa-xmark text-red-500"></i> Rechazar
-                                                </button>
-                                                <button onClick={() => openResolucionModal(b, 'aprobar')} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-all shadow-xs hover:shadow-md cursor-pointer">
-                                                    <i className="fa-solid fa-check"></i> Aprobar Baja
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                        )}
-                    </div>
                   </div>
                 )}
 
@@ -2518,64 +3037,68 @@ const handleEditFuncionario = (funcionario) => {
                   </div>
                 )}
                 {activeTab === 'funcionarios' && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-8">
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-12">
                     
-                    {/* ENCABEZADO Y ACCIONES UNIFICADAS */}
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                    {/* CABECERA MODERNA E INTEGRADA */}
+                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[32px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm relative overflow-hidden">
+                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
                       
-                      {/* TÍTULO E INFORMACIÓN */}
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-inner">
-                          <i className="fa-solid fa-address-book text-2xl"></i>
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                        
+                        {/* Identificación de la sección */}
+                        <div className="flex items-center gap-5">
+                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-inner">
+                            <i className="fa-solid fa-address-book text-2xl"></i>
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                                {funcionariosPurosDependencia.length} Registrados
+                              </span>
+                            </div>
+                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Padrón de Funcionarios</h2>
+                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              Directorio oficial de personal asignado a <span className="text-brand-primary dark:text-brand-accent font-bold">{dependenciaActual}</span>
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Padrón de Funcionarios</h2>
-                          <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-1 flex flex-wrap items-center gap-2">
-                            <span>Directorio oficial de personal de <span className="text-brand-primary dark:text-brand-accent">{dependenciaActual}</span></span>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
-                              {funcionariosPurosDependencia.length} registrados
-                            </span>
-                          </p>
+
+                        {/* Botones de Acción Principal */}
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          <button onClick={sincronizarBienesConPadron} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary transition-all cursor-pointer shadow-2xs">
+                            <i className="fa-solid fa-rotate text-brand-primary"></i> Sincronizar
+                          </button>
+                          <button onClick={handleDownloadTemplateFuncionarios} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-2xs">
+                            <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
+                          </button>
+                          <button onClick={() => fileInputFuncionariosRef.current?.click()} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-2xs">
+                            <i className="fa-solid fa-file-import text-emerald-600"></i> Importar CSV
+                          </button>
+                          <button onClick={() => setIsNewFuncionarioModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-6 py-3 text-xs font-black text-white shadow-lg shadow-emerald-600/25 transition-all cursor-pointer active:scale-95">
+                            <i className="fa-solid fa-user-plus text-sm"></i> Nuevo Funcionario
+                          </button>
                         </div>
+
                       </div>
 
-                      {/* BARRA DE ACCIONES Y BUSCADOR */}
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <div className="relative w-full sm:w-56">
-                          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-                          <input 
-                            type="text"
-                            placeholder="Buscar C.I. o nombre..."
-                            value={searchFuncionarioInput}
-                            onChange={(e) => {
-                                setSearchFuncionarioInput(e.target.value);
-                                setCurrentPaginaFuncionarios(1);
-                            }}
-                            className="block w-full rounded-xl border border-zinc-200 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-10 pr-3 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card outline-none transition-all shadow-inner"
-                          />
-                        </div>
-
-                        <button onClick={sincronizarBienesConPadron} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary shadow-2xs transition-all cursor-pointer">
-                          <i className="fa-solid fa-rotate text-brand-primary"></i> Sincronizar
-                        </button>
-
-                        <button onClick={handleDownloadTemplateFuncionarios} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 shadow-2xs transition-all cursor-pointer">
-                          <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
-                        </button>
-
-                        <button onClick={() => fileInputFuncionariosRef.current?.click()} className="inline-flex items-center gap-2 rounded-xl bg-white dark:bg-darkbg-main border border-zinc-200 dark:border-darkbg-border px-4 py-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 shadow-2xs transition-all cursor-pointer">
-                          <i className="fa-solid fa-file-import text-emerald-600"></i> Importar
-                        </button>
-
-                        <button onClick={() => setIsNewFuncionarioModalOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-xs font-black text-white shadow-md shadow-emerald-600/20 transition-all cursor-pointer">
-                          <i className="fa-solid fa-user-plus"></i> Nuevo
-                        </button>
+                      {/* BARRA DE BÚSQUEDA INTEGRADA EN LA CABECERA */}
+                      <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
+                        <div className="relative w-full">
+    <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+    <input 
+      type="text"
+      placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
+      value={searchTerm}
+      onChange={(e) => setSearchTerm(e.target.value)}
+      className="w-full rounded-xl border border-zinc-200 dark:border-darkbg-border bg-zinc-50/80 dark:bg-darkbg-main py-3 pl-11 pr-4 text-xs font-semibold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
+    />
+  </div>
                       </div>
 
                     </div>
 
-                    {/* TABLA DE FUNCIONARIOS ESTILIZADA */}
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] flex flex-col overflow-hidden relative min-h-[450px]">
+                    {/* TABLA DE FUNCIONARIOS REDISEÑADA */}
+                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[32px] flex flex-col overflow-hidden relative min-h-[450px]">
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left border-collapse">
                             <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
@@ -2583,17 +3106,17 @@ const handleEditFuncionario = (funcionario) => {
                                 <th className="py-4 pl-8 pr-4">Cédula de Identidad</th>
                                 <th className="px-4 py-4 w-1/3">Nombre Completo</th>
                                 <th className="px-4 py-4 w-1/3">Cargo Institucional</th>
-                                <th className="relative py-4 pl-4 pr-8 text-right"><span className="sr-only">Acciones</span></th>
+                                <th className="relative py-4 pl-4 pr-8 text-right">Acciones</th>
                               </tr>
                             </thead>
                             <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-zinc-800/60">
                               {funcionariosPaginados.map((f, idx) => {
                                 if (f.esSeparador) {
                                     return (
-                                        <tr key={`sep-${f.letra}-${idx}`} className="bg-zinc-100/80 dark:bg-zinc-950/80 border-y border-zinc-200/60 dark:border-zinc-800">
-                                            <td colSpan="4" className="py-3 pl-8 pr-4 font-black text-xs text-brand-primary dark:text-brand-accent uppercase tracking-widest">
+                                        <tr key={`sep-${f.letra}-${idx}`} className="bg-zinc-100/70 dark:bg-zinc-950/70 border-y border-zinc-200/60 dark:border-zinc-800">
+                                            <td colSpan="4" className="py-3 pl-8 pr-4 font-black text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
                                                 <span className="inline-flex items-center gap-2.5">
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-brand-primary shadow-sm"></span>
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span>
                                                     Sección {f.letra}
                                                 </span>
                                             </td>
@@ -2604,35 +3127,35 @@ const handleEditFuncionario = (funcionario) => {
                                 const inicial = f.nombre ? f.nombre.charAt(0).toUpperCase() : 'F';
 
                                 return (
-                                  <tr key={f.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group">
+                                  <tr key={f.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group">
                                       <td className="py-4 pl-8 pr-4 align-middle font-mono font-bold text-zinc-700 dark:text-zinc-300 text-sm">
                                           {formatCI(f.cedula)}
                                       </td>
                                       <td className="px-4 py-4 align-middle">
                                           <div className="flex items-center gap-3.5">
-                                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-black text-xs shadow-inner border border-zinc-200/60 dark:border-zinc-700/60">
+                                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-xs shadow-inner border border-emerald-500/20">
                                                   {inicial}
                                               </div>
                                               <span className="font-extrabold text-zinc-900 dark:text-white text-sm">{f.nombre}</span>
                                           </div>
                                       </td>
-                                      <td className="px-4 py-4 align-middle text-zinc-600 dark:text-zinc-400 text-xs font-bold uppercase tracking-wide">
-                                          <span className="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/60 dark:border-zinc-700/60">
+                                      <td className="px-4 py-4 align-middle">
+                                          <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700 uppercase tracking-wide">
                                               {f.cargo || 'Funcionario'}
                                           </span>
                                       </td>
                                       <td className="relative py-4 pl-4 pr-8 align-middle text-right">
-                                          <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                                          <div className="flex items-center justify-end gap-2">
                                               <button 
                                                   onClick={() => handleEditFuncionario(f)} 
-                                                  className="h-9 w-9 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                                                  className="h-10 w-10 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-2xl transition-all cursor-pointer shadow-2xs"
                                                   title="Editar funcionario"
                                               >
                                                   <i className="fa-solid fa-pen-to-square text-xs"></i>
                                               </button>
                                               <button 
                                                   onClick={() => handleDeleteFuncionario(f.id)} 
-                                                  className="h-9 w-9 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-xl transition-colors cursor-pointer shadow-2xs"
+                                                  className="h-10 w-10 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-2xl transition-all cursor-pointer shadow-2xs"
                                                   title="Eliminar funcionario"
                                               >
                                                   <i className="fa-solid fa-trash-can text-xs"></i>
@@ -3225,6 +3748,17 @@ const handleEditFuncionario = (funcionario) => {
     dependenciaActual={dependenciaActual}
     STYLES={STYLES}
 />
+      <UnsavedChangesModal 
+        isOpen={showUnsavedChangesModal}
+        onConfirmClose={() => {
+          setShowUnsavedChangesModal(false);
+          setIsBienModalOpen(false);
+          setIsFC04ModalOpen(false);
+          setBienEditing(null);
+        }}
+        onCancel={() => setShowUnsavedChangesModal(false)}
+        STYLES={STYLES}
+      />
       <DependenciaConfirmModal 
           showDependenciaConfirm={showDependenciaConfirm}
           setShowDependenciaConfirm={setShowDependenciaConfirm}
