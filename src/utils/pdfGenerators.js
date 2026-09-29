@@ -1,16 +1,19 @@
-// Generar QR Simple
+// Generar QR Simple (Dramáticamente Dinámico)
 export const generateSimpleQR = async (bien, returnOnly = false) => {
   try {
-    const textData = `UNP - PATRIMONIO\nROTULO: ${bien?.rotulo || 'S/R'}\nDESC: ${bien?.descripcion || ''}`;
-    
-    const dataUrl = await window.QRCode.toDataURL(textData, {
+    // 🔗 URL Dinámica de la aplicación
+    const bienId = encodeURIComponent(bien?.id || bien?.rotulo || '');
+    const qrUrl = `${window.location.origin}/?id=${bienId}`;
+
+    // Generar Data URL del código QR apuntando a la URL dinámica
+    const dataUrl = await window.QRCode.toDataURL(qrUrl, {
       width: 400,
       margin: 2,
       color: { dark: '#000000', light: '#ffffff' }
     });
 
     if (returnOnly) {
-      return dataUrl;
+      return dataUrl; // Retorna para la vista previa sin forzar la descarga
     }
 
     if (window.saveAs) {
@@ -25,7 +28,7 @@ export const generateSimpleQR = async (bien, returnOnly = false) => {
   }
 };
 
-// Generar Etiqueta Profesional Completa
+// Generar Etiqueta Profesional Completa (con QR Dinámico)
 export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = false) => {
   try {
     const canvas = document.createElement('canvas');
@@ -33,13 +36,16 @@ export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = f
     canvas.height = 300;
     const ctx = canvas.getContext('2d');
 
+    // Fondo blanco
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // Borde institucional
     ctx.strokeStyle = '#0284c7';
     ctx.lineWidth = 6;
     ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
+    // Encabezados
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 22px sans-serif';
     ctx.fillText('UNIVERSIDAD NACIONAL DE PILAR', 30, 45);
@@ -48,21 +54,28 @@ export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = f
     ctx.font = 'bold 16px sans-serif';
     ctx.fillText('CONTROL PATRIMONIAL OFICIAL', 30, 70);
 
+    // Rótulo
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 28px monospace';
     ctx.fillText(`RÓTULO: ${bien?.rotulo || 'S/R'}`, 30, 115);
 
+    // Descripción
     ctx.fillStyle = '#334155';
     ctx.font = '16px sans-serif';
     const desc = bien?.descripcion || 'Sin descripción';
     ctx.fillText(desc.length > 35 ? desc.substring(0, 35) + '...' : desc, 30, 150);
 
+    // Responsable y Ubicación
     ctx.fillStyle = '#64748b';
     ctx.font = '14px sans-serif';
     ctx.fillText(`Resp: ${bien?.funcionario || 'Sin asignar'}`, 30, 185);
     ctx.fillText(`Ubic: ${bien?.ubicacion || 'Sin ubicación'}`, 30, 210);
 
-    const qrDataUrl = await window.QRCode.toDataURL(bien?.rotulo || 'SR', { width: 160, margin: 1 });
+    // 🔗 URL Dinámica para el QR dentro de la etiqueta
+    const bienId = encodeURIComponent(bien?.id || bien?.rotulo || '');
+    const qrUrl = `${window.location.origin}/?id=${bienId}`;
+
+    const qrDataUrl = await window.QRCode.toDataURL(qrUrl, { width: 160, margin: 1 });
     const qrImage = new Image();
     
     await new Promise((resolve) => {
@@ -70,6 +83,7 @@ export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = f
       qrImage.src = qrDataUrl;
     });
 
+    // Dibujar el QR incrustado a la derecha
     ctx.drawImage(qrImage, 410, 100, 160, 160);
 
     const finalDataUrl = canvas.toDataURL('image/png');
@@ -90,7 +104,7 @@ export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = f
   }
 };
 
-// Construir documento PDF para FC-10 (Resuelve el error MISSING_EXPORT)
+// Función para exportar PDF FC-10
 export const buildFC10PDFDoc = (fcsData, bienesData) => {
   const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
   const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
