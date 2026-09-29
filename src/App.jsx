@@ -388,6 +388,38 @@ export default function App() {
       setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); 
       setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
   };
+  // --- CONSULTA PÚBLICA PARA ESCANEO DE QR ---
+useEffect(() => {
+  if (!publicBienId) return;
+
+  const cargarBienPublico = async () => {
+    try {
+      // Invocamos la función pública con bypass RLS
+      const { data, error } = await supabase.rpc('obtener_bien_publico', {
+        p_id: publicBienId
+      });
+
+      if (error) {
+        console.error("Error al consultar el bien público:", error);
+        setPublicBienData({
+          rotulo: 'Error de Lectura',
+          descripcion: 'No se pudo obtener la información del activo desde el servidor.'
+        });
+        return;
+      }
+
+      setPublicBienData(data);
+    } catch (err) {
+      console.error("Error inesperado:", err);
+      setPublicBienData({
+        rotulo: 'Error',
+        descripcion: 'Ocurrió un problema al procesar la solicitud del código QR.'
+      });
+    }
+  };
+
+  cargarBienPublico();
+}, [publicBienId]);
   // --- MOTOR DE ARRANQUE DE DATOS ---
   useEffect(() => { 
       if (isAuthenticated) {
