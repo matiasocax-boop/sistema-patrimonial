@@ -2658,233 +2658,191 @@ if (publicBienId) {
                   </div>
                 )}
                 {activeTab === 'inventario' && (
-                  <div className="space-y-6 animate-fade-in pb-12">
-                    
-                    {/* 1. CABECERA PRINCIPAL REESTRUCTURADA */}
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[32px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-brand-primary/10 rounded-full blur-3xl pointer-events-none"></div>
-
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-                        
-                        {/* Identificación de la vista */}
-                        <div className="flex items-center gap-4 sm:gap-5">
-                          <div className="flex h-14 w-14 sm:h-16 sm:w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-inner">
-                            <i className="fa-solid fa-boxes-stacked text-2xl"></i>
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-primary">
-                                {filteredBienes.length} Bienes Registrados
-                              </span>
-                            </div>
-                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight truncate">
-                              Directorio Patrimonial
-                            </h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                              Gestión integral e inventario consolidado de activos institucionales
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Todos los Botones Originales Restaurados y Estilizados */}
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <button 
-                            onClick={handleDownloadTemplateCSV} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                          >
-                            <i className="fa-solid fa-file-excel text-emerald-500 text-sm"></i> Plantilla
-                          </button>
-
-                          <button 
-                            onClick={() => fileInputRef.current?.click()} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                          >
-                            <i className="fa-solid fa-file-import text-emerald-500 text-sm"></i> Importar CSV
-                          </button>
-
-                          <button 
-                            onClick={handleExportInventarioCSV} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-sky-500 hover:text-sky-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                          >
-                            <i className="fa-solid fa-file-export text-sky-500 text-sm"></i> Exportar CSV
-                          </button>
-
-                          <button 
-                            onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-purple-500 hover:text-purple-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                          >
-                            <i className="fa-solid fa-qrcode text-purple-500 text-sm"></i> Lote QRs
-                          </button>
-
-                          <button 
-                            onClick={openFC03Modal} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-amber-500 hover:text-amber-600 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                          >
-                            <i className="fa-solid fa-print text-amber-500 text-sm"></i> Reporte FC-03
-                          </button>
-
-                          <button 
-                            onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
-                            className="inline-flex items-center gap-2 rounded-2xl bg-brand-primary hover:bg-brand-hover px-6 py-3 text-xs font-black text-white shadow-lg shadow-brand-primary/25 transition-all active:scale-95 cursor-pointer"
-                          >
-                            <i className="fa-solid fa-plus text-sm"></i> Añadir Registro
-                          </button>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    {/* 2. PANEL DE BÚSQUEDA Y FILTROS SIMÉTRICOS REDISEÑADOS */}
-<div className="bg-white dark:bg-darkbg-card p-5 sm:p-6 rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-4">
-  
-  {/* Búsqueda Principal */}
-  <div className="relative w-full">
-    <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-    <input 
-      type="text"
-      placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      className="w-full rounded-2xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3.5 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
-    />
-  </div>
-
-  {/* Rejilla Simétrica de Filtros (8 columnas alineadas) */}
-  <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2.5 pt-2 border-t border-zinc-100 dark:border-darkbg-border">
+  <div className="space-y-6 animate-fade-in pb-12">
     
-    {/* Responsables */}
-    <div className="relative">
-      <select 
-        value={filtroFuncionario || ''} 
-        onChange={(e) => setFiltroFuncionario(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Responsables: Todos</option>
-        {funcionariosUnicos.map(f => (
-          <option key={f} value={f}>{f}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    {/* 1. CABECERA LIMPIA Y MEJOR PROPORCIONADA */}
+    <div className="bg-white dark:bg-darkbg-card p-6 rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+      
+      {/* Título de la sección */}
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
+          <i className="fa-solid fa-boxes-stacked text-xl"></i>
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+              Directorio Patrimonial
+            </h2>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-brand-primary/10 text-brand-primary">
+              {filteredBienes.length} Registros
+            </span>
+          </div>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5">
+            Gestión integral de activos institucionales
+          </p>
+        </div>
+      </div>
+
+      {/* Botones de acción bien espaciados */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button 
+          onClick={handleDownloadTemplateCSV} 
+          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
+          title="Plantilla CSV"
+        >
+          <i className="fa-solid fa-file-excel text-emerald-600"></i>
+          <span className="hidden sm:inline">Plantilla</span>
+        </button>
+
+        <button 
+          onClick={() => fileInputRef.current?.click()} 
+          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
+          title="Importar CSV"
+        >
+          <i className="fa-solid fa-file-import text-emerald-600"></i>
+          <span className="hidden sm:inline">Importar</span>
+        </button>
+
+        <button 
+          onClick={handleExportInventarioCSV} 
+          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
+          title="Exportar CSV"
+        >
+          <i className="fa-solid fa-file-export text-sky-600"></i>
+          <span className="hidden sm:inline">Exportar</span>
+        </button>
+
+        <button 
+          onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
+          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
+          title="Lote QRs"
+        >
+          <i className="fa-solid fa-qrcode text-purple-600"></i>
+          <span className="hidden sm:inline">Lote QRs</span>
+        </button>
+
+        <button 
+          onClick={openFC03Modal} 
+          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
+          title="FC-03"
+        >
+          <i className="fa-solid fa-print text-amber-600"></i>
+          <span className="hidden sm:inline">FC-03</span>
+        </button>
+
+        <button 
+          onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
+          className="px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-hover text-white text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+        >
+          <i className="fa-solid fa-plus"></i> Añadir Registro
+        </button>
+      </div>
+
     </div>
 
-    {/* Ubicaciones */}
-    <div className="relative">
-      <select 
-        value={filtroUbicacion || ''} 
-        onChange={(e) => setFiltroUbicacion(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Ubicación: Todas</option>
-        {ubicacionesUnicas.map(u => (
-          <option key={u} value={u}>{u}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
+    {/* 2. REJILLA DE FILTROS A 4 COLUMNAS (ALINEADOS Y SIN TEXTOS CORTADOS) */}
+    <div className="bg-white dark:bg-darkbg-card p-5 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-3">
+      
+      <div className="relative w-full">
+        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+        <input 
+          type="text"
+          placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary outline-none transition-all"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+        
+        <select 
+          value={filtroFuncionario || ''} 
+          onChange={(e) => setFiltroFuncionario(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Responsables: Todos</option>
+          {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
+        </select>
+
+        <select 
+          value={filtroUbicacion || ''} 
+          onChange={(e) => setFiltroUbicacion(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Ubicación: Todas</option>
+          {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
+        </select>
+
+        <select 
+          value={filtroAnio || ''} 
+          onChange={(e) => setFiltroAnio(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Año: Todos</option>
+          {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+
+        <select 
+          value={filtroSubcuenta || ''} 
+          onChange={(e) => setFiltroSubcuenta(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Subcuenta: Todas</option>
+          {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        <select 
+          value={filtroAnalitico1 || ''} 
+          onChange={(e) => setFiltroAnalitico1(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Analítico 1: Todos</option>
+          {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
+        </select>
+
+        <select 
+          value={filtroAnalitico2 || ''} 
+          onChange={(e) => setFiltroAnalitico2(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="">Analítico 2: Todos</option>
+          {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
+        </select>
+
+        <select 
+          value={filtroFC10 || 'ALL'} 
+          onChange={(e) => setFiltroFC10(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="ALL">FC-10: Todos</option>
+          <option value="YES">Con FC-10</option>
+          <option value="NO">Sin FC-10</option>
+        </select>
+
+        <select 
+          value={filtroEstado || 'ALL'} 
+          onChange={(e) => setFiltroEstado(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+        >
+          <option value="ALL">Estado: Todos</option>
+          {ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}
+        </select>
+
+      </div>
+
+      {hasFilters && (
+        <div className="flex justify-end pt-1">
+          <button 
+            onClick={clearAllFilters}
+            className="text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            <i className="fa-solid fa-filter-circle-xmark"></i> Limpiar Filtros
+          </button>
+        </div>
+      )}
+
     </div>
-
-    {/* Año */}
-    <div className="relative">
-      <select 
-        value={filtroAnio || ''} 
-        onChange={(e) => setFiltroAnio(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Año: Todos</option>
-        {aniosUnicos.map(a => (
-          <option key={a} value={a}>{a}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-    {/* Subcuenta */}
-    <div className="relative">
-      <select 
-        value={filtroSubcuenta || ''} 
-        onChange={(e) => setFiltroSubcuenta(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Subcuenta: Todas</option>
-        {subcuentasUnicas.map(s => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-    {/* Analítico 1 */}
-    <div className="relative">
-      <select 
-        value={filtroAnalitico1 || ''} 
-        onChange={(e) => setFiltroAnalitico1(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Analítico 1: Todos</option>
-        {analiticos1Unicos.map(a1 => (
-          <option key={a1} value={a1}>{a1}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-    {/* Analítico 2 */}
-    <div className="relative">
-      <select 
-        value={filtroAnalitico2 || ''} 
-        onChange={(e) => setFiltroAnalitico2(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="">Analítico 2: Todos</option>
-        {analiticos2Unicos.map(a2 => (
-          <option key={a2} value={a2}>{a2}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-    {/* FC-10 */}
-    <div className="relative">
-      <select 
-        value={filtroFC10 || 'ALL'} 
-        onChange={(e) => setFiltroFC10(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="ALL">FC-10: Todos</option>
-        <option value="YES">Con FC-10</option>
-        <option value="NO">Sin FC-10</option>
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-    {/* Estado */}
-    <div className="relative">
-      <select 
-        value={filtroEstado || 'ALL'} 
-        onChange={(e) => setFiltroEstado(e.target.value)}
-        className="w-full appearance-none rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2.5 pl-3 pr-7 text-[11px] font-bold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary transition-all cursor-pointer truncate"
-      >
-        <option value="ALL">Estado: Todos</option>
-        {ESTADOS_CONSERVACION.map(e => (
-          <option key={e} value={e}>{e}</option>
-        ))}
-      </select>
-      <i className="fa-solid fa-chevron-down absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-400 pointer-events-none"></i>
-    </div>
-
-  </div>
-
-  {hasFilters && (
-    <div className="flex justify-end pt-1">
-      <button 
-        onClick={clearAllFilters}
-        className="text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1.5 transition-colors cursor-pointer"
-      >
-        <i className="fa-solid fa-filter-circle-xmark"></i> Limpiar Filtros
-      </button>
-    </div>
-  )}
-
-</div>
 
                     {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
                     <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] sm:rounded-[32px] overflow-hidden">
