@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Configuración de fuentes y scrollbars personalizados */
 body { 
   font-family: 'Inter', sans-serif; 
   background-color: #f8f9fa; 
@@ -39,6 +38,7 @@ body {
   background: #80868b; 
 }
 
+/* Clase personalizada para ocultar la barra de scroll */
 .hide-scrollbar::-webkit-scrollbar { 
   display: none; 
 } 
