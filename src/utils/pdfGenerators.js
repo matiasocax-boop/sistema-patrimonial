@@ -47,3 +47,38 @@ export const generateProfessionalLabelPNG = async (bien, logoApp, returnOnly = f
     throw error;
   }
 };
+// Construir documento PDF para FC-10
+export const buildFC10PDFDoc = (fcsData, bienesData) => {
+  const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
+  const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
+  const fc = fcs[0] || {};
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  
+  const fechaDocumento = fc.entregadoFecha || fc.fechaGeneracion || new Date().toISOString().split('T')[0];
+
+  // Configuración de encabezado y datos FC-10
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("UNIVERSIDAD NACIONAL DE PILAR", 105, 18, { align: 'center' });
+  doc.setFontSize(11);
+  doc.text("ACTA DE ASIGNACIÓN Y RESPONSABILIDAD (FC-10)", 105, 25, { align: 'center' });
+
+  // Tabla con bienes
+  const tableRows = bienesAListar.map(b => [
+    b.cuenta || '-',
+    b.rotulo || '-',
+    b.descripcion || '-',
+    b.estadoConservacion || 'Bueno',
+    `Gs. ${b.valorUnitario || '0'}`
+  ]);
+
+  doc.autoTable({
+    startY: 35,
+    head: [["Cuenta", "Rótulo", "Descripción", "Estado", "Valor"]],
+    body: tableRows,
+    theme: 'grid'
+  });
+
+  return { doc, fechaDocumento, fc };
+};
