@@ -660,8 +660,43 @@ if (searchTerm) {
       );
   }, [notificaciones, dependenciaActual]);
 
-  const handleDownloadLabelPNG = async (bien) => { setIsProcessing({ active: true, text: 'Generando Etiqueta...' }); setTimeout(async () => { try { const dataUrl = await generateProfessionalLabelPNG(bien, appLogo); if (dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `Etiqueta_UNP_${cleanRotulo}.png`); addToast("Etiqueta descargada con éxito", "success"); } } catch (e) { addToast("Error al generar la etiqueta", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } }, 100); };
-  const handleDownloadSimpleQR = async (bien) => { setIsProcessing({ active: true, text: 'Procesando imagen QR...' }); try { const dataUrl = await generateSimpleQR(bien); if(dataUrl && window.saveAs) { const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, ''); window.saveAs(dataUrl, `QR_${cleanRotulo}.png`); addToast("Código QR simple descargado", "success"); } } catch (e) { addToast("Error al descargar el QR", "error"); } finally { setIsProcessing({ active: false, text: '' }); setIsQRModalOpen(false); } };
+  // --- EN App_2.jsx ---
+
+const handleDownloadLabelPNG = async (bien, returnOnly = false) => {
+  // Si no es solo vista previa, activamos el indicador visual de procesamiento
+  if (!returnOnly) setIsProcessing({ active: true, text: 'Generando Etiqueta...' });
+
+  try {
+    const dataUrl = await generateProfessionalLabelPNG(bien, appLogo, returnOnly);
+    if (!returnOnly) {
+      addToast("Etiqueta descargada con éxito", "success");
+      setIsQRModalOpen(false);
+    }
+    return dataUrl;
+  } catch (e) {
+    addToast("Error al generar la etiqueta", "error");
+  } finally {
+    if (!returnOnly) setIsProcessing({ active: false, text: '' });
+  }
+};
+
+const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
+  if (!returnOnly) setIsProcessing({ active: true, text: 'Procesando imagen QR...' });
+
+  try {
+    const dataUrl = await generateSimpleQR(bien, returnOnly);
+    if (!returnOnly) {
+      addToast("Código QR simple descargado", "success");
+      setIsQRModalOpen(false);
+    }
+    return dataUrl;
+  } catch (e) {
+    addToast("Error al descargar el QR", "error");
+  } finally {
+    if (!returnOnly) setIsProcessing({ active: false, text: '' });
+  }
+};
+
   const handleBulkLabelPNGZip = async () => {
     if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
     
