@@ -112,23 +112,22 @@ export default function QRModal({
               </div>
 
               {/* Botón de Descarga según la pestaña seleccionada */}
-              <div className="pt-2">
-                {previewType === 'label' ? (
-                  <button 
-                    onClick={() => onDownloadLabel(bien, false)}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                  >
-                    <i className="fa-solid fa-download"></i> Descargar Etiqueta Completa (PNG)
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => onDownloadSimpleQR(bien, false)}
-                    className="w-full py-3.5 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-black transition-all border border-zinc-700 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                  >
-                    <i className="fa-solid fa-qrcode"></i> Descargar Solo Código QR (PNG)
-                  </button>
-                )}
-              </div>
+              {/* CÓDIGO NUEVO (Muestra siempre los dos botones) */}
+<div className="pt-2 grid grid-cols-1 gap-2.5">
+  <button 
+    onClick={() => onDownloadLabel(bien, false)}
+    className="w-full py-3.5 px-4 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+  >
+    <i className="fa-solid fa-download"></i> Descargar Etiqueta Completa (PNG)
+  </button>
+
+  <button 
+    onClick={() => onDownloadSimpleQR(bien, false)}
+    className="w-full py-3.5 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-white text-xs font-black transition-all border border-zinc-700 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+  >
+    <i className="fa-solid fa-qrcode"></i> Descargar Solo Código QR (PNG)
+  </button>
+</div>
             </>
           ) : (
             /* Lote Masivo (ZIP) */
