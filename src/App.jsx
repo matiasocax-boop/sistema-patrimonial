@@ -389,14 +389,18 @@ export default function App() {
       setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
   };
   // --- CONSULTA PÚBLICA PARA ESCANEO DE QR ---
+// --- CONSULTA PÚBLICA PARA ESCANEO DE QR (CORREGIDO) ---
 useEffect(() => {
   if (!publicBienId) return;
 
   const cargarBienPublico = async () => {
     try {
+      // Sanitizamos el parámetro limpiando espacios y codificación de URL
+      const idSanitizado = decodeURIComponent(publicBienId).trim();
+
       // Invocamos la función pública con bypass RLS
       const { data, error } = await supabase.rpc('obtener_bien_publico', {
-        p_id: publicBienId
+        p_id: idSanitizado
       });
 
       if (error) {
@@ -620,18 +624,18 @@ reader.onload = (event) => {
     if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
     
     // CORRECCIÓN: Unificar búsqueda con searchInput y searchTerm
-    const activeSearch = searchTerm || searchInput;
-    if (activeSearch) { 
-        const term = String(activeSearch).toLowerCase().trim(); 
-        filtered = filtered.filter(b => 
-            String(b.rotulo || '').toLowerCase().includes(term) || 
-            String(b.descripcion || '').toLowerCase().includes(term) || 
-            String(b.cuenta || '').toLowerCase().includes(term) || 
-            String(b.ubicacion || '').toLowerCase().includes(term) || 
-            String(b.funcionario || '').toLowerCase().includes(term) ||
-            String(b.funcionarioDoc || '').toLowerCase().includes(term)
-        ); 
-    } 
+    // CORRECCIÓN: Usar exclusivamente searchTerm como fuente de verdad
+if (searchTerm) { 
+    const term = String(searchTerm).toLowerCase().trim(); 
+    filtered = filtered.filter(b => 
+        String(b.rotulo || '').toLowerCase().includes(term) || 
+        String(b.descripcion || '').toLowerCase().includes(term) || 
+        String(b.cuenta || '').toLowerCase().includes(term) || 
+        String(b.ubicacion || '').toLowerCase().includes(term) || 
+        String(b.funcionario || '').toLowerCase().includes(term) ||
+        String(b.funcionarioDoc || '').toLowerCase().includes(term)
+    ); 
+}
 
     filtered.sort((a, b) => { 
         const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; 
@@ -1854,16 +1858,16 @@ const handleEditFuncionario = (funcionario) => {
   };
 
   const handleScanSuccess = (decodedText) => {
-      setIsScannerOpen(false);
-      let codigoLimpio = decodedText;
-      if (decodedText.includes('CÓDIGO:')) {
-          const partes = decodedText.split('CTA:')[0];
-          codigoLimpio = partes.replace('CÓDIGO:', '').trim();
-      }
-      addToast(`Bien escaneado: ${codigoLimpio}`, "success");
-      setSearchInput(codigoLimpio);
-      setActiveTab('inventario');
-  };
+    setIsScannerOpen(false);
+    let codigoLimpio = decodedText;
+    if (decodedText.includes('CÓDIGO:')) {
+        const partes = decodedText.split('CTA:')[0];
+        codigoLimpio = partes.replace('CÓDIGO:', '').trim();
+    }
+    addToast(`Bien escaneado: ${codigoLimpio}`, "success");
+    setSearchTerm(codigoLimpio); // 👈 Asignación directa a searchTerm
+    setActiveTab('inventario');
+};
 
   useEffect(() => {
       if (isScannerOpen) {
