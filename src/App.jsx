@@ -2051,112 +2051,119 @@ const handleEditFuncionario = (funcionario) => {
   // VISTA DEL QR PÚBLICO
   // 1. VISTA DEL QR PÚBLICO (Debe ser lo primero absoluto que evalúa la app)
   // VISTA DEL QR PÚBLICO (MEJORADA Y MODERNA)
-  if (publicBienId) {
-      return (
-          <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 flex items-center justify-center p-4 sm:p-6 text-zinc-100 font-sans selection:bg-brand-primary selection:text-white">
-              <div className="bg-zinc-900/90 border border-zinc-800/80 rounded-[32px] p-6 sm:p-8 max-w-lg w-full shadow-2xl backdrop-blur-xl relative overflow-hidden">
-                  
-                  {/* Barra superior de acento institucional */}
-                  <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-brand-primary via-sky-500 to-emerald-500"></div>
-                  
-                  {/* Encabezado */}
-                  <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-800/80">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mb-4 ring-1 ring-brand-primary/20 shadow-inner">
-                          <i className="fa-solid fa-shield-halved text-2xl"></i>
-                      </div>
+  // --- VISTA PÚBLICA AL ESCANEAR CÓDIGO QR ---
+if (publicBienId) {
+  return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4 sm:p-6 text-zinc-100 font-sans selection:bg-brand-primary">
+      <div className="bg-zinc-900/90 border border-zinc-800 rounded-[28px] p-6 sm:p-8 max-w-md w-full shadow-2xl backdrop-blur-xl relative overflow-hidden my-auto">
+        
+        {/* LÍNEA SUPERIOR DE ACENTO INSTITUCIONAL */}
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-brand-primary via-sky-500 to-emerald-500"></div>
 
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-accent mb-2 border border-brand-primary/20">
-                          <i className="fa-solid fa-circle-check text-[9px]"></i> Control Patrimonial Oficial
-                      </span>
-
-                      <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                          Universidad Nacional de Pilar
-                      </h1>
-                      <p className="text-xs text-zinc-400 font-medium mt-0.5">
-                          Sistema Integrado de Gestión de Activos
-                      </p>
-                  </div>
-
-                  {publicBienData ? (
-                      <div className="py-6 space-y-5">
-                          
-                          {/* Tarjeta Principal de Identificación */}
-                          <div className="bg-zinc-950/60 p-5 rounded-2xl border border-zinc-800/60 relative overflow-hidden">
-                              <div className="flex justify-between items-start gap-4">
-                                  <div>
-                                      <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Rótulo / Código de Inventario</p>
-                                      <p className="text-xl sm:text-2xl font-black text-white font-mono mt-0.5 tracking-tight">{publicBienData.rotulo}</p>
-                                  </div>
-                                  {publicBienData.estadoConservacion && (
-                                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
-                                          publicBienData.estadoConservacion === 'De Baja' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                      }`}>
-                                          {publicBienData.estadoConservacion}
-                                      </span>
-                                  )}
-                              </div>
-
-                              <div className="mt-4 pt-3 border-t border-zinc-800/60">
-                                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Descripción del Bien</p>
-                                  <p className="text-sm font-bold text-zinc-200 mt-1 leading-relaxed">{publicBienData.descripcion}</p>
-                              </div>
-                          </div>
-
-                          {/* Cuadrícula de Detalles Técnicos */}
-                          <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40">
-                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                                      <i className="fa-solid fa-layer-group text-brand-primary"></i> Cuenta Contable
-                                  </p>
-                                  <p className="text-xs font-mono font-bold text-zinc-200 mt-1.5">{publicBienData.cuenta || 'S/D'}</p>
-                              </div>
-
-                              <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40">
-                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                                      <i className="fa-solid fa-coins text-emerald-400"></i> Valor de Adquisición
-                                  </p>
-                                  <p className="text-xs font-bold text-emerald-400 mt-1.5">Gs. {formatCurrency(publicBienData.valorUnitario)}</p>
-                              </div>
-                          </div>
-
-                          {/* Custodio y Ubicación */}
-                          <div className="bg-zinc-950/40 p-4 rounded-2xl border border-zinc-800/40 space-y-3">
-                              <div>
-                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                                      <i className="fa-solid fa-user-tie text-sky-400"></i> Custodio Responsable
-                                  </p>
-                                  <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.funcionario || 'Sin Asignar'}</p>
-                              </div>
-                              <div className="pt-2 border-t border-zinc-800/40">
-                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
-                                      <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación Física
-                                  </p>
-                                  <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.ubicacion || 'Sin Ubicación Registrada'}</p>
-                              </div>
-                          </div>
-
-                      </div>
-                  ) : (
-                      <div className="py-16 flex flex-col items-center justify-center text-center">
-                          <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary mb-3"></i>
-                          <p className="text-xs text-zinc-400 font-medium">Verificando registro en la base de datos oficial...</p>
-                      </div>
-                  )}
-
-                  {/* Botón de salida */}
-                  <div className="pt-4">
-                      <button 
-                          onClick={() => window.location.href = window.location.origin} 
-                          className="w-full py-3.5 px-6 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-bold transition-all cursor-pointer shadow-lg border border-zinc-700/50 flex items-center justify-center gap-2"
-                      >
-                          <i className="fa-solid fa-arrow-left"></i> Ir al Sistema Institucional
-                      </button>
-                  </div>
-
-              </div>
+        {/* CABECERA */}
+        <div className="flex flex-col items-center text-center pb-6 border-b border-zinc-800">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary mb-3 border border-brand-primary/20 shadow-inner">
+            <i className="fa-solid fa-shield-halved text-2xl"></i>
           </div>
-      );
-  }
+
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/10 text-brand-accent mb-2 border border-brand-primary/20">
+            <i className="fa-solid fa-circle-check text-[9px]"></i> Control Patrimonial Oficial
+          </span>
+
+          <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
+            Universidad Nacional de Pilar
+          </h1>
+          <p className="text-xs text-zinc-400 font-semibold mt-0.5">
+            Sistema Integrado de Gestión de Activos
+          </p>
+        </div>
+
+        {/* DETALLES DEL BIEN O ESTADO DE CARGA */}
+        {publicBienData ? (
+          <div className="py-6 space-y-4">
+            
+            {/* TARJETA PRINCIPAL DEL RÓTULO */}
+            <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-800/80">
+              <div className="flex justify-between items-start gap-3">
+                <div>
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Rótulo / Código</p>
+                  <p className="text-xl font-black text-white font-mono mt-0.5 tracking-tight">{publicBienData.rotulo || 'S/R'}</p>
+                </div>
+                {publicBienData.estadoConservacion && (
+                  <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider ${
+                    publicBienData.estadoConservacion === 'De Baja' 
+                      ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
+                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                  }`}>
+                    {publicBienData.estadoConservacion}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-zinc-800/80">
+                <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Descripción</p>
+                <p className="text-xs sm:text-sm font-extrabold text-zinc-200 mt-1 leading-relaxed">{publicBienData.descripcion || 'Sin descripción'}</p>
+              </div>
+            </div>
+
+            {/* CUADRÍCULA DE DATOS TÉCNICOS */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60">
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-layer-group text-brand-primary"></i> Cuenta
+                </p>
+                <p className="text-xs font-mono font-bold text-zinc-200 mt-1 truncate">{publicBienData.cuenta || 'S/D'}</p>
+              </div>
+
+              <div className="bg-zinc-950/60 p-3.5 rounded-2xl border border-zinc-800/60">
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-coins text-emerald-400"></i> Valor
+                </p>
+                <p className="text-xs font-bold text-emerald-400 mt-1">
+                  Gs. {publicBienData.valorUnitario ? formatCurrency(publicBienData.valorUnitario) : '0'}
+                </p>
+              </div>
+            </div>
+
+            {/* RESPONSABLE Y UBICACIÓN */}
+            <div className="bg-zinc-950/60 p-4 rounded-2xl border border-zinc-800/60 space-y-2.5">
+              <div>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-user-tie text-sky-400"></i> Responsable
+                </p>
+                <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.funcionario || 'Sin Asignar'}</p>
+              </div>
+
+              <div className="pt-2 border-t border-zinc-800/60">
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación
+                </p>
+                <p className="text-xs font-bold text-zinc-200 mt-1">{publicBienData.ubicacion || 'Sin Ubicación'}</p>
+              </div>
+            </div>
+
+          </div>
+        ) : (
+          <div className="py-12 flex flex-col items-center justify-center text-center">
+            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary mb-3"></i>
+            <p className="text-xs text-zinc-400 font-semibold">Cargando datos oficiales del activo...</p>
+          </div>
+        )}
+
+        {/* PIE Y BOTÓN */}
+        <div className="pt-2">
+          <button 
+            onClick={() => window.location.href = window.location.origin} 
+            className="w-full py-3 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white text-xs font-bold transition-all cursor-pointer border border-zinc-700 flex items-center justify-center gap-2"
+          >
+            <i className="fa-solid fa-arrow-left"></i> Ir a la Plataforma
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
 
   // 2. LUEGO EL RESTO DE VALIDACIONES (Mantenimiento, Login, etc.)
   
