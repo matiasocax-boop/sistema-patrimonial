@@ -699,7 +699,6 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
   const handleBulkLabelPNGZip = async () => {
     if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
-    
     setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
 
     setTimeout(async () => {

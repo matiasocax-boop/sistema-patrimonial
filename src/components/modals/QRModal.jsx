@@ -137,7 +137,6 @@ export default function QRModal({
                   Se generará un paquete comprimido <strong>.ZIP</strong> con todos los bienes actualmente filtrados.
                 </p>
               </div>
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <button 
                   onClick={onBulkLabelZip}
