@@ -755,7 +755,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
 
     setTimeout(async () => {
-      try {  // <--- AQUÍ DEBE ABRIR EL TRY
+      try {
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_');
         const zip = new window.JSZip();
         const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
@@ -804,6 +804,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
       }
     }, 100);
   };
+
   const handleBulkSimpleQRZip = async () => {
     if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
     
