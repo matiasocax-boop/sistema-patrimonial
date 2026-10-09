@@ -755,12 +755,11 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
 
     setTimeout(async () => {
-      try {
+      try {  // <--- AQUÍ DEBE ABRIR EL TRY
         const cleanDepName = dependenciaActual.replace(/\s+/g, '_');
         const zip = new window.JSZip();
         const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
         
-        // PARALELIZACIÓN EN LOTES DE 8 PROCESOS SIMULTÁNEOS
         const CHUNK_SIZE = 8;
         const totalBienes = filteredBienes.length;
 
@@ -781,7 +780,8 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
           results.forEach(({ bien, dataUrl }) => {
             if (dataUrl) {
-              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+              const rotuloSeguro = bien.rotulo ? String(bien.rotulo) : 'S-R';
+              const cleanRotulo = rotuloSeguro.replace(/[^a-zA-Z0-9]/g, '');
               folder.file(`Etiqueta_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), { base64: true });
             }
           });
@@ -835,11 +835,12 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
           results.forEach(({ bien, dataUrl }) => {
             if (dataUrl) {
-              const cleanRotulo = String(bien.rotulo || 'SR').replace(/[^a-zA-Z0-9]/g, '');
+              const rotuloSeguroQR = bien.rotulo ? String(bien.rotulo) : 'S-R';
+              const cleanRotulo = rotuloSeguroQR.replace(/[^a-zA-Z0-9]/g, '');
               folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), { base64: true });
             }
           });
-        }
+        } // <--- ¡AQUÍ FALTABA ESTA LLAVE DE CIERRE DEL FOR!
 
         setIsProcessing({ active: true, text: 'Generando paquete comprimido ZIP...' });
         const content = await zip.generateAsync({ type: "blob" });
