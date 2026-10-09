@@ -841,7 +841,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
               folder.file(`QR_${cleanRotulo}.png`, dataUrl.replace(/^data:image\/png;base64,/, ""), { base64: true });
             }
           });
-        } // <--- ¡AQUÍ FALTABA ESTA LLAVE DE CIERRE DEL FOR!
+        }
 
         setIsProcessing({ active: true, text: 'Generando paquete comprimido ZIP...' });
         const content = await zip.generateAsync({ type: "blob" });
@@ -860,6 +860,8 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
       }
     }, 100);
   };
+
+
 
   const handleGenerateFC04PDF = (fc) => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
