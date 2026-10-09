@@ -98,10 +98,8 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     finalY = doc.lastAutoTable.finalY + 3;
 
     // --- 4. TABLA DE BIENES (Formato oficial con Cuenta, SubCta, An.1, An.2) ---
-    let totalValor = 0;
     const tableRows = bienesAListar.map((b) => {
         const valorNum = parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0;
-        totalValor += valorNum;
         
         return [
             b.cuenta || '-',
@@ -199,7 +197,6 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     doc.text(disclaimerLines, 14, finalY);
     finalY += (disclaimerLines.length * 3) + 14;
 
-    // Control de salto de página para firmas
     if (finalY > pageHeight - 32) {
         doc.addPage();
         finalY = 30;
@@ -210,7 +207,6 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     doc.setLineWidth(0.3);
     doc.setTextColor(0, 0, 0);
     
-    // Firma Funcionario (Izquierda)
     const leftX = 20;
     doc.line(leftX, finalY, leftX + 70, finalY);
     doc.setFont("helvetica", "bold");
@@ -220,7 +216,6 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     doc.text(`Aclaración: ${fc.funcionarioNombre || ''}`, leftX, finalY + 8.5);
     doc.text(`C.I.: ${formatCI(fc.funcionarioDoc) || ''}`, leftX, finalY + 12.5);
 
-    // Visto Bueno Jefe Inmediato (Derecha)
     const rightX = pageWidth - 90;
     doc.line(rightX, finalY, rightX + 70, finalY);
     doc.setFont("helvetica", "bold");
@@ -229,4 +224,100 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     doc.text("Aclaración: .....................................................", rightX, finalY + 8.5);
 
     return { doc, fechaDocumento: dateStr, fc };
+};
+
+// --- GENERADOR DE ETIQUETA PROFESIONAL PNG ---
+export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = false) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 600;
+    canvas.height = 400;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(16, 16, canvas.width - 32, 70);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px Helvetica';
+    ctx.textAlign = 'center';
+    ctx.fillText('UNIVERSIDAD NACIONAL DE PILAR', canvas.width / 2, 42);
+    ctx.font = 'bold 12px Helvetica';
+    ctx.fillText('DEPARTAMENTO DE BIENES PATRIMONIALES', canvas.width / 2, 64);
+
+    ctx.fillStyle = '#0f172a';
+    ctx.font = 'bold 14px Helvetica';
+    ctx.textAlign = 'left';
+    ctx.fillText(`RÓTULO: ${bien.rotulo || 'S/RÓTULO'}`, 40, 120);
+
+    ctx.font = '12px Helvetica';
+    const descText = bien.descripcion || 'Sin descripción';
+    ctx.fillText(`DESCRIPCIÓN: ${descText.substring(0, 45)}`, 40, 150);
+    ctx.fillText(`CUENTA: ${bien.cuenta || 'N/D'}`, 40, 180);
+    ctx.fillText(`ESTADO: ${(bien.estadoConservacion || 'Bueno').toUpperCase()}`, 40, 210);
+    ctx.fillText(`UBICACIÓN: ${bien.ubicacion || 'Sin asignar'}`, 40, 240);
+    ctx.fillText(`RESPONSABLE: ${bien.funcionario || 'Sin custodio'}`, 40, 270);
+
+    ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(420, 110, 140, 140);
+    ctx.font = '10px Helvetica';
+    ctx.fillStyle = '#64748b';
+    ctx.textAlign = 'center';
+    ctx.fillText('CÓDIGO QR', 490, 185);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(16, 320, canvas.width - 32, 44);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px Helvetica';
+    ctx.fillText('SISTEMA INTEGRADO DE GESTIÓN PATRIMONIAL', canvas.width / 2, 347);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    if (returnOnly) return dataUrl;
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `Etiqueta_${bien.rotulo || 'patrimonio'}.png`;
+    link.click();
+    return dataUrl;
+};
+
+// --- GENERADOR DE QR SIMPLE ---
+export const generateSimpleQR = async (bien, returnOnly = false) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 300;
+    canvas.height = 300;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 300, 300);
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(20, 20, 260, 260);
+
+    ctx.fillStyle = '#000000';
+    ctx.font = 'bold 16px Helvetica';
+    ctx.textAlign = 'center';
+    ctx.fillText('UNP - PATRIMONIO', 150, 60);
+
+    ctx.font = 'bold 14px Helvetica';
+    ctx.fillText(`RÓTULO: ${bien.rotulo || 'S/R'}`, 150, 150);
+
+    ctx.font = '10px Helvetica';
+    ctx.fillText('Escanee para verificar autenticidad', 150, 220);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    if (returnOnly) return dataUrl;
+
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `QR_${bien.rotulo || 'patrimonio'}.png`;
+    link.click();
+    return dataUrl;
 };
