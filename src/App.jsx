@@ -272,136 +272,140 @@ export default function App() {
       return listaConSeparadores;
   }, [funcionariosPurosDependencia, currentPaginaFuncionarios]);
 
- const fetchData = useCallback(async (isSilent = false) => {
-  try {
-    if (!isSilent) setIsLoading(true);
+  const handleLogout = useCallback(() => {
+    localStorage.removeItem('is_logged_in');
+    localStorage.removeItem('current_user');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setShowLogoutConfirm(false);
+  }, []);
+
+  const fetchData = useCallback(async (isSilent = false) => {
+    try {
+      if (!isSilent) setIsLoading(true);
 
     // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
-      const { data: dbUser, error: userError } = await supabase
-        .from('usuarios')
-        .select('username, cargo, dependencia')
-        .eq('username', currentUser.username)
-        .maybeSingle();
+        const { data: dbUser, error: userError } = await supabase
+          .from('usuarios')
+          .select('username, cargo, dependencia')
+          .eq('username', currentUser.username)
+          .maybeSingle();
 
-      if (userError || !dbUser) {
-        addToast("Sesión no válida o usuario inexistente.", "error");
-        handleLogout();
-        return;
-      }
+        if (userError || !dbUser) {
+          addToast("Sesión no válida o usuario inexistente.", "error");
+          handleLogout();
+          return;
+        }
 
-      // Si alteraron el localStorage para ponerse 'admin' pero en la DB no lo son
-      const esAdminEnDB = dbUser.cargo === 'admin';
-      if (currentUser.role === 'admin' && !esAdminEnDB) {
-        addToast("Se detectó una alteración no autorizada en los permisos de sesión.", "error");
-        handleLogout();
-        return;
+        const esAdminEnDB = dbUser.cargo === 'admin';
+        if (currentUser.role === 'admin' && !esAdminEnDB) {
+          addToast("Se detectó una alteración no autorizada en los permisos de sesión.", "error");
+          handleLogout();
+          return;
+        }
       }
-    }
     // --- FIN DE VALIDACIÓN DE ROL ---
 
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Timeout de red')), 8000)
-    );
+        setTimeout(() => reject(new Error('Timeout de red')), 8000)
+      );
 
-    const fetchPromise = (async () => {
-      let todosLosNuevosBienes = [];
-      let rangeSize = 1000;
-      let from = 0;
-      let to = rangeSize - 1;
-      let keepFetchingBienes = true;
+      const fetchPromise = (async () => {
+        let todosLosNuevosBienes = [];
+        let rangeSize = 1000;
+        let from = 0;
+        let to = rangeSize - 1;
+        let keepFetchingBienes = true;
 
-      // OPTIMIZACIÓN 1: Solo descargamos los bienes de la dependencia activa.
-      while (keepFetchingBienes) {
-        let query = supabase
-          .from('bens')
-          .select('id, data, updated_at')
-          .eq('data->>dependencia', dependenciaActual);
+        while (keepFetchingBienes) {
+          let query = supabase
+            .from('bens')
+            .select('id, data, updated_at')
+            .eq('data->>dependencia', dependenciaActual);
 
-        const { data: batch, error } = await query.range(from, to);
+          const { data: batch, error } = await query.range(from, to);
 
-        if (error || !batch || batch.length === 0) {
-          keepFetchingBienes = false;
-        } else {
-          todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
-          if (batch.length < rangeSize) {
+          if (error || !batch || batch.length === 0) {
             keepFetchingBienes = false;
           } else {
-            from += rangeSize;
-            to += rangeSize;
+            todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
+            if (batch.length < rangeSize) {
+              keepFetchingBienes = false;
+            } else {
+              from += rangeSize;
+              to += rangeSize;
+            }
           }
         }
-      }
 
-      if (todosLosNuevosBienes.length > 0) {
-        const mapaBienes = new Map();
-        todosLosNuevosBienes.forEach(item => {
-            const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-            mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
-        });
-        const inventarioFinal = Array.from(mapaBienes.values());
-        
-        // Guardamos en caché separando por dependencia para no mezclar datos offline
-        await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
-        setBienes(inventarioFinal);
-      } else {
-        setBienes([]);
-      }
-
-      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
-          supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
-          supabase.from('fc11').select('id, data'), 
-          supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
-          supabase.from('estructuras').select('id, data'), 
-          supabase.from('auditoria').select('*'),
-          supabase.from('usuarios').select('*'),
-          supabase.from('funcionarios').select('*')
-      ]);
-
-      const parseDirect = (resData) => {
-          if (!resData) return [];
-          return resData.map(item => {
-              if (item.data) {
-                  let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-                  return { id: item.id, ...parsed };
-              }
-              return item;
+        if (todosLosNuevosBienes.length > 0) {
+          const mapaBienes = new Map();
+          todosLosNuevosBienes.forEach(item => {
+              const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+              mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
           });
-      };
+          const inventarioFinal = Array.from(mapaBienes.values());
+          
+          await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
+          setBienes(inventarioFinal);
+        } else {
+          setBienes([]);
+        }
 
-      setFc10List(parseDirect(resFc10.data)); 
-      setFc11List(parseDirect(resFc11.data));
-      setFc04List(parseDirect(resFc04.data)); 
-      setEstructurasDB(parseDirect(resEstructuras.data));
-      
-      const audData = resAuditoria.data || [];
-      setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-      
-      setUsuariosList(resUsuarios.data || []);
-      
-      const funcsData = resFuncionarios.data || [];
-      setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-      
-      setDbError(false);
-    })();
+        const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
+            supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
+            supabase.from('fc11').select('id, data'), 
+            supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
+            supabase.from('estructuras').select('id, data'), 
+            supabase.from('auditoria').select('*'),
+            supabase.from('usuarios').select('*'),
+            supabase.from('funcionarios').select('*')
+        ]);
 
-    await Promise.race([fetchPromise, timeoutPromise]);
+        const parseDirect = (resData) => {
+            if (!resData) return [];
+            return resData.map(item => {
+                if (item.data) {
+                    let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+                    return { id: item.id, ...parsed };
+                }
+                return item;
+            });
+        };
 
-  } catch (error) { 
-      console.error("Error crítico de datos:", error);
-      if (!isSilent) setDbError(true);
-      
-      try {
-          const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
-          if (cachedBienes && cachedBienes.length > 0) {
-              setBienes(cachedBienes);
-          }
-      } catch (e) {}
-  } finally { 
-      setIsLoading(false); 
-  }
-}, [dependenciaActual, currentUser, handleLogout]);
+        setFc10List(parseDirect(resFc10.data)); 
+        setFc11List(parseDirect(resFc11.data));
+        setFc04List(parseDirect(resFc04.data)); 
+        setEstructurasDB(parseDirect(resEstructuras.data));
+        
+        const audData = resAuditoria.data || [];
+        setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+        
+        setUsuariosList(resUsuarios.data || []);
+        
+        const funcsData = resFuncionarios.data || [];
+        setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+        
+        setDbError(false);
+      })();
 
+      await Promise.race([fetchPromise, timeoutPromise]);
+
+    } catch (error) { 
+        console.error("Error crítico de datos:", error);
+        if (!isSilent) setDbError(true);
+        
+        try {
+            const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
+            if (cachedBienes && cachedBienes.length > 0) {
+                setBienes(cachedBienes);
+            }
+        } catch (e) {}
+    } finally { 
+        setIsLoading(false); 
+    }
+  }, [dependenciaActual, currentUser, handleLogout]);
   const clearAllFilters = () => { 
       setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); 
       setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); 
@@ -527,13 +531,7 @@ useEffect(() => {
         setIsProcessing({ active: false, text: '' });
     }
   };
-  const handleLogout = () => {
-    localStorage.removeItem('is_logged_in');
-    localStorage.removeItem('current_user');
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setShowLogoutConfirm(false);
-  };
+ 
   const handleLogoUpload = (e) => { 
   const file = e.target.files[0]; 
   if (!file) return; 
