@@ -273,114 +273,134 @@ export default function App() {
   }, [funcionariosPurosDependencia, currentPaginaFuncionarios]);
 
  const fetchData = useCallback(async (isSilent = false) => {
-    try {
-      if (!isSilent) setIsLoading(true);
+  try {
+    if (!isSilent) setIsLoading(true);
 
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout de red')), 8000)
-      );
+    // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
+    if (currentUser?.username) {
+      const { data: dbUser, error: userError } = await supabase
+        .from('usuarios')
+        .select('username, cargo, dependencia')
+        .eq('username', currentUser.username)
+        .maybeSingle();
 
-      const fetchPromise = (async () => {
-        let todosLosNuevosBienes = [];
-        let rangeSize = 1000;
-        let from = 0;
-        let to = rangeSize - 1;
-        let keepFetchingBienes = true;
+      if (userError || !dbUser) {
+        addToast("Sesión no válida o usuario inexistente.", "error");
+        handleLogout();
+        return;
+      }
 
-        // OPTIMIZACIÓN 1: Solo descargamos los bienes de la dependencia activa.
-        while (keepFetchingBienes) {
-          let query = supabase
-            .from('bens')
-            .select('id, data, updated_at')
-            .eq('data->>dependencia', dependenciaActual); // <-- El servidor filtra, ahorrando 90% de ancho de banda
+      // Si alteraron el localStorage para ponerse 'admin' pero en la DB no lo son
+      const esAdminEnDB = dbUser.cargo === 'admin';
+      if (currentUser.role === 'admin' && !esAdminEnDB) {
+        addToast("Se detectó una alteración no autorizada en los permisos de sesión.", "error");
+        handleLogout();
+        return;
+      }
+    }
+    // --- FIN DE VALIDACIÓN DE ROL ---
 
-          const { data: batch, error } = await query.range(from, to);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout de red')), 8000)
+    );
 
-          if (error || !batch || batch.length === 0) {
+    const fetchPromise = (async () => {
+      let todosLosNuevosBienes = [];
+      let rangeSize = 1000;
+      let from = 0;
+      let to = rangeSize - 1;
+      let keepFetchingBienes = true;
+
+      // OPTIMIZACIÓN 1: Solo descargamos los bienes de la dependencia activa.
+      while (keepFetchingBienes) {
+        let query = supabase
+          .from('bens')
+          .select('id, data, updated_at')
+          .eq('data->>dependencia', dependenciaActual);
+
+        const { data: batch, error } = await query.range(from, to);
+
+        if (error || !batch || batch.length === 0) {
+          keepFetchingBienes = false;
+        } else {
+          todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
+          if (batch.length < rangeSize) {
             keepFetchingBienes = false;
           } else {
-            todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
-            if (batch.length < rangeSize) {
-              keepFetchingBienes = false;
-            } else {
-              from += rangeSize;
-              to += rangeSize;
-            }
+            from += rangeSize;
+            to += rangeSize;
           }
         }
+      }
 
-        if (todosLosNuevosBienes.length > 0) {
-          const mapaBienes = new Map();
-          todosLosNuevosBienes.forEach(item => {
-              const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-              mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
+      if (todosLosNuevosBienes.length > 0) {
+        const mapaBienes = new Map();
+        todosLosNuevosBienes.forEach(item => {
+            const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+            mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
+        });
+        const inventarioFinal = Array.from(mapaBienes.values());
+        
+        // Guardamos en caché separando por dependencia para no mezclar datos offline
+        await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
+        setBienes(inventarioFinal);
+      } else {
+        setBienes([]);
+      }
+
+      const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
+          supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
+          supabase.from('fc11').select('id, data'), 
+          supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
+          supabase.from('estructuras').select('id, data'), 
+          supabase.from('auditoria').select('*'),
+          supabase.from('usuarios').select('*'),
+          supabase.from('funcionarios').select('*')
+      ]);
+
+      const parseDirect = (resData) => {
+          if (!resData) return [];
+          return resData.map(item => {
+              if (item.data) {
+                  let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+                  return { id: item.id, ...parsed };
+              }
+              return item;
           });
-          const inventarioFinal = Array.from(mapaBienes.values());
-          
-          // Guardamos en caché separando por dependencia para no mezclar datos offline
-          await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
-          setBienes(inventarioFinal);
-        } else {
-          setBienes([]);
-        }
+      };
 
-       
-        const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
-            supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
-            supabase.from('fc11').select('id, data'), 
-            supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
-            supabase.from('estructuras').select('id, data'), 
-            supabase.from('auditoria').select('*'),
-            supabase.from('usuarios').select('*'),
-            supabase.from('funcionarios').select('*')
-        ]);
+      setFc10List(parseDirect(resFc10.data)); 
+      setFc11List(parseDirect(resFc11.data));
+      setFc04List(parseDirect(resFc04.data)); 
+      setEstructurasDB(parseDirect(resEstructuras.data));
+      
+      const audData = resAuditoria.data || [];
+      setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+      
+      setUsuariosList(resUsuarios.data || []);
+      
+      const funcsData = resFuncionarios.data || [];
+      setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+      
+      setDbError(false);
+    })();
 
-        const parseDirect = (resData) => {
-            if (!resData) return [];
-            return resData.map(item => {
-                if (item.data) {
-                    let parsed = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-                    return { id: item.id, ...parsed };
-                }
-                return item;
-            });
-        };
+    await Promise.race([fetchPromise, timeoutPromise]);
 
-        setFc10List(parseDirect(resFc10.data)); 
-        setFc11List(parseDirect(resFc11.data));
-        setFc04List(parseDirect(resFc04.data)); 
-        setEstructurasDB(parseDirect(resEstructuras.data));
-        
-        // Procesamiento seguro para Auditoría
-        const audData = resAuditoria.data || [];
-        setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-        
-        setUsuariosList(resUsuarios.data || []);
-        
-        // Procesamiento directo para Funcionarios (columnas planas de la base de datos)
-        const funcsData = resFuncionarios.data || [];
-        setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-        
-        setDbError(false);
-      })();
-
-      await Promise.race([fetchPromise, timeoutPromise]);
-
-    } catch (error) { 
-        console.error("Error crítico de datos:", error);
-        if (!isSilent) setDbError(true);
-        
-        try {
-            // Buscamos el caché específico de esta dependencia
-            const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
-            if (cachedBienes && cachedBienes.length > 0) {
-                setBienes(cachedBienes);
-            }
-        } catch (e) {}
-    } finally { 
-        setIsLoading(false); 
-    }
-  }, [dependenciaActual]);
+  } catch (error) { 
+      console.error("Error crítico de datos:", error);
+      if (!isSilent) setDbError(true);
+      
+      try {
+          const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
+          if (cachedBienes && cachedBienes.length > 0) {
+              setBienes(cachedBienes);
+          }
+      } catch (e) {}
+  } finally { 
+      setIsLoading(false); 
+  }
+}, [dependenciaActual, currentUser, handleLogout]);
 
   const clearAllFilters = () => { 
       setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); 
@@ -424,6 +444,34 @@ useEffect(() => {
 
   cargarBienPublico();
 }, [publicBienId]);
+  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIÓN (15 Minutos) ---
+const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
+
+useEffect(() => {
+  if (!isAuthenticated) return;
+
+  let inactivityTimer;
+
+  const handleInactivityLogout = () => {
+    addToast("Sesión cerrada automáticamente por inactividad (15 min).", "warning");
+    handleLogout();
+  };
+
+  const resetTimer = () => {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(handleInactivityLogout, INACTIVITY_LIMIT_MS);
+  };
+
+  const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+  resetTimer();
+  events.forEach(event => window.addEventListener(event, resetTimer));
+
+  return () => {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    events.forEach(event => window.removeEventListener(event, resetTimer));
+  };
+}, [isAuthenticated]);
   // --- MOTOR DE ARRANQUE DE DATOS ---
   useEffect(() => { 
       if (isAuthenticated) {
@@ -487,39 +535,44 @@ useEffect(() => {
     setShowLogoutConfirm(false);
   };
   const handleLogoUpload = (e) => { 
-    const file = e.target.files[0]; 
-    if (!file) return; 
-     new FileReader(); 
-    const reader = new FileReader(); 
-reader.onload = (event) => { 
-    const img = new Image(); 
-    img.onload = () => { 
-        const canvas = document.createElement('canvas'); 
-        const maxSize = 300; 
-        let width = img.width; 
-        let height = img.height; 
-        if (width > height) { 
-            if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
-        } else { 
-            if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
-        } 
-        canvas.width = width; 
-        canvas.height = height; 
-        const ctx = canvas.getContext('2d'); 
-        
-        ctx.clearRect(0, 0, width, height); 
-        ctx.drawImage(img, 0, 0, width, height); 
-        
-        const compressedLogo = canvas.toDataURL('image/png'); 
-        localStorage.setItem('logoOficial', compressedLogo); 
-        setAppLogo(compressedLogo); 
-        addToast("Logo oficial actualizado sin fondo opaco", "success"); 
-    }; 
-    img.src = event.target.result; 
-};
-    reader.readAsDataURL(file); 
-    e.target.value = null; 
+  const file = e.target.files[0]; 
+  if (!file) return; 
+
+  const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
+  if (file.size > MAX_SIZE) {
+    addToast("El logo no debe superar los 2 MB de peso.", "warning");
+    e.target.value = null;
+    return;
+  }
+
+  const reader = new FileReader(); 
+  reader.onload = (event) => { 
+      const img = new Image(); 
+      img.onload = () => { 
+          const canvas = document.createElement('canvas'); 
+          const maxSize = 300; 
+          let width = img.width; 
+          let height = img.height; 
+          if (width > height) { 
+              if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
+          } else { 
+              if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
+          } 
+          canvas.width = width; 
+          canvas.height = height; 
+          const ctx = canvas.getContext('2d'); 
+          ctx.clearRect(0, 0, width, height); 
+          ctx.drawImage(img, 0, 0, width, height); 
+          const compressedLogo = canvas.toDataURL('image/png'); 
+          localStorage.setItem('logoOficial', compressedLogo); 
+          setAppLogo(compressedLogo); 
+          addToast("Logo oficial actualizado correctamente", "success"); 
+      }; 
+      img.src = event.target.result; 
   };
+  reader.readAsDataURL(file); 
+  e.target.value = null; 
+};
 
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
@@ -1242,78 +1295,79 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
       addToast("Plantilla Excel (CSV) base descargada", "success");
   };
 const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
-const handleFileUpload = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
 
-  setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  Papa.parse(file, {
-    header: true,
-    skipEmptyLines: true,
-    encoding: "UTF-8",
-    complete: async (results) => {
-      const newBienes = [];
-      let duplicatesSkipped = 0;
+    setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
 
-      results.data.forEach(row => {
-        // Mapeo seguro de columnas independientemente del nombre exacto de la cabecera
-        const rotuloCSV = String(row['Nº Rótulo'] || row['Rotulo'] || row['rotulo'] || '').trim();
-        if (!rotuloCSV) return;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      encoding: "UTF-8",
+      complete: async (results) => {
+        const newBienes = [];
+        let duplicatesSkipped = 0;
 
-        const isDuplicateDB = bienes.some(b => 
-          normalizeStr(b.rotulo) === normalizeStr(rotuloCSV) && 
-          b.dependencia === dependenciaActual
-        );
+        results.data.forEach(row => {
+          // Mapeo seguro de columnas independientemente del nombre exacto de la cabecera
+          const rotuloCSV = String(row['Nº Rótulo'] || row['Rotulo'] || row['rotulo'] || '').trim();
+          if (!rotuloCSV) return;
 
-        if (isDuplicateDB) {
-          duplicatesSkipped++;
-          return;
-        }
+          const isDuplicateDB = bienes.some(b => 
+            normalizeStr(b.rotulo) === normalizeStr(rotuloCSV) && 
+            b.dependencia === dependenciaActual
+          );
 
-        newBienes.push({
-          id: generateId(),
-          dependencia: dependenciaActual,
-          cuenta: String(row['Cuenta Mayor'] || row['cuenta'] || '').trim(),
-          subcuenta: String(row['Sub-Cuenta'] || row['subcuenta'] || '').trim(),
-          analitico1: String(row['Analítico 1'] || row['analitico1'] || '').trim(),
-          analitico2: String(row['Analítico 2'] || row['analitico2'] || '').trim(),
-          descripcion: String(row['Descripción General'] || row['descripcion'] || '').trim(),
-          fechaAdquisicion: String(row['Fecha Adquisición (YYYY-MM-DD)'] || row['fechaAdquisicion'] || '').trim(),
-          rotulo: rotuloCSV,
-          valorUnitario: String(row['Valor Unitario (Sin puntos)'] || row['valorUnitario'] || '0').replace(/\D/g, ''),
-          vidaUtil: String(row['Vida Útil (Años)'] || row['vidaUtil'] || '').trim(),
-          funcionario: '',
-          ubicacion: '',
-          hasFC10: false,
-          hasQR: false,
-          estadoConservacion: 'Muy bueno'
+          if (isDuplicateDB) {
+            duplicatesSkipped++;
+            return;
+          }
+
+          newBienes.push({
+            id: generateId(),
+            dependencia: dependenciaActual,
+            cuenta: String(row['Cuenta Mayor'] || row['cuenta'] || '').trim(),
+            subcuenta: String(row['Sub-Cuenta'] || row['subcuenta'] || '').trim(),
+            analitico1: String(row['Analítico 1'] || row['analitico1'] || '').trim(),
+            analitico2: String(row['Analítico 2'] || row['analitico2'] || '').trim(),
+            descripcion: String(row['Descripción General'] || row['descripcion'] || '').trim(),
+            fechaAdquisicion: String(row['Fecha Adquisición (YYYY-MM-DD)'] || row['fechaAdquisicion'] || '').trim(),
+            rotulo: rotuloCSV,
+            valorUnitario: String(row['Valor Unitario (Sin puntos)'] || row['valorUnitario'] || '0').replace(/\D/g, ''),
+            vidaUtil: String(row['Vida Útil (Años)'] || row['vidaUtil'] || '').trim(),
+            funcionario: '',
+            ubicacion: '',
+            hasFC10: false,
+            hasQR: false,
+            estadoConservacion: 'Muy bueno'
+          });
         });
-      });
 
-      if (newBienes.length > 0) {
-        try {
-          const payload = newBienes.map(b => ({ id: b.id, data: b }));
-          await supabase.from('bens').insert(payload);
-          await fetchData();
-          addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
-        } catch (error) {
-          addToast("Error al guardar registros en la base de datos.", "error");
+        if (newBienes.length > 0) {
+          try {
+            const payload = newBienes.map(b => ({ id: b.id, data: b }));
+            await supabase.from('bens').insert(payload);
+            await fetchData();
+            addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
+          } catch (error) {
+            addToast("Error al guardar registros en la base de datos.", "error");
+          }
+        } else {
+          addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
         }
-      } else {
-        addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
-      }
 
-      setIsProcessing({ active: false, text: '' });
-      e.target.value = null;
-    },
-    error: (err) => {
-      console.error(err);
-      addToast("Error al procesar el archivo CSV.", "error");
-      setIsProcessing({ active: false, text: '' });
-    }
-  });
-};
+        setIsProcessing({ active: false, text: '' });
+        e.target.value = null;
+      },
+      error: (err) => {
+        console.error(err);
+        addToast("Error al procesar el archivo CSV.", "error");
+        setIsProcessing({ active: false, text: '' });
+      }
+    });
+  };
   const handleExportInventarioCSV = () => {
       if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
       setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
@@ -2658,172 +2712,185 @@ if (publicBienId) {
                   </div>
                 )}
                 {activeTab === 'inventario' && (
-  <div className="space-y-6 animate-fade-in pb-12">
+  <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
     
-    {/* 1. CABECERA LIMPIA Y MEJOR PROPORCIONADA */}
-    <div className="bg-white dark:bg-darkbg-card p-6 rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+    {/* 1. ENCABEZADO Y ACCIONES PRINCIPALES */}
+    <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5">
       
-      {/* Título de la sección */}
+      {/* Título de la Sección + Contador */}
       <div className="flex items-center gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-          <i className="fa-solid fa-boxes-stacked text-xl"></i>
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+          <i className="fa-solid fa-boxes-stacked text-lg"></i>
         </div>
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+          <div className="flex items-center gap-2.5">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
               Directorio Patrimonial
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-brand-primary/10 text-brand-primary">
-              {filteredBienes.length} Registros
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              {filteredBienes.length} registros
             </span>
           </div>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5">
-            Gestión integral de activos institucionales
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Gestión integral e inventario consolidado de activos institucionales
           </p>
         </div>
       </div>
 
-      {/* Botones de acción bien espaciados */}
+      {/* Barra de Acciones Rápidas */}
       <div className="flex flex-wrap items-center gap-2">
         <button 
           onClick={handleDownloadTemplateCSV} 
-          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
-          title="Plantilla CSV"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Descargar Plantilla CSV"
         >
           <i className="fa-solid fa-file-excel text-emerald-600"></i>
-          <span className="hidden sm:inline">Plantilla</span>
+          <span>Plantilla</span>
         </button>
 
         <button 
           onClick={() => fileInputRef.current?.click()} 
-          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
-          title="Importar CSV"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Importar archivo CSV"
         >
           <i className="fa-solid fa-file-import text-emerald-600"></i>
-          <span className="hidden sm:inline">Importar</span>
+          <span>Importar</span>
         </button>
 
         <button 
           onClick={handleExportInventarioCSV} 
-          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
-          title="Exportar CSV"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Exportar archivo CSV"
         >
           <i className="fa-solid fa-file-export text-sky-600"></i>
-          <span className="hidden sm:inline">Exportar</span>
+          <span>Exportar</span>
         </button>
 
         <button 
           onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
-          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
-          title="Lote QRs"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Generar Lote Masivo de QRs"
         >
-          <i className="fa-solid fa-qrcode text-purple-600"></i>
-          <span className="hidden sm:inline">Lote QRs</span>
+          <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i>
+          <span>Lote QRs</span>
         </button>
 
         <button 
           onClick={openFC03Modal} 
-          className="px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-bold hover:bg-zinc-200 transition-all cursor-pointer flex items-center gap-2"
-          title="FC-03"
+          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          title="Generar Reporte FC-03"
         >
           <i className="fa-solid fa-print text-amber-600"></i>
-          <span className="hidden sm:inline">FC-03</span>
+          <span>FC-03</span>
         </button>
+
+        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
         <button 
           onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
-          className="px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-hover text-white text-xs font-black transition-all shadow-md flex items-center gap-2 cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
         >
-          <i className="fa-solid fa-plus"></i> Añadir Registro
+          <i className="fa-solid fa-plus text-xs"></i>
+          <span>Añadir Registro</span>
         </button>
       </div>
 
     </div>
 
-    {/* 2. REJILLA DE FILTROS A 4 COLUMNAS (ALINEADOS Y SIN TEXTOS CORTADOS) */}
-    <div className="bg-white dark:bg-darkbg-card p-5 rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm space-y-3">
+    {/* 2. PANEL DE FILTROS BÚSQUEDA Y SELECCIÓN EN GRID */}
+    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
       
+      {/* Campo de Búsqueda Principal */}
       <div className="relative w-full">
-        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+        <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
         <input 
           type="text"
           placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary outline-none transition-all"
+          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2.5 pl-10 pr-4 text-xs font-normal text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
         />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 pt-1">
+      {/* Rejilla de Filtros Secundarios (4 Columnas Equilibradas) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
         
+        {/* Responsables */}
         <select 
           value={filtroFuncionario || ''} 
           onChange={(e) => setFiltroFuncionario(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Responsables: Todos</option>
           {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
         </select>
 
+        {/* Ubicaciones */}
         <select 
           value={filtroUbicacion || ''} 
           onChange={(e) => setFiltroUbicacion(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Ubicación: Todas</option>
           {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
 
+        {/* Año */}
         <select 
           value={filtroAnio || ''} 
           onChange={(e) => setFiltroAnio(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Año: Todos</option>
           {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
+        {/* Subcuenta */}
         <select 
           value={filtroSubcuenta || ''} 
           onChange={(e) => setFiltroSubcuenta(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Subcuenta: Todas</option>
           {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
+        {/* Analítico 1 */}
         <select 
           value={filtroAnalitico1 || ''} 
           onChange={(e) => setFiltroAnalitico1(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Analítico 1: Todos</option>
           {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
         </select>
 
+        {/* Analítico 2 */}
         <select 
           value={filtroAnalitico2 || ''} 
           onChange={(e) => setFiltroAnalitico2(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="">Analítico 2: Todos</option>
           {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
         </select>
 
+        {/* FC-10 */}
         <select 
           value={filtroFC10 || 'ALL'} 
           onChange={(e) => setFiltroFC10(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="ALL">FC-10: Todos</option>
           <option value="YES">Con FC-10</option>
           <option value="NO">Sin FC-10</option>
         </select>
 
+        {/* Estado */}
         <select 
           value={filtroEstado || 'ALL'} 
           onChange={(e) => setFiltroEstado(e.target.value)}
-          className="w-full rounded-xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-2 px-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300 outline-none focus:border-brand-primary cursor-pointer"
+          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
         >
           <option value="ALL">Estado: Todos</option>
           {ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}
@@ -2831,20 +2898,21 @@ if (publicBienId) {
 
       </div>
 
+      {/* Botón para Limpiar Filtros */}
       {hasFilters && (
         <div className="flex justify-end pt-1">
           <button 
             onClick={clearAllFilters}
-            className="text-xs font-bold text-rose-500 hover:text-rose-600 flex items-center gap-1.5 transition-colors cursor-pointer"
+            className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <i className="fa-solid fa-filter-circle-xmark"></i> Limpiar Filtros
+            <i className="fa-solid fa-xmark text-xs"></i> Restablecer filtros
           </button>
         </div>
       )}
 
     </div>
 
-                    {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
+    {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
                     <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] sm:rounded-[32px] overflow-hidden">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[900px]">
