@@ -105,20 +105,22 @@ export default function QRModal({
               </div>
 
               {/* Visor de Previsualización */}
-              <div className="flex flex-col items-center justify-center p-5 bg-zinc-950 rounded-2xl border border-zinc-800 min-h-[210px] shadow-inner relative">
+              <div className="flex flex-col items-center justify-center p-6 bg-zinc-100 dark:bg-zinc-900 rounded-2xl border border-zinc-200/80 dark:border-zinc-800 min-h-[240px] relative">
                 {isGenerating ? (
                   <div className="flex flex-col items-center justify-center gap-2.5">
-                    <i className="fa-solid fa-circle-notch fa-spin text-2xl text-zinc-400"></i>
-                    <span className="text-xs font-medium text-zinc-400">Generando vista previa...</span>
+                    <i className="fa-solid fa-circle-notch fa-spin text-2xl text-zinc-500"></i>
+                    <span className="text-xs font-medium text-zinc-500">Generando código QR...</span>
                   </div>
                 ) : previewUrl ? (
-                  <img 
-                    src={previewUrl} 
-                    alt="Vista previa del QR" 
-                    className="max-h-[190px] object-contain rounded-xl shadow-md border border-zinc-800"
-                  />
+                  <div className="p-3 bg-white rounded-2xl shadow-sm border border-zinc-200/80 flex items-center justify-center">
+                    <img 
+                      src={previewUrl} 
+                      alt="Vista previa del QR" 
+                      className="max-h-[210px] max-w-full object-contain rounded-lg"
+                    />
+                  </div>
                 ) : (
-                  <span className="text-xs font-medium text-zinc-500">No hay vista previa disponible</span>
+                  <span className="text-xs font-medium text-zinc-400">No hay vista previa disponible</span>
                 )}
               </div>
 

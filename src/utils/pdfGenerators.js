@@ -259,7 +259,8 @@ export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = f
 
     // Generar e incrustar QR dinmico
     const qrTargetValue = bien.id || bien.rotulo || 'UNP';
-    const qrUrl = `${window.location.origin}/?id=${encodeURIComponent(qrTargetValue)}`;
+    const baseUrl = (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("localhost")) ? window.location.origin : "https://sigep-inventario.vercel.app";
+    const qrUrl = `${baseUrl}/?id=${encodeURIComponent(qrTargetValue)}`;
 
     try {
         const qrDataUrl = await QRCode.toDataURL(qrUrl, {
@@ -300,68 +301,34 @@ export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = f
     return dataUrl;
 };
 
-// --- GENERADOR DE QR SIMPLE REAL Y DINMICO ---
+// --- GENERADOR DE CÓDIGO QR PURO (SIN MARCOS NI TEXTO ADICIONAL) ---
 export const generateSimpleQR = async (bien, returnOnly = false) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 320;
-    canvas.height = 360;
-    const ctx = canvas.getContext('2d');
-
-    // Fondo blanco
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Marco exterior sutil
-    ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
-
-    // Encabezado
-    ctx.fillStyle = '#0f172a';
-    ctx.font = 'bold 13px Helvetica, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('UNP - PATRIMONIO', canvas.width / 2, 38);
-
-    ctx.font = 'bold 12px Helvetica, Arial, sans-serif';
-    ctx.fillText(`RÓTULO: ${bien.rotulo || 'S/R'}`, canvas.width / 2, 58);
-
-    // Generar código QR dinmico con el link real
     const qrTargetValue = bien.id || bien.rotulo || 'UNP';
-    const qrUrl = `${window.location.origin}/?id=${encodeURIComponent(qrTargetValue)}`;
+    const baseUrl = (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("localhost")) 
+        ? window.location.origin 
+        : "https://sigep-inventario.vercel.app";
+    const qrUrl = `${baseUrl}/?id=${encodeURIComponent(qrTargetValue)}`;
 
     try {
-        const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-            errorCorrectionLevel: 'M',
-            margin: 1,
-            width: 220,
-            color: { dark: '#000000', light: '#ffffff' }
+        const dataUrl = await QRCode.toDataURL(qrUrl, {
+            errorCorrectionLevel: 'H',
+            margin: 2,
+            width: 600,
+            color: {
+                dark: '#000000',
+                light: '#ffffff'
+            }
         });
 
-        await new Promise((resolve) => {
-            const qrImg = new Image();
-            qrImg.onload = () => {
-                ctx.drawImage(qrImg, 50, 75, 220, 220);
-                resolve();
-            };
-            qrImg.onerror = resolve;
-            qrImg.src = qrDataUrl;
-        });
+        if (returnOnly) return dataUrl;
+
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `QR_${bien.rotulo || 'patrimonio'}.png`;
+        link.click();
+        return dataUrl;
     } catch (e) {
-        console.error("Error al renderizar código QR simple:", e);
+        console.error("Error al generar código QR simple puro:", e);
+        return null;
     }
-
-    // Pie
-    ctx.fillStyle = '#64748b';
-    ctx.font = 'bold 9px Helvetica, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Escanee para verificar en el sistema', canvas.width / 2, 325);
-
-    const dataUrl = canvas.toDataURL('image/png');
-    if (returnOnly) return dataUrl;
-
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = `QR_${bien.rotulo || 'patrimonio'}.png`;
-    link.click();
-    return dataUrl;
 };

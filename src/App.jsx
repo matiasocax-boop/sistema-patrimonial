@@ -481,7 +481,10 @@ useEffect(() => {
       if (isAuthenticated) {
           fetchData(false); 
           cargarNotificaciones();
+          const notifInterval = setInterval(() => { cargarNotificaciones(); }, 12000);
+          const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, () => { cargarNotificaciones(); }).subscribe();
       }
+          return () => { clearInterval(notifInterval); supabase.removeChannel(notifChannel); };
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
   // -----------------------------------
   const handleLogin = async (e) => { 
@@ -706,12 +709,34 @@ if (searchTerm) {
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
   const solicitudesBaja = useMemo(() => { 
-      return notificaciones.filter(
-          n => n.tipo === 'BAJA_BIEN' && n.estado === 'PENDIENTE' && n.dependencia === dependenciaActual
-      );
-  }, [notificaciones, dependenciaActual]);
+      return notificaciones.filter(n => {
+          if (n.tipo !== 'BAJA_BIEN' || n.estado !== 'PENDIENTE') return false;
+          if (isAdmin) return true;
+          if (!n.dependencia || !dependenciaActual) return true;
+          return normalizeStr(n.dependencia) === normalizeStr(dependenciaActual);
+      });
+  }, [notificaciones, dependenciaActual, isAdmin]);
 
   // --- EN App_2.jsx ---
+
+
+  const marcarBienConQR = async (bienId) => {
+    if (!bienId) return;
+    const bienActual = bienes.find(b => b.id === bienId);
+    if (!bienActual || bienActual.hasQR) return;
+
+    const updated = { ...bienActual, hasQR: true };
+    setBienes(prev => prev.map(b => b.id === bienId ? updated : b));
+
+    try {
+      await supabase.from('bens').update({ data: updated }).eq('id', bienId);
+      const cacheKey = 'bienes_cache_' + (dependenciaActual || 'general');
+      const cache = (await localforage.getItem(cacheKey)) || [];
+      await localforage.setItem(cacheKey, cache.map(b => b.id === bienId ? updated : b));
+    } catch (err) {
+      console.error('Error al actualizar hasQR en base de datos:', err);
+    }
+  };
 
 const handleDownloadLabelPNG = async (bien, returnOnly = false) => {
   // Si no es solo vista previa, activamos el indicador visual de procesamiento
@@ -720,6 +745,7 @@ const handleDownloadLabelPNG = async (bien, returnOnly = false) => {
   try {
     const dataUrl = await generateProfessionalLabelPNG(bien, appLogo, returnOnly);
     if (!returnOnly) {
+      await marcarBienConQR(bien.id);
       addToast("Etiqueta descargada con éxito", "success");
       setIsQRModalOpen(false);
     }
@@ -737,6 +763,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   try {
     const dataUrl = await generateSimpleQR(bien, returnOnly);
     if (!returnOnly) {
+      await marcarBienConQR(bien.id);
       addToast("Código QR simple descargado", "success");
       setIsQRModalOpen(false);
     }
@@ -792,6 +819,15 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
           window.saveAs(content, `Etiquetas_Patrimoniales_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`);
         }
         
+        try {
+          const idsToUpdate = filteredBienes.map(b => b.id);
+          setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
+          for (const bien of filteredBienes) {
+            if (!bien.hasQR) {
+              await supabase.from("bens").update({ data: { ...bien, hasQR: true } }).eq("id", bien.id);
+            }
+          }
+        } catch (e) { console.error("Error bulk hasQR:", e); }
         addToast("Archivo ZIP de etiquetas generado con éxito", "success");
       } catch (error) {
         console.error("Error en ZIP:", error);
@@ -848,6 +884,15 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
           window.saveAs(content, `QRs_Simples_${cleanDepName}_${new Date().toISOString().split('T')[0]}.zip`);
         }
         
+        try {
+          const idsToUpdate = filteredBienes.map(b => b.id);
+          setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
+          for (const bien of filteredBienes) {
+            if (!bien.hasQR) {
+              await supabase.from("bens").update({ data: { ...bien, hasQR: true } }).eq("id", bien.id);
+            }
+          }
+        } catch (e) { console.error("Error bulk simple QR:", e); }
         addToast("Archivo ZIP de QRs generado con éxito", "success");
       } catch (error) {
         console.error("Error en ZIP QR:", error);
@@ -1913,7 +1958,7 @@ const handleEditFuncionario = (funcionario) => {
       const updated = {...notif, leido: true};
       setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
       try { 
-          await supabase.from('auditoria').update({ data: updated }).eq('id', notif.id);
+          await supabase.from('notificaciones').update({ data: updated }).eq('id', notif.id);
       } catch(e) {}
   };
 
@@ -2895,9 +2940,9 @@ if (publicBienId) {
                           
                                                     <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                             <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                              <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">Identificacin y Descripcin</th>
-                              <th className="px-4 py-4 w-[28%]">Localizacin y Custodio</th>
-                              <th className="px-4 py-4 w-[18%]">Condicin y Estado</th>
+                              <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">Identificación y Descripción</th>
+                              <th className="px-4 py-4 w-[28%]">Localización y Custodio</th>
+                              <th className="px-4 py-4 w-[18%]">Condición y Estado</th>
                               <th className="py-4 pl-4 pr-6 sm:pr-8 text-right w-[16%]">Acciones</th>
                             </tr>
                           </thead>

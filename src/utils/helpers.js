@@ -12,6 +12,21 @@ export const generateId = () => {
 };
 export const parseDateInfo = (dateStr) => { if (!dateStr) return { year: null, month: null }; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if (p.length === 3) { if (p[0].length === 4) return { year: p[0], month: p[1].padStart(2, '0') }; if (p[2].length === 4) return { year: p[2], month: p[1].padStart(2, '0') }; } return { year: null, month: null }; };
 export const formatDateText = (dateStr) => { if(!dateStr) return ''; const str = String(dateStr).trim().replace(/\//g, '-'); const p = str.split('-'); if(p.length === 3) { if(p[0].length === 4) return `${p[2]}-${p[1]}-${p[0]}`; if(p[2].length === 4) return `${p[0]}-${p[1]}-${p[2]}`; } return str; };
+export const toInputDateFormat = (val) => {
+  if (!val) return '';
+  const str = String(val).trim().replace(/\//g, '-');
+  const clean = str.split('T')[0].split(' ')[0];
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    if (parts[2].length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  return '';
+};
 export const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
 export const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
 
@@ -60,9 +75,8 @@ export const getLogoPorDependencia = (dependencia) => {
     if (dep.includes('agropecuarias')) return '/publiclogo_agro.png';
     if (dep.includes('aplicadas')) return '/publiclogo_aplicadas.png';
     if (dep.includes('biomédicas') || dep.includes('biomedicas')) return '/publiclogo_biomedicas.png';
-    if (dep.includes('contables') || dep.includes('economicas')) return '/publiclogo_contables.png';
-    if (dep.includes('tecnologías') || dep.includes('artes') || dep.includes('cta')) return '/publiclogo_cta.png';
     if (dep.includes('derecho')) return '/publiclogo_derecho.png';
+    if (dep.includes('económicas') || dep.includes('economicas')) return '/publiclogo_economicas.png';
     if (dep.includes('humanidades')) return '/publiclogo_humanidades.png';
     
     return '/publiclogo_unp.png';

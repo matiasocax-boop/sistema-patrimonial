@@ -1,4 +1,5 @@
 import React from 'react';
+import { toInputDateFormat } from '../utils/helpers';
 
 export default function BienModal({
     setIsBienModalOpen,
@@ -121,7 +122,7 @@ export default function BienModal({
                       </div>
                       <div>
                         <label className={STYLES.label}>Adquisición</label>
-                        <input type="date" required name="fechaAdquisicion" defaultValue={bienEditing?.fechaAdquisicion ? String(bienEditing?.fechaAdquisicion).split('T')[0] : ''} className={`${STYLES.input} cursor-pointer`} />
+                        <input type="date" required name="fechaAdquisicion" defaultValue={toInputDateFormat(bienEditing?.fechaAdquisicion)} className={`${STYLES.input} cursor-pointer`} />
                       </div>
                       <div>
                         <label className={STYLES.label}>Vida Útil</label>
