@@ -61,7 +61,7 @@ export default function Sidebar({
                                 onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} 
                                 className={`group flex w-full items-center gap-x-3.5 rounded-xl px-3 py-3 text-[13px] font-bold transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
                                     isActive 
-                                        ? 'bg-zinc-900 text-white dark:bg-brand-primary shadow-md dark:shadow-brand-primary/20' 
+                                        ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20' 
                                         : 'bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-darkbg-main dark:hover:text-white'
                                 }`}
                             >

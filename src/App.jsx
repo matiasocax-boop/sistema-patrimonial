@@ -284,7 +284,7 @@ export default function App() {
     try {
       if (!isSilent) setIsLoading(true);
 
-    // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
+    // --- 1. VALIDACIN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
         const { data: dbUser, error: userError } = await supabase
           .from('usuarios')
@@ -305,7 +305,7 @@ export default function App() {
           return;
         }
       }
-    // --- FIN DE VALIDACIÓN DE ROL ---
+    // --- FIN DE VALIDACIN DE ROL ---
 
     const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout de red')), 8000)
@@ -412,8 +412,8 @@ export default function App() {
       setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); 
       setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
   };
-  // --- CONSULTA PÚBLICA PARA ESCANEO DE QR ---
-// --- CONSULTA PÚBLICA PARA ESCANEO DE QR (CORREGIDO) ---
+  // --- CONSULTA PaBLICA PARA ESCANEO DE QR ---
+// --- CONSULTA PaBLICA PARA ESCANEO DE QR (CORREGIDO) ---
 useEffect(() => {
   if (!publicBienId) return;
 
@@ -448,7 +448,7 @@ useEffect(() => {
 
   cargarBienPublico();
 }, [publicBienId]);
-  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIÓN (15 Minutos) ---
+  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIN (15 Minutos) ---
 const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
 
 useEffect(() => {
@@ -674,8 +674,8 @@ useEffect(() => {
     if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
     if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
     
-    // CORRECCIÓN: Unificar búsqueda con searchInput y searchTerm
-    // CORRECCIÓN: Usar exclusivamente searchTerm como fuente de verdad
+    // CORRECCIN: Unificar búsqueda con searchInput y searchTerm
+    // CORRECCIN: Usar exclusivamente searchTerm como fuente de verdad
 if (searchTerm) { 
     const term = String(searchTerm).toLowerCase().trim(); 
     filtered = filtered.filter(b => 
@@ -700,7 +700,7 @@ if (searchTerm) {
   }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm, searchInput]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
-  const itemsPaginados = paginatedBienes; // <-- AÑADIDO AQUÍ
+  const itemsPaginados = paginatedBienes; // <-- AADIDO AQUÍ
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
@@ -867,13 +867,13 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setTimeout(() => {
       try {
         const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
+        const logoImg = appLogo || getPlaceholderLogo(); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
         let finalY = 62;
         if (fc.sinMovimiento) { doc.setFontSize(16); doc.setTextColor(100, 100, 100); doc.text("NO SE REGISTRA MOVIMIENTO ESTE MES", pageWidth / 2, finalY + 30, { align: 'center' }); finalY += 60; } 
         else { 
             const tableRows = fc.bienesSnapshot.map(b => [b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', b.rotulo || '-', b.descripcion || '-', formatCurrency(b.valorUnitario), formatDateText(b.fechaAdquisicion) || '-', b.vidaUtil || '-']); 
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "Analítico 1", "Analítico 2", "Rótulo / Código", "Descripción del Bien", "Valor Unitario (Gs.)", "Fecha Adquisición", "Vida Útil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "Analítico 1", "Analítico 2", "Rótulo / Código", "Descripción del Bien", "Valor Unitario (Gs.)", "Fecha Adquisición", "Vida atil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
         }
         if (!fc.sinMovimiento && fc.bienesSnapshot?.length > 0) { doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 0, 0); doc.text(`Cantidad Total de Bienes: ${fc.bienesSnapshot.length}`, 14, finalY); finalY += 10; }
         if (finalY > pageHeight - 45) { doc.addPage(); finalY = 40; }
@@ -896,7 +896,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
         for(let i = 0; i < 3; i++) {
             if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
+            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
             doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`Nº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
             let finalY = 54; doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [`Dependencia Remitente: ${fc.dependenciaRemitente || ''} ${fc.areaRemitente ? '- ' + fc.areaRemitente : ''}`.trim()], [`Dependencia Destinataria: ${fc.dependenciaDestinataria || ''} ${fc.areaDestinataria ? '- ' + fc.areaDestinataria : ''}`.trim()] ], styles: { fontSize: 10, cellPadding: 4, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fontStyle: 'bold', fillColor: [248, 249, 250] } }); finalY = doc.lastAutoTable.finalY + 6;
@@ -1137,9 +1137,9 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 [
                     { content: 'CUENTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'SUB\nCTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'ESPECIFICACIÓN', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'UBICACIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'ESPECIFICACIN', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DESCRIPCIN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'UBICACIN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'FUNCIONARIO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'EN REGISTROS Y/O DOCUMENTO', colSpan: 5, styles: { halign: 'center' } },
                     { content: 'INVENTARIO\nFÍSICO', colSpan: 2, styles: { halign: 'center' } },
@@ -1194,7 +1194,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
                 doc.text("UNIDAD JERÁRQUICA", 12, 43.1);
-                doc.text("REPARTICIÓN", 12, 50.7);
+                doc.text("REPARTICIN", 12, 50.7);
                 doc.text("DEPENDENCIA", 12, 58.3);
                 doc.text("ÁREA", 12, 65.9);
 
@@ -1205,7 +1205,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.text(dependenciaActual.toUpperCase(), 44, 58.3, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 65.9, { maxWidth: 94 });
 
-                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
+                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 43.1);
                 doc.text("B..........Bueno", 142, 50.7);
@@ -1289,7 +1289,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   };
   
   const handleDownloadTemplateCSV = () => {
-      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida Útil (Años)\n" +
+      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida atil (Años)\n" +
                           "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
                           ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1338,7 +1338,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
             fechaAdquisicion: String(row['Fecha Adquisición (YYYY-MM-DD)'] || row['fechaAdquisicion'] || '').trim(),
             rotulo: rotuloCSV,
             valorUnitario: String(row['Valor Unitario (Sin puntos)'] || row['valorUnitario'] || '0').replace(/\D/g, ''),
-            vidaUtil: String(row['Vida Útil (Años)'] || row['vidaUtil'] || '').trim(),
+            vidaUtil: String(row['Vida atil (Años)'] || row['vidaUtil'] || '').trim(),
             funcionario: '',
             ubicacion: '',
             hasFC10: false,
@@ -1352,7 +1352,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
             const payload = newBienes.map(b => ({ id: b.id, data: b }));
             await supabase.from('bens').insert(payload);
             await fetchData();
-            addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
+            addToast(`¡0xito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
           } catch (error) {
             addToast("Error al guardar registros en la base de datos.", "error");
           }
@@ -1449,7 +1449,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       reader.onload = async (event) => {
         const buffer = event.target.result;
         
-        // FORZAR LA DECODIFICACIÓN EN UTF-8 PARA CORREGIR TILDES Y Ñ
+        // FORZAR LA DECODIFICACIN EN UTF-8 PARA CORREGIR TILDES Y 
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(buffer);
         
@@ -1492,15 +1492,15 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
           const isDuplicateDB = funcionariosPadron.some(f => String(f.cedula).trim() === cedulaCSV && f.dependencia === dependenciaActual);
           const isDuplicateBatch = validos.some(f => String(f.cedula).trim() === cedulaCSV);
-          const huérfanoExistente = funcionariosPadron.find(f => f.cedula === 'S/C' && normalizeStr(f.nombre) === normalizeStr(nombreCSV) && f.dependencia === dependenciaActual);
+          const huerfanoExistente = funcionariosPadron.find(f => f.cedula === 'S/C' && normalizeStr(f.nombre) === normalizeStr(nombreCSV) && f.dependencia === dependenciaActual);
 
           const nuevoFunc = { 
-              id: huérfanoExistente ? huérfanoExistente.id : generateId(), 
+              id: huerfanoExistente ? huerfanoExistente.id : generateId(), 
               cedula: cedulaCSV, 
               nombre: nombreCSV, 
               cargo: cargoCSV, 
               dependencia: dependenciaActual,
-              esActualizacion: !!huérfanoExistente 
+              esActualizacion: !!huerfanoExistente 
           };
 
           if (isDuplicateDB || isDuplicateBatch) {
@@ -1574,7 +1574,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         }
         
         await fetchData();
-        addToast(`¡Éxito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
+        addToast(`¡0xito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
     } catch (error) {
         console.error(error);
         addToast("Error al sincronizar con la base de datos.", "error");
@@ -1698,7 +1698,7 @@ const handleEditFuncionario = (funcionario) => {
     };
     
     try { 
-        // 📍 AQUÍ SE INTERCEPTA EL MODO OFFLINE
+        // x AQUÍ SE INTERCEPTA EL MODO OFFLINE
         if (!navigator.onLine) {
             await enqueueOfflineAction({ type: 'SAVE_BIEN', payload: bienData });
             
@@ -1964,12 +1964,12 @@ const handleEditFuncionario = (funcionario) => {
   const handleScanSuccess = (decodedText) => {
     setIsScannerOpen(false);
     let codigoLimpio = decodedText;
-    if (decodedText.includes('CÓDIGO:')) {
+    if (decodedText.includes('CDIGO:')) {
         const partes = decodedText.split('CTA:')[0];
-        codigoLimpio = partes.replace('CÓDIGO:', '').trim();
+        codigoLimpio = partes.replace('CDIGO:', '').trim();
     }
     addToast(`Bien escaneado: ${codigoLimpio}`, "success");
-    setSearchTerm(codigoLimpio); // 👈 Asignación directa a searchTerm
+    setSearchTerm(codigoLimpio); // x Asignación directa a searchTerm
     setActiveTab('inventario');
 };
 
@@ -2071,7 +2071,7 @@ const handleEditFuncionario = (funcionario) => {
       }
   };
 
-  // --- INICIO DE CÓDIGO RESTAURADO ---
+  // --- INICIO DE CDIGO RESTAURADO ---
   const cargarNotificaciones = async () => {
       const { data, error } = await supabase.from('notificaciones').select('*');
       if (!error && data) {
@@ -2145,7 +2145,7 @@ const handleEditFuncionario = (funcionario) => {
         setItemToDelete(null); 
       }
   };
-  // 📶 Escuchador de estado de red (Offline / Online)
+  // x Escuchador de estado de red (Offline / Online)
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -2181,7 +2181,7 @@ const handleEditFuncionario = (funcionario) => {
           cargarNotificaciones();
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
-  // --- FIN DE CÓDIGO RESTAURADO ---
+  // --- FIN DE CDIGO RESTAURADO ---
   const addToast = (message, type = 'success') => { 
       const id = Date.now() + Math.random().toString(36).substr(2, 9);
       setToasts(prev => [...prev, { id, message, type }]); 
@@ -2189,7 +2189,7 @@ const handleEditFuncionario = (funcionario) => {
   };
 
 
-// --- VISTA PÚBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
+// --- VISTA PaBLICA DE ESCANEO QR REDISEADA Y OPTIMIZADA PARA MVILES ---
 if (publicBienId) {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-100 font-sans selection:bg-sky-500">
@@ -2208,7 +2208,7 @@ if (publicBienId) {
             <i className="fa-solid fa-circle-check text-[9px] text-sky-400"></i> Verificación Oficial de Activo
           </span>
 
-          <h1 className="text-base sm:text-lg font-black text-white tracking-tight leading-tight">
+          <h1 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight leading-tight">
             Universidad Nacional de Pilar
           </h1>
           <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
@@ -2248,7 +2248,7 @@ if (publicBienId) {
               </div>
             </div>
 
-            {/* Datos Técnicos en Rejilla Responsiva */}
+            {/* Datos Técnicos y Contables Completos */}
             <div className="grid grid-cols-2 gap-2.5">
               <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -2267,9 +2267,42 @@ if (publicBienId) {
                   Gs. {publicBienData.valorUnitario ? formatCurrency(publicBienData.valorUnitario) : '0'}
                 </p>
               </div>
+
+              {publicBienData.subcuenta && (
+                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fa-solid fa-sitemap text-indigo-400"></i> Sub-Cuenta
+                  </p>
+                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
+                    {publicBienData.subcuenta}
+                  </p>
+                </div>
+              )}
+
+              {publicBienData.fechaAdquisicion && (
+                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fa-regular fa-calendar text-amber-400"></i> Adquisición
+                  </p>
+                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
+                    {String(publicBienData.fechaAdquisicion).split('T')[0]}
+                  </p>
+                </div>
+              )}
+
+              {publicBienData.vidaUtil && (
+                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fa-solid fa-hourglass-half text-purple-400"></i> Vida Útil
+                  </p>
+                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
+                    {publicBienData.vidaUtil} años
+                  </p>
+                </div>
+              )}
             </div>
 
-            {/* Custodio y Ubicación */}
+            {/* Custodio, Ubicación y Dependencia */}
             <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80 space-y-3">
               <div>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -2278,6 +2311,16 @@ if (publicBienId) {
                 <p className="text-xs font-bold text-slate-200 mt-1">
                   {publicBienData.funcionario || 'Sin Responsable Asignado'}
                 </p>
+                {publicBienData.funcionarioDoc && (
+                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    C.I.: {publicBienData.funcionarioDoc}
+                  </p>
+                )}
+                {publicBienData.funcionarioCargo && (
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    Cargo: {publicBienData.funcionarioCargo}
+                  </p>
+                )}
               </div>
 
               <div className="pt-2.5 border-t border-slate-800/80">
@@ -2288,6 +2331,17 @@ if (publicBienId) {
                   {publicBienData.ubicacion || 'Sin Ubicación Registrada'}
                 </p>
               </div>
+
+              {publicBienData.dependencia && (
+                <div className="pt-2.5 border-t border-slate-800/80">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <i className="fa-solid fa-building-columns text-emerald-400"></i> Dependencia
+                  </p>
+                  <p className="text-xs font-bold text-slate-200 mt-1">
+                    {publicBienData.dependencia}
+                  </p>
+                </div>
+              )}
             </div>
 
           </div>
@@ -2345,8 +2399,8 @@ if (publicBienId) {
 
   return (
     <div className={`${darkMode ? 'dark' : ''} flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`}>
-      <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
-      <input type="file" accept=".csv" className="hidden" ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
+      <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
+      <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
       
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none">
         
@@ -2399,310 +2453,229 @@ if (publicBienId) {
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
-                {activeTab === 'dashboard' && (
-                  <div className="space-y-6 sm:space-y-8 animate-fade-in pb-12">
+                                {activeTab === 'dashboard' && (
+                  <div className="space-y-5 sm:space-y-6 animate-fade-in pb-12">
                     
-                    {/* 1. HERO BANNER INTEGRADO (Responsive para Android/iOS) */}
-                    <div className="relative bg-gradient-to-br from-zinc-900 via-zinc-900/90 to-zinc-950 dark:from-darkbg-card dark:to-zinc-950 p-6 sm:p-8 rounded-[28px] sm:rounded-[36px] border border-zinc-800/80 shadow-2xl overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 group">
+                    {/* 1. HERO BANNER - BENTO MINIMALISTA */}
+                    <div className="relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl p-8 sm:p-10 rounded-[32px] border border-zinc-200/50 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8 group transition-all">
                       
-                      {/* Efectos de luz ambiental de fondo */}
-                      <div className="absolute -top-24 -right-24 w-72 h-72 bg-brand-primary/20 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
-                      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
+                      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl -z-10 -translate-x-1/2 translate-y-1/2"></div>
 
-                      <div className="flex items-center gap-4 sm:gap-6 relative z-10">
+                      <div className="flex items-center gap-6 relative z-10">
                         <div className="relative shrink-0">
-                            <div className="absolute -inset-1 bg-gradient-to-br from-brand-primary to-purple-600 rounded-2xl sm:rounded-3xl blur-md opacity-75 animate-pulse"></div>
-                            <div className="relative flex h-14 w-14 sm:h-18 sm:w-18 shrink-0 items-center justify-center rounded-2xl sm:rounded-3xl bg-zinc-950 text-white font-black text-xl sm:text-2xl shadow-inner border border-zinc-700/50">
+                            <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand-primary to-indigo-500 text-white font-semibold text-2xl sm:text-3xl shadow-lg shadow-brand-primary/30 border border-white/20">
                               {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                             </div>
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-brand-primary/20 text-brand-accent border border-brand-primary/30">
+                          <div className="flex items-center gap-2 mb-2">
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/5">
                                   <i className="fa-solid fa-shield-halved text-[9px]"></i> Panel Institucional
                               </span>
                           </div>
-                          <h3 className="text-xl sm:text-3xl font-black text-white tracking-tight truncate">
-                            {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!
+                          <h3 className="text-2xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight truncate">
+                            {saludoBienvenida}! {currentUser?.nombre || 'Usuario'}
                           </h3>
-                          <p className="text-xs sm:text-sm font-semibold text-zinc-400 mt-1 flex items-center gap-2 truncate">
-                              <i className="fa-solid fa-building-columns text-brand-primary shrink-0"></i>
-                              <span className="truncate">Dependencia: <strong className="text-white font-bold bg-zinc-800/80 px-2.5 py-0.5 rounded-lg border border-zinc-700/50">{dependenciaActual}</strong></span>
+                          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-2 truncate">
+                              <i className="fa-solid fa-building-columns shrink-0"></i>
+                              <span className="truncate">Dependencia: <strong className="text-zinc-900 dark:text-zinc-200 font-semibold">{dependenciaActual}</strong></span>
                           </p>
                         </div>
                       </div>
 
-                      {/* Estado de sincronización optimizado para táctil */}
-                      <div className="flex items-center gap-3 relative z-10 bg-zinc-950/70 px-4 py-3 rounded-2xl border border-zinc-800/80 backdrop-blur-md shadow-inner self-start md:self-auto shrink-0">
-                        {isOnline ? (
-                          <>
-                            <span className="relative flex h-3 w-3">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></span>
-                            </span> 
-                            <div className="flex flex-col">
-                                <span className="text-xs font-black text-zinc-200 tracking-wide">Sistema Sincronizado</span>
-                                <span className="text-[10px] font-bold text-zinc-500">Conexión activa a Supabase</span>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <span className="h-3 w-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]"></span> 
-                            <div className="flex flex-col">
-                                <span className="text-xs font-black text-zinc-200 tracking-wide">Modo Local</span>
-                                <span className="text-[10px] font-bold text-zinc-500">Sin conexión de red</span>
-                            </div>
-                          </>
-                        )}
+                      <div className="flex items-center gap-3 relative z-10 bg-white dark:bg-zinc-950/50 px-5 py-3.5 rounded-2xl border border-zinc-200/80 dark:border-white/5 shadow-sm self-start md:self-auto shrink-0 backdrop-blur-md">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-zinc-900 dark:text-white tracking-wide">Sistema Sincronizado</span>
+                            <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Conexión activa</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* 2. TARJETAS DE MÉTRICAS (Grid adaptable 1 col en celular, 2 en tablet, 4 en desktop) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                    {/* 2. TARJETAS DE M0TRICAS (GRID BENTO) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                       
                       {/* Bienes Activos */}
-                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand-primary to-sky-400 opacity-80"></div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-                              Bienes Activos
-                            </p>
-                            <h3 className="text-2xl sm:text-3xl font-black text-brand-primary dark:text-brand-accent tracking-tight">
-                              {isLoading ? '...' : stats.totalItems}
-                            </h3>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-brand-primary"></span>
-                              Registrados en inventario
-                            </p>
+                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
+                        <div className="flex items-start justify-between gap-3 mb-6">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-brand-primary dark:text-white border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
+                            <i className="fa-solid fa-boxes-stacked text-xl"></i>
                           </div>
-                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary shadow-inner group-hover:scale-110 transition-transform">
-                            <i className="fa-solid fa-boxes-stacked text-xl sm:text-2xl"></i>
-                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+                            {isLoading ? '...' : stats.totalItems}
+                          </h3>
+                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="h-1.5 w-1.5 rounded-full bg-brand-primary"></span>
+                            Bienes Activos
+                          </p>
                         </div>
                       </div>
 
                       {/* Bienes con QR */}
-                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-80"></div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-                              Bienes con QR
-                            </p>
-                            <h3 className="text-2xl sm:text-3xl font-black text-purple-600 dark:text-purple-400 tracking-tight">
-                              {isLoading ? '...' : `${stats.withQR} / ${stats.totalItems}`}
-                            </h3>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
-                              Etiquetados y verificados
-                            </p>
+                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
+                        <div className="flex items-start justify-between gap-3 mb-6">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-purple-600 dark:text-purple-400 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
+                            <i className="fa-solid fa-qrcode text-xl"></i>
                           </div>
-                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-purple-500/10 text-purple-500 shadow-inner group-hover:scale-110 transition-transform">
-                            <i className="fa-solid fa-qrcode text-xl sm:text-2xl"></i>
-                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight flex items-baseline gap-1">
+                            {isLoading ? '...' : stats.withQR}
+                            <span className="text-xl text-zinc-400 font-medium tracking-normal">/{stats.totalItems}</span>
+                          </h3>
+                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
+                            Bienes con QR
+                          </p>
                         </div>
                       </div>
 
                       {/* Sin FC-10 */}
-                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-yellow-400 opacity-80"></div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-                              Sin FC-10
-                            </p>
-                            <h3 className="text-2xl sm:text-3xl font-black text-amber-500 tracking-tight">
-                              {isLoading ? '...' : stats.withoutFc10}
-                            </h3>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                              Bienes sin asignación
-                            </p>
+                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
+                        <div className="flex items-start justify-between gap-3 mb-6">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-amber-500 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
+                            <i className="fa-solid fa-file-signature text-xl"></i>
                           </div>
-                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 shadow-inner group-hover:scale-110 transition-transform">
-                            <i className="fa-solid fa-file-signature text-xl sm:text-2xl"></i>
-                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+                            {isLoading ? '...' : stats.withoutFc10}
+                          </h3>
+                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                            Sin FC-10
+                          </p>
                         </div>
                       </div>
 
                       {/* Pendiente QR */}
-                      <div className="group relative bg-white dark:bg-darkbg-card rounded-[24px] sm:rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-5 sm:p-6 shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-rose-500 to-red-600 opacity-80"></div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1">
-                              Pendiente QR
-                            </p>
-                            <h3 className="text-2xl sm:text-3xl font-black text-rose-500 tracking-tight">
-                              {isLoading ? '...' : stats.withoutQR}
-                            </h3>
-                            <p className="text-xs font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-1.5">
-                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-                              Sin etiqueta declarada
-                            </p>
+                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
+                        <div className="flex items-start justify-between gap-3 mb-6">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-rose-500 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
+                            <i className="fa-solid fa-triangle-exclamation text-xl"></i>
                           </div>
-                          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-rose-500/10 text-rose-500 shadow-inner group-hover:scale-110 transition-transform">
-                            <i className="fa-solid fa-triangle-exclamation text-xl sm:text-2xl"></i>
-                          </div>
+                        </div>
+                        <div>
+                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+                            {isLoading ? '...' : stats.withoutQR}
+                          </h3>
+                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
+                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+                            Pendiente QR
+                          </p>
                         </div>
                       </div>
 
                     </div>
 
-                    {/* 3. ACCIONES RÁPIDAS (Botones adaptables táctiles para Android/iOS) */}
-                    <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm p-5 sm:p-7 relative overflow-hidden">
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-                            
-                            <div className="flex items-center gap-4">
-                                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-inner">
-                                    <i className="fa-solid fa-bolt text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 className="text-base font-black text-zinc-900 dark:text-white tracking-tight">Acciones Rápidas</h3>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 font-semibold mt-0.5">Atajos operativos frecuentes para tu gestión diaria</p>
-                                </div>
-                            </div>
+                    {/* 3. ACCIONES RÁPIDAS (MINIMALISTA) */}
+                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-3 flex flex-wrap gap-3 items-center justify-between sm:justify-start">
+                        <div className="flex items-center gap-4 pl-4 pr-6 py-2 border-r border-zinc-200 dark:border-white/10 hidden lg:flex">
+                          <div className="h-10 w-10 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-900 dark:text-white">
+                            <i className="fa-solid fa-bolt"></i>
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-zinc-900 dark:text-white leading-tight">Acciones</p>
+                            <p className="text-[10px] font-semibold text-zinc-500">Accesos directos</p>
+                          </div>
+                        </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto">
-                                
-                                <button 
-                                  onClick={() => { setActiveTab('fc04'); openFC04Modal(null); }} 
-                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-brand-primary hover:bg-brand-light/20 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
-                                >
-                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <i className="fa-solid fa-calendar-plus text-sm"></i>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Ingreso FC-04</p>
-                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Nuevo registro</p>
-                                    </div>
-                                </button>
-
-                                <button 
-                                  onClick={() => { setActiveTab('inventario'); setIsBulkQR(true); setIsQRModalOpen(true); }} 
-                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-purple-500 hover:bg-purple-500/10 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
-                                >
-                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <i className="fa-solid fa-file-zipper text-sm"></i>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Paquete QRs</p>
-                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Lote masivo</p>
-                                    </div>
-                                </button>
-
-                                <button 
-                                  onClick={() => { setActiveTab('inventario'); fileInputRef.current?.click(); }} 
-                                  className="flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-all active:scale-95 cursor-pointer group text-left min-h-[52px]"
-                                >
-                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <i className="fa-solid fa-file-import text-sm"></i>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Importar CSV</p>
-                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Carga masiva</p>
-                                    </div>
-                                </button>
-
-                                <div className="relative flex items-center gap-3 p-3.5 sm:p-3 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/70 dark:border-darkbg-border hover:border-sky-500 hover:bg-sky-500/10 transition-all active:scale-95 cursor-pointer group text-left overflow-hidden min-h-[52px]">
-                                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" title="Actualizar Escudo Institucional" />
-                                    <div className="h-10 w-10 sm:h-9 sm:w-9 rounded-xl bg-sky-500/10 text-sky-500 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                        <i className="fa-solid fa-image text-sm"></i>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black text-zinc-900 dark:text-white truncate">Subir Logo</p>
-                                        <p className="text-[10px] text-zinc-400 font-semibold truncate">Escudo oficial</p>
-                                    </div>
-                                </div>
-
-                            </div>
+                        <div className="flex flex-wrap items-center gap-2.5 lg:pl-2">
+                            <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-sm transition-all shadow-md active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-plus text-xs"></i> Registro
+                            </button>
+                            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-file-import text-emerald-600 dark:text-emerald-400"></i> Importar
+                            </button>
+                            <button onClick={handleExportInventarioCSV} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-file-export text-sky-600 dark:text-sky-400"></i> Exportar
+                            </button>
+                            <button onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i> Lote QRs
+                            </button>
+                            <button onClick={openFC03Modal} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-print text-amber-600 dark:text-amber-400"></i> FC-03
+                            </button>
+                            <button onClick={() => logoInputRef.current?.click()} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-image text-brand-primary dark:text-brand-accent"></i> Logo
+                            </button>
                         </div>
                     </div>
 
-                    {/* 4. GRÁFICOS Y TENDENCIAS (Disposición responsiva) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* 4. GRÁFICOS Y TENDENCIAS */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                       
                       {/* Estado de Regularización */}
-                      <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col overflow-hidden">
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 sm:px-8 py-5 flex items-center justify-between bg-zinc-50/50 dark:bg-darkbg-main/30">
-                          <h2 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                      <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
+                        <div className="flex justify-between items-center mb-8">
+                          <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                              <i className="fa-solid fa-chart-pie text-emerald-500"></i> Cobertura Institucional
                           </h2>
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-darkbg-main px-2.5 py-1 rounded-md">Metas</span>
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-100 dark:bg-white/5 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-white/5">Metas</span>
                         </div>
                         
-                        <div className="flex flex-1 flex-col p-6 sm:p-8 gap-8 justify-center">
-                          
+                        <div className="flex flex-1 flex-col gap-8 justify-center">
                           {/* Progreso FC-10 */}
                           <div>
                             <div className="flex justify-between items-end mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-500 flex items-center justify-center shadow-2xs">
-                                  <i className="fa-solid fa-file-contract text-sm"></i>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-wider">Cobertura FC-10</p>
-                                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">{stats.withFc10} de {stats.totalItems} activos asignados</p>
-                                </div>
+                              <div>
+                                <p className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Cobertura FC-10</p>
+                                <p className="text-[11px] text-zinc-500 font-medium mt-1">{stats.withFc10} de {stats.totalItems} activos asignados</p>
                               </div>
-                              <span className="text-xl font-black text-emerald-500 tracking-tighter">{stats.percFC10.toFixed(1)}%</span>
+                              <span className="text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight">{stats.percFC10.toFixed(1)}%</span>
                             </div>
-                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden p-0.5 border border-zinc-200/50 dark:border-zinc-700/50">
-                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000 shadow-2xs" style={{ width: `${stats.percFC10}%` }}></div>
+                            <div className="h-2 w-full bg-zinc-200/50 dark:bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${stats.percFC10}%` }}></div>
                             </div>
                           </div>
 
                           {/* Progreso QR */}
                           <div>
                             <div className="flex justify-between items-end mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary flex items-center justify-center shadow-2xs">
-                                  <i className="fa-solid fa-qrcode text-sm"></i>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-wider">Etiquetado QR</p>
-                                  <p className="text-[11px] text-zinc-400 font-semibold mt-0.5">{stats.withQR} de {stats.totalItems} activos con código</p>
-                                </div>
+                              <div>
+                                <p className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Etiquetado QR</p>
+                                <p className="text-[11px] text-zinc-500 font-medium mt-1">{stats.withQR} de {stats.totalItems} activos con código</p>
                               </div>
-                              <span className="text-xl font-black text-brand-primary tracking-tighter">{stats.percQR.toFixed(1)}%</span>
+                              <span className="text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight">{stats.percQR.toFixed(1)}%</span>
                             </div>
-                            <div className="h-3.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden p-0.5 border border-zinc-200/50 dark:border-zinc-700/50">
-                              <div className="h-full bg-brand-primary rounded-full transition-all duration-1000 shadow-2xs" style={{ width: `${stats.percQR}%` }}></div>
+                            <div className="h-2 w-full bg-zinc-200/50 dark:bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-brand-primary rounded-full transition-all duration-1000 shadow-sm" style={{ width: `${stats.percQR}%` }}></div>
                             </div>
                           </div>
-
                         </div>
                       </div>
 
                       {/* Tendencias Operativas */}
-                      <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm flex flex-col overflow-hidden">
-                        <div className="border-b border-zinc-100 dark:border-darkbg-border px-6 sm:px-8 py-5 bg-zinc-50/50 dark:bg-darkbg-main/30">
-                          <h2 className="text-xs font-black text-zinc-500 dark:text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                      <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
+                        <div className="flex justify-between items-center mb-8">
+                          <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                              <i className="fa-solid fa-chart-line text-brand-primary"></i> Tendencias Operativas
                           </h2>
                         </div>
-                        <div className="flex flex-1 flex-col sm:flex-row p-6 sm:p-8 gap-8">
+                        <div className="flex flex-1 flex-col sm:flex-row gap-8">
                           
-                          <div className="flex-1 flex flex-col border-b sm:border-b-0 sm:border-r border-zinc-100 dark:border-darkbg-border pb-6 sm:pb-0 sm:pr-6">
-                            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mb-5">Adquisiciones Anuales</h3>
-                            <div className="flex-1 flex flex-col justify-center gap-4">
+                          <div className="flex-1 flex flex-col border-b sm:border-b-0 sm:border-r border-zinc-200/60 dark:border-white/10 pb-6 sm:pb-0 sm:pr-6">
+                            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Adquisiciones Anuales</h3>
+                            <div className="flex-1 flex flex-col justify-center gap-5">
                               {timeStats.adqByYear.length === 0 ? (
                                   <div className="flex flex-col items-center justify-center text-center py-4 opacity-50">
-                                      <p className="text-xs font-semibold text-zinc-400">Sin adquisiciones.</p>
+                                      <p className="text-xs font-medium text-zinc-500">Sin adquisiciones.</p>
                                   </div>
                               ) : timeStats.adqByYear.map((item, idx) => {
-                                  const colors = ["bg-brand-primary", "bg-purple-500", "bg-zinc-400", "bg-zinc-300"];
-                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-darkbg-main" />;
+                                  const colors = ["bg-zinc-900 dark:bg-white", "bg-zinc-600 dark:bg-zinc-400", "bg-zinc-400 dark:bg-zinc-600", "bg-zinc-300 dark:bg-zinc-700"];
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" />;
                               })}
                             </div>
                           </div>
 
                           <div className="flex-1 flex flex-col">
-                            <h3 className="text-[11px] font-black text-zinc-400 uppercase tracking-wider mb-5">Asignaciones (FC-10)</h3>
+                            <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Asignaciones (FC-10)</h3>
                             <div className="flex-1 flex flex-col justify-center gap-6">
-                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
-                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-400 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-darkbg-main" />
+                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500" bgClass="bg-zinc-100 dark:bg-white/5" />
+                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-300 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-white/5" />
                             </div>
                           </div>
 
@@ -2713,27 +2686,28 @@ if (publicBienId) {
 
                   </div>
                 )}
+
                 {activeTab === 'inventario' && (
   <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
     
     {/* 1. ENCABEZADO Y ACCIONES PRINCIPALES */}
-    <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-6 sm:p-7 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col lg:flex-row lg:items-center justify-between gap-5">
       
       {/* Título de la Sección + Contador */}
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/50">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white border border-zinc-200/50 dark:border-white/5">
           <i className="fa-solid fa-boxes-stacked text-lg"></i>
         </div>
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
               Directorio Patrimonial
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/5">
               {filteredBienes.length} registros
             </span>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
             Gestión integral e inventario consolidado de activos institucionales
           </p>
         </div>
@@ -2743,7 +2717,7 @@ if (publicBienId) {
       <div className="flex flex-wrap items-center gap-2">
         <button 
           onClick={handleDownloadTemplateCSV} 
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
           title="Descargar Plantilla CSV"
         >
           <i className="fa-solid fa-file-excel text-emerald-600"></i>
@@ -2752,7 +2726,7 @@ if (publicBienId) {
 
         <button 
           onClick={() => fileInputRef.current?.click()} 
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
           title="Importar archivo CSV"
         >
           <i className="fa-solid fa-file-import text-emerald-600"></i>
@@ -2761,7 +2735,7 @@ if (publicBienId) {
 
         <button 
           onClick={handleExportInventarioCSV} 
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
           title="Exportar archivo CSV"
         >
           <i className="fa-solid fa-file-export text-sky-600"></i>
@@ -2770,7 +2744,7 @@ if (publicBienId) {
 
         <button 
           onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
           title="Generar Lote Masivo de QRs"
         >
           <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i>
@@ -2779,18 +2753,18 @@ if (publicBienId) {
 
         <button 
           onClick={openFC03Modal} 
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
           title="Generar Reporte FC-03"
         >
           <i className="fa-solid fa-print text-amber-600"></i>
           <span>FC-03</span>
         </button>
 
-        <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
+        <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block"></div>
 
         <button 
           onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
         >
           <i className="fa-solid fa-plus text-xs"></i>
           <span>Añadir Registro</span>
@@ -2799,18 +2773,18 @@ if (publicBienId) {
 
     </div>
 
-    {/* 2. PANEL DE FILTROS BÚSQUEDA Y SELECCIÓN EN GRID */}
-    <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-4">
+    {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIN EN GRID */}
+    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-5 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none space-y-4">
       
       {/* Campo de Búsqueda Principal */}
       <div className="relative w-full">
-        <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
         <input 
           type="text"
           placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2.5 pl-10 pr-4 text-xs font-normal text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 pl-11 pr-4 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/5 outline-none transition-all"
         />
       </div>
 
@@ -2821,7 +2795,7 @@ if (publicBienId) {
         <select 
           value={filtroFuncionario || ''} 
           onChange={(e) => setFiltroFuncionario(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Responsables: Todos</option>
           {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
@@ -2831,7 +2805,7 @@ if (publicBienId) {
         <select 
           value={filtroUbicacion || ''} 
           onChange={(e) => setFiltroUbicacion(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Ubicación: Todas</option>
           {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
@@ -2841,7 +2815,7 @@ if (publicBienId) {
         <select 
           value={filtroAnio || ''} 
           onChange={(e) => setFiltroAnio(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Año: Todos</option>
           {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
@@ -2851,7 +2825,7 @@ if (publicBienId) {
         <select 
           value={filtroSubcuenta || ''} 
           onChange={(e) => setFiltroSubcuenta(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Subcuenta: Todas</option>
           {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
@@ -2861,7 +2835,7 @@ if (publicBienId) {
         <select 
           value={filtroAnalitico1 || ''} 
           onChange={(e) => setFiltroAnalitico1(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Analítico 1: Todos</option>
           {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
@@ -2871,7 +2845,7 @@ if (publicBienId) {
         <select 
           value={filtroAnalitico2 || ''} 
           onChange={(e) => setFiltroAnalitico2(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="">Analítico 2: Todos</option>
           {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
@@ -2881,7 +2855,7 @@ if (publicBienId) {
         <select 
           value={filtroFC10 || 'ALL'} 
           onChange={(e) => setFiltroFC10(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="ALL">FC-10: Todos</option>
           <option value="YES">Con FC-10</option>
@@ -2892,7 +2866,7 @@ if (publicBienId) {
         <select 
           value={filtroEstado || 'ALL'} 
           onChange={(e) => setFiltroEstado(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50 py-2 px-3 text-xs text-slate-700 dark:text-slate-300 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
         >
           <option value="ALL">Estado: Todos</option>
           {ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}
@@ -2915,20 +2889,20 @@ if (publicBienId) {
     </div>
 
     {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
-                    <div className="bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[28px] sm:rounded-[32px] overflow-hidden">
+                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200/60 dark:border-white/5 rounded-[28px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none overflow-hidden">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[900px]">
                           
-                          <thead className="bg-zinc-50/80 dark:bg-darkbg-main/80 border-b border-zinc-200/80 dark:border-darkbg-border">
-                            <tr className="text-[10px] sm:text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
-                              <th className="py-4 pl-6 sm:pl-8 pr-4">Identificación y Descripción</th>
-                              <th className="px-4 py-4">Localización y Custodio</th>
-                              <th className="px-4 py-4">Condición y Estado</th>
-                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">Acciones</th>
+                                                    <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                            <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
+                              <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">Identificacin y Descripcin</th>
+                              <th className="px-4 py-4 w-[28%]">Localizacin y Custodio</th>
+                              <th className="px-4 py-4 w-[18%]">Condicin y Estado</th>
+                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right w-[16%]">Acciones</th>
                             </tr>
                           </thead>
 
-                          <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 bg-white dark:bg-darkbg-card">
+                          <tbody className="divide-y divide-zinc-100/80 dark:divide-zinc-800/30">
                             {itemsPaginados.map((item) => {
                               
                               const getCondicionBadge = (cond) => {
@@ -2941,17 +2915,17 @@ if (publicBienId) {
                               };
 
                               return (
-                                <tr key={item.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group">
+                                <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group">
                                   
                                   {/* Columna 1: Identificación */}
                                   <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
                                     <div className="flex items-start gap-3.5">
-                                      <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-brand-primary font-black text-xs shadow-inner">
+                                      <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 text-xs">
                                         <i className="fa-solid fa-tag text-sm"></i>
                                       </div>
                                       <div className="space-y-1">
                                         <div className="flex items-center gap-2">
-                                          <span className="font-mono font-extrabold text-xs text-brand-primary dark:text-brand-accent bg-brand-primary/10 px-2 py-0.5 rounded-md">
+                                          <span className="font-mono font-semibold text-xs text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/10 px-2 py-0.5 rounded-lg">
                                             {item.rotulo || 'S/R'}
                                           </span>
                                           {item.fechaAdquisicion && (
@@ -2961,11 +2935,11 @@ if (publicBienId) {
                                             </span>
                                           )}
                                         </div>
-                                        <p className="font-extrabold text-zinc-900 dark:text-white text-sm line-clamp-2 leading-snug">
+                                        <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2 leading-snug">
                                           {item.descripcion}
                                         </p>
                                         {item.cuenta && (
-                                          <span className="inline-block text-[10px] font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-md">
+                                          <span className="inline-block text-[10px] font-medium text-zinc-400 bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-lg">
                                             #{item.cuenta}
                                           </span>
                                         )}
@@ -2987,22 +2961,26 @@ if (publicBienId) {
                                     </div>
                                   </td>
 
-                                  {/* Columna 3: Condición y QR */}
+                                                                    {/* Columna 3: Condicin y QR (Botn interactivo) */}
                                   <td className="px-4 py-4 align-top">
                                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-black border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
+                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
                                         {item.estadoConservacion || 'Regular'}
                                       </span>
 
-                                      {item.hasQR ? (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-                                          <i className="fa-solid fa-qrcode text-[10px]"></i> Con QR
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
-                                          <i className="fa-solid fa-qrcode text-[10px]"></i> Sin QR
-                                        </span>
-                                      )}
+                                      <button 
+                                        type="button"
+                                        onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
+                                        title={item.hasQR ? "Ver / Descargar Cdigo QR" : "Generar Cdigo QR"}
+                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer active:scale-95 ${
+                                          item.hasQR 
+                                            ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs hover:opacity-85' 
+                                            : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-400'
+                                        }`}
+                                      >
+                                        <i className="fa-solid fa-qrcode text-[10px]"></i>
+                                        <span>{item.hasQR ? 'Con QR' : 'Sin QR'}</span>
+                                      </button>
                                     </div>
                                   </td>
 
@@ -3013,7 +2991,7 @@ if (publicBienId) {
                                       {/* Generar QR */}
                                       <button 
                                         onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
-                                        className="h-9 w-9 flex items-center justify-center text-purple-600 bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Generar Código QR"
                                       >
                                         <i className="fa-solid fa-qrcode text-xs"></i>
@@ -3022,7 +3000,7 @@ if (publicBienId) {
                                       {/* Asignar FC-10 */}
                                       <button 
                                         onClick={() => openFC10Modal(item)}
-                                        className="h-9 w-9 flex items-center justify-center text-emerald-600 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Asignación FC-10"
                                       >
                                         <i className="fa-solid fa-file-signature text-xs"></i>
@@ -3031,7 +3009,7 @@ if (publicBienId) {
                                       {/* Traslado FC-11 */}
                                       <button 
                                         onClick={() => openFC11Modal(item)}
-                                        className="h-9 w-9 flex items-center justify-center text-amber-600 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Traslado FC-11"
                                       >
                                         <i className="fa-solid fa-truck-fast text-xs"></i>
@@ -3040,7 +3018,7 @@ if (publicBienId) {
                                       {/* Editar Bien */}
                                       <button 
                                         onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }}
-                                        className="h-9 w-9 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Editar Bien"
                                       >
                                         <i className="fa-solid fa-pen-to-square text-xs"></i>
@@ -3055,7 +3033,7 @@ if (publicBienId) {
                                             setItemToDelete({ type: 'requestBaja', id: item.id, item });
                                           }
                                         }}
-                                        className="h-9 w-9 flex items-center justify-center text-rose-600 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                        className="h-8 w-8 flex items-center justify-center text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
                                         title="Eliminar o Solicitar Baja"
                                       >
                                         <i className="fa-solid fa-trash-can text-xs"></i>
@@ -3087,6 +3065,106 @@ if (publicBienId) {
                       {renderPagination()}
                     </div>
 
+                  </div>
+                )}
+
+                {activeTab === 'aprobaciones' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-6 sm:p-7 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white border border-zinc-200/50 dark:border-white/5">
+                          <i className="fa-solid fa-check-to-slot text-xl"></i>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-xl font-semibold text-zinc-900 dark:text-white tracking-tight">Solicitudes de Baja</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/5">
+                              {solicitudesBaja.length} pendientes
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Gestión y aprobación de bienes dados de baja en <strong className="text-zinc-900 dark:text-white font-semibold">{dependenciaActual}</strong>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200/60 dark:border-white/5 rounded-[28px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none overflow-hidden">
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[700px]">
+                          <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
+                            <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
+                              <th className="py-4 pl-6 sm:pl-8 pr-4">Bien Solicitado</th>
+                              <th className="px-4 py-4">Solicitante</th>
+                              <th className="px-4 py-4">Fecha</th>
+                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">Decisión</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100/80 dark:divide-zinc-800/30">
+                            {solicitudesBaja.map((notif) => {
+                              const bienAsociado = bienes.find(b => b.id === (notif.bienId || notif.bien_id)) || {
+                                id: notif.bienId || notif.bien_id,
+                                rotulo: notif.rotulo || 'S/R',
+                                descripcion: notif.descripcion || 'Sin descripción',
+                                bajaSolicitadaPor: notif.solicitante || 'Usuario'
+                              };
+
+                              return (
+                                <tr key={notif.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                                  <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
+                                    <div className="space-y-1">
+                                      <span className="font-mono font-semibold text-xs text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/10 px-2 py-0.5 rounded-lg">
+                                        {bienAsociado.rotulo}
+                                      </span>
+                                      <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2">
+                                        {bienAsociado.descripcion}
+                                      </p>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 align-top text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                    <div className="flex items-center gap-2">
+                                      <i className="fa-solid fa-user text-zinc-400"></i>
+                                      <span>{notif.solicitante || 'Funcionario'}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-4 align-top text-xs text-zinc-500 font-mono">
+                                    {notif.created_at ? new Date(notif.created_at).toLocaleDateString() : 'Reciente'}
+                                  </td>
+                                  <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        onClick={() => openResolucionModal(bienAsociado, 'rechazar')}
+                                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/5 transition-all cursor-pointer"
+                                      >
+                                        Rechazar
+                                      </button>
+                                      <button
+                                        onClick={() => openResolucionModal(bienAsociado, 'aprobar')}
+                                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer"
+                                      >
+                                        Aprobar Baja
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+
+                            {solicitudesBaja.length === 0 && (
+                              <tr>
+                                <td colSpan="4" className="p-16 text-center">
+                                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-400 mb-3">
+                                    <i className="fa-solid fa-check-double text-2xl"></i>
+                                  </div>
+                                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Bandeja de aprobaciones al día</p>
+                                  <p className="text-xs text-zinc-400 mt-1">No hay solicitudes de baja pendientes en esta dependencia.</p>
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -3208,7 +3286,7 @@ if (publicBienId) {
 
                       </div>
 
-                      {/* BARRA DE BÚSQUEDA DEL PADRÓN CORREGIDA */}
+                      {/* BARRA DE BaSQUEDA DEL PADRN CORREGIDA */}
 <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
   <div className="relative w-full">
     <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
@@ -3227,7 +3305,7 @@ if (publicBienId) {
 
                     </div>
 
-                    {/* TABLA DE FUNCIONARIOS REDISEÑADA */}
+                    {/* TABLA DE FUNCIONARIOS REDISEADA */}
                     <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[32px] flex flex-col overflow-hidden relative min-h-[450px]">
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left border-collapse">
@@ -3408,7 +3486,7 @@ if (publicBienId) {
                       {/* CONTENEDOR DE CONTROLES SUPERIOR */}
                       <div className="flex flex-wrap gap-3 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
-                        {/* NUEVO BOTÓN CONSOLIDADO */}
+                        {/* NUEVO BOTN CONSOLIDADO */}
                         <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " !bg-brand-primary flex items-center gap-2"}>
                             <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
                         </button>
@@ -3701,7 +3779,7 @@ if (publicBienId) {
                     <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
             </div>
-            {/* BOTONES DE ACCIÓN */}
+            {/* BOTONES DE ACCIN */}
             <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[32px]">
               <button onClick={() => setIsFC03ModalOpen(false)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer">Cancelar</button>
               <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2.5 py-3.5 px-7 rounded-2xl text-sm font-black text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/25 transition-all cursor-pointer disabled:opacity-50" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
@@ -3792,7 +3870,7 @@ if (publicBienId) {
     setMotivoResolucion={setMotivoResolucion}
     STYLES={STYLES}
 />
-      {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
+      {/* MODAL DE AVISO PARA ELIMINACIN O SOLICITUD DE BAJA */}
       {itemToDelete && (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
@@ -3839,7 +3917,7 @@ if (publicBienId) {
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white backdrop-blur-md shadow-sm mb-4 uppercase tracking-widest">
                             ¡Nueva Actualización!
                         </span>
-                        <h2 className="text-3xl font-black text-white tracking-tight">{systemConfig.version}</h2>
+                        <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">{systemConfig.version}</h2>
                     </div>
                 </div>
                 <div className="p-8 bg-white dark:bg-darkbg-card">
@@ -3899,3 +3977,7 @@ if (publicBienId) {
     </div>
   );
 }
+
+
+
+
