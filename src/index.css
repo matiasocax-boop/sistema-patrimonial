@@ -57,3 +57,40 @@ body {
   -ms-overflow-style: none; 
   scrollbar-width: none; 
 }
+/* Soporte de esquema de color para inputs y datalists */
+:root {
+  color-scheme: light;
+}
+
+.dark {
+  color-scheme: dark;
+}
+
+input, select, textarea {
+  color-scheme: light;
+}
+
+.dark input, .dark select, .dark textarea {
+  color-scheme: dark;
+}
+
+/* Evitar que el autofill de Chrome/Edge ponga fondo blanco y texto ilegible */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: inherit !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff !important;
+  -webkit-box-shadow: 0 0 0px 1000px #18181b inset !important;
+}

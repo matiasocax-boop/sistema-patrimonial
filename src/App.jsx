@@ -1965,7 +1965,7 @@ const handleEditFuncionario = (funcionario) => {
       } catch(e) {}
   };
 
-  const openResolucionModal = (bien, accion) => { setResolucionBaja({ bien, accion }); setMotivoResolucion(''); };
+  const openResolucionModal = (bien, accion, notifOrigen = null) => { setResolucionBaja({ bien, accion, notifOrigen }); setMotivoResolucion(""); };
   const openFC10Modal = (bien, fc = null) => { setFc10TargetBien(bien); setFc10Editing(fc); setIsFC10ModalOpen(true); };
   const openFC11Modal = (bien, fc = null) => { setFc11TargetBien(bien); setFc11Editing(fc); setFc11FormNumber(fc ? fc.numeroFormulario : ''); setIsFC11ModalOpen(true); };
   const openFC04Modal = (fc = null) => { setFc04Editing(fc); if (fc) { setFc04Items(fc.bienesSnapshot || []); setFc04SinMovimiento(fc.sinMovimiento); } else { setFc04Items([]); setFc04SinMovimiento(false); } setIsFC04ModalOpen(true); };
@@ -2084,38 +2084,76 @@ const handleEditFuncionario = (funcionario) => {
   );
   const submitResolucionBaja = async (e) => {
       e.preventDefault();
-      const { bien, accion } = resolucionBaja;
-      setIsProcessing({ active: true, text: 'Procesando resolución...' });
+      const { bien, accion, notifOrigen } = resolucionBaja;
+      const motivoFinal = motivoResolucion.trim();
+      setIsProcessing({ active: true, text: accion === "aprobar" ? "Aprobando baja..." : "Rechazando solicitud..." });
 
       try {
-          const notifPendiente = notificaciones.find(
-              n => n.tipo === 'BAJA_BIEN' && (n.bienId === bien.id || n.bien_id === bien.id) && n.estado === 'PENDIENTE'
+          // Encontrar la notificación de solicitud de baja pendiente asociada
+          const notifPendiente = notifOrigen || notificaciones.find(
+              n => n.tipo === "BAJA_BIEN" && (n.bienId === bien.id || n.bien_id === bien.id) && n.estado === "PENDIENTE"
           );
 
+          const estadoNuevo = accion === "aprobar" ? "APROBADO" : "RECHAZADO";
+          const solicitanteUsername = notifPendiente?.solicitante || notifPendiente?.solicitadoPor || bien?.bajaSolicitadaPor || "Usuario";
+
+          // 1. Actualizar estado local inmediatamente para máxima fluidez UX sin recargas
           if (notifPendiente) {
-              const notifActualizada = { ...notifPendiente, estado: accion === 'aprobar' ? 'APROBADO' : 'RECHAZADO' };
-              await supabase.from('notificaciones').update({ data: notifActualizada }).eq('id', notifPendiente.id);
+              const notifActualizada = { ...notifPendiente, estado: estadoNuevo, motivoResolucion: motivoFinal, resueltoPor: currentUser?.username || "Admin", resueltoFecha: new Date().toISOString() };
+              setNotificaciones(prev => prev.map(n => n.id === notifPendiente.id ? notifActualizada : n));
+              await supabase.from("notificaciones").update({ data: notifActualizada }).eq("id", notifPendiente.id);
           }
 
-          if (accion === 'aprobar') {
-              const bienReal = bienes.find(b => b.id === bien.id);
-              if (bienReal) {
-                  const updatedBien = { ...bienReal, estadoConservacion: 'De Baja' };
-                  await supabase.from('bens').update({ data: updatedBien }).eq('id', bien.id);
-                  setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
-                  
-                  const cacheActual = await localforage.getItem('bienes_cache') || [];
-                  await localforage.setItem('bienes_cache', cacheActual.map(b => b.id === bien.id ? updatedBien : b));
-              }
+          // 2. Si se aprueba, marcar bien como "De Baja" en React y Supabase
+          if (accion === "aprobar") {
+              const bienReal = bienes.find(b => b.id === bien.id) || bien;
+              const updatedBien = { ...bienReal, estadoConservacion: "De Baja" };
+              setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
+              await supabase.from("bens").update({ data: updatedBien }).eq("id", bien.id);
+              const cacheKey = "bienes_cache_" + (dependenciaActual || "general");
+              const cacheActual = (await localforage.getItem(cacheKey)) || [];
+              await localforage.setItem(cacheKey, cacheActual.map(b => b.id === bien.id ? updatedBien : b));
           }
-          
-          addToast(accion === 'aprobar' ? "Baja aprobada exitosamente." : "Solicitud rechazada.", "success");
-          await fetchData(true);
-      } catch (e) { 
-          addToast("Error al procesar la resolución.", "error"); 
+
+          // 3. Crear notificación directa en el buzón del funcionario solicitante
+          if (solicitanteUsername) {
+              const notifId = generateId();
+              const rotuloTxt = bien?.rotulo ? `#${bien.rotulo}` : "";
+              const notifUsuario = {
+                  id: notifId,
+                  tipoRegistro: "NOTIFICACION",
+                  usuarioDestino: solicitanteUsername,
+                  accion,
+                  titulo: accion === "aprobar" ? `Baja Aprobada: Bien ${rotuloTxt}` : `Baja Rechazada: Bien ${rotuloTxt}`,
+                  mensaje: accion === "aprobar"
+                      ? `La solicitud de baja para el bien "${bien?.descripcion || rotuloTxt}" ha sido APROBADA por la administración.${motivoFinal ? " Motivo: " + motivoFinal : ""}`
+                      : `La solicitud de baja para el bien "${bien?.descripcion || rotuloTxt}" ha sido RECHAZADA.${motivoFinal ? " Motivo: " + motivoFinal : ""}`,
+                  leido: false,
+                  fecha: new Date().toISOString(),
+                  bienId: bien.id
+              };
+              setNotificaciones(prev => [notifUsuario, ...prev]);
+              await supabase.from("notificaciones").insert([{ id: notifId, data: notifUsuario }]);
+          }
+
+          // 4. Registrar auditoría de la resolución
+          await registrarAuditoria({
+              usuario: currentUser?.username || "Admin",
+              dependencia: dependenciaActual,
+              accion: accion === "aprobar" ? "APROBAR_BAJA" : "RECHAZAR_BAJA",
+              entidad: "BIEN",
+              entidadId: bien.id,
+              detalles: { rotulo: bien?.rotulo, motivo: motivoFinal, solicitante: solicitanteUsername }
+          });
+
+          addToast(accion === "aprobar" ? "Baja aprobada y notificada al usuario." : "Solicitud rechazada y notificada al usuario.", "success");
+      } catch (e) {
+          console.error("Error al resolver baja:", e);
+          addToast("Error al procesar la resolución.", "error");
       } finally {
-          setIsProcessing({ active: false, text: '' });
+          setIsProcessing({ active: false, text: "" });
           setResolucionBaja(null);
+          setMotivoResolucion("");
       }
   };
 
@@ -3181,13 +3219,13 @@ if (publicBienId) {
                                   <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
                                     <div className="flex items-center justify-end gap-2">
                                       <button
-                                        onClick={() => openResolucionModal(bienAsociado, 'rechazar')}
+                                        onClick={() => openResolucionModal(bienAsociado, 'rechazar', notif)}
                                         className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/5 transition-all cursor-pointer"
                                       >
                                         Rechazar
                                       </button>
                                       <button
-                                        onClick={() => openResolucionModal(bienAsociado, 'aprobar')}
+                                        onClick={() => openResolucionModal(bienAsociado, 'aprobar', notif)}
                                         className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer"
                                       >
                                         Aprobar Baja

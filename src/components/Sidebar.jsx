@@ -18,11 +18,11 @@ export default function Sidebar({
                 
                 <div className="flex h-[90px] shrink-0 items-center justify-between px-7 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card">
                     <div className="flex items-center gap-4 w-full">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden p-2 text-brand-primary">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-zinc-200 dark:border-zinc-700/80 overflow-hidden p-1.5">
                             <img 
                                 src={logoSrc} 
                                 alt="Logo Institucional" 
-                                className="w-full h-full object-contain drop-shadow-sm" 
+                                className="w-full h-full object-contain filter drop-shadow-xs" 
                                 onError={(e) => { e.target.src = '/publiclogo_unp.png'; }}
                             />
                         </div>
