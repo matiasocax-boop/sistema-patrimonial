@@ -358,7 +358,7 @@ export default function App() {
             supabase.from('fc11').select('id, data'), 
             supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
             supabase.from('estructuras').select('id, data'), 
-            supabase.from('auditoria').select('*'),
+            supabase.from('notificaciones').select('*'),
             supabase.from('usuarios').select('*'),
             supabase.from('funcionarios').select('*')
         ]);
@@ -379,8 +379,8 @@ export default function App() {
         setFc04List(parseDirect(resFc04.data)); 
         setEstructurasDB(parseDirect(resEstructuras.data));
         
-        const audData = resAuditoria.data || [];
-        setNotificaciones(audData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
+        const notifData = resAuditoria.data || [];
+        setNotificaciones(notifData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
         
         setUsuariosList(resUsuarios.data || []);
         
