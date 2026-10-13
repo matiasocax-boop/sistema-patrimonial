@@ -483,8 +483,11 @@ useEffect(() => {
           cargarNotificaciones();
           const notifInterval = setInterval(() => { cargarNotificaciones(); }, 12000);
           const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, () => { cargarNotificaciones(); }).subscribe();
+          return () => {
+              clearInterval(notifInterval);
+              supabase.removeChannel(notifChannel);
+          };
       }
-          return () => { clearInterval(notifInterval); supabase.removeChannel(notifChannel); };
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
   // -----------------------------------
   const handleLogin = async (e) => { 
