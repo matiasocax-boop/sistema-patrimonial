@@ -17,15 +17,24 @@ export default function BienModal({
 }) {
     const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
 
+    // Estado para custodio
     const [custodioTexto, setCustodioTexto] = useState(bienEditing?.funcionario || '');
     const [showCustodioDropdown, setShowCustodioDropdown] = useState(false);
-    const dropdownRef = useRef(null);
+    const custodioDropdownRef = useRef(null);
 
-    // Cerrar dropdown si se hace click fuera
+    // Estado para ubicación operativa
+    const [ubicacionTexto, setUbicacionTexto] = useState(bienEditing?.ubicacion || '');
+    const [showUbicacionDropdown, setShowUbicacionDropdown] = useState(false);
+    const ubicacionDropdownRef = useRef(null);
+
+    // Cerrar dropdowns si se hace click fuera
     useEffect(() => {
         const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+            if (custodioDropdownRef.current && !custodioDropdownRef.current.contains(event.target)) {
                 setShowCustodioDropdown(false);
+            }
+            if (ubicacionDropdownRef.current && !ubicacionDropdownRef.current.contains(event.target)) {
+                setShowUbicacionDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -38,6 +47,11 @@ export default function BienModal({
         return normalizeStr(f.nombre).includes(query) || String(f.cedula || '').includes(query);
     }).slice(0, 10);
 
+    const filteredUbicaciones = (ubicacionesUnicas || []).filter(u => {
+        if (!ubicacionTexto) return true;
+        return normalizeStr(u).includes(normalizeStr(ubicacionTexto));
+    }).slice(0, 10);
+
     const handleSelectCustodio = (f) => {
         setCustodioTexto(f.nombre);
         setShowCustodioDropdown(false);
@@ -48,6 +62,15 @@ export default function BienModal({
             if (inputFunc) inputFunc.value = f.nombre;
             if (inputCargo) inputCargo.value = f.cargo || '';
             if (inputDoc) inputDoc.value = f.cedula || '';
+        }
+    };
+
+    const handleSelectUbicacion = (ub) => {
+        setUbicacionTexto(ub);
+        setShowUbicacionDropdown(false);
+        if (bienFormRef.current) {
+            const inputUb = bienFormRef.current.elements['ubicacion'];
+            if (inputUb) inputUb.value = ub;
         }
     };
 
@@ -104,7 +127,7 @@ export default function BienModal({
             <form ref={bienFormRef} onSubmit={(e) => saveBien(e, false)} className="flex flex-col h-full overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
               <div className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
                 
-                {/* 1. IMPUTACIÓN CONTABLE */}
+                {/* 1. IMPUTACIÓN CONTABLE Y RÓTULO */}
                 <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/60 shadow-xs">
                   <div className="flex items-center gap-2 mb-4">
                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-xs font-bold">1</span>
@@ -130,19 +153,13 @@ export default function BienModal({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="md:col-span-2">
-                        <label className={STYLES.label}>Rótulo / Código de Barra *</label>
-                        <input name="rotulo" required defaultValue={bienEditing?.rotulo} className={STYLES.input} placeholder="Ej: 104523" />
-                    </div>
-                    <div>
-                        <label className={STYLES.label}>Nº Catálogo</label>
-                        <input name="catalogo" defaultValue={bienEditing?.catalogo} className={STYLES.input} placeholder="Opcional" />
-                    </div>
+                  <div>
+                    <label className={STYLES.label}>Rótulo / Código de Barra *</label>
+                    <input name="rotulo" required defaultValue={bienEditing?.rotulo} className={STYLES.input} placeholder="Ej: 104523" />
                   </div>
                 </div>
 
-                {/* 2. IDENTIFICACIÓN FÍSICA Y DETALLES */}
+                {/* 2. IDENTIFICACIÓN FÍSICA Y ESTADO */}
                 <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/60 shadow-xs">
                   <div className="flex items-center gap-2 mb-4">
                      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-xs font-bold">2</span>
@@ -151,35 +168,14 @@ export default function BienModal({
 
                   <div className="mb-4">
                     <label className={STYLES.label}>Descripción General del Bien *</label>
-                    <textarea name="descripcion" required rows="3" defaultValue={bienEditing?.descripcion} className={STYLES.input} placeholder="Detalles de marca, modelo, dimensiones, material..."></textarea>
+                    <textarea name="descripcion" required rows="3" defaultValue={bienEditing?.descripcion} className={STYLES.input} placeholder="Detalles, dimensiones, material, características del bien..."></textarea>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div>
-                        <label className={STYLES.label}>Nº de Serie</label>
-                        <input name="serie" defaultValue={bienEditing?.serie} className={STYLES.input} placeholder="S/N o chasis" />
-                    </div>
-                    <div>
-                        <label className={STYLES.label}>Marca</label>
-                        <input name="marca" defaultValue={bienEditing?.marca} className={STYLES.input} placeholder="Marca del bien" />
-                    </div>
-                    <div>
-                        <label className={STYLES.label}>Modelo</label>
-                        <input name="modelo" defaultValue={bienEditing?.modelo} className={STYLES.input} placeholder="Modelo de fábrica" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className={STYLES.label}>Color</label>
-                        <input name="color" defaultValue={bienEditing?.color} className={STYLES.input} placeholder="Ej: Negro / Gris" />
-                    </div>
-                    <div>
-                        <label className={STYLES.label}>Estado de Conservación</label>
-                        <select name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || 'Bueno'} className={STYLES.input}>
-                            {ESTADOS_CONSERVACION.map(est => <option key={est} value={est}>{est}</option>)}
-                        </select>
-                    </div>
+                  <div>
+                    <label className={STYLES.label}>Estado de Conservación</label>
+                    <select name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || 'Bueno'} className={STYLES.input}>
+                        {ESTADOS_CONSERVACION.map(est => <option key={est} value={est}>{est}</option>)}
+                    </select>
                   </div>
                 </div>
 
@@ -225,7 +221,7 @@ export default function BienModal({
                         <label className={STYLES.label}>C.I. Custodio</label>
                         <input name="funcionarioDoc" defaultValue={bienEditing?.funcionarioDoc} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
                     </div>
-                    <div className="md:col-span-2 relative" ref={dropdownRef}>
+                    <div className="md:col-span-2 relative" ref={custodioDropdownRef}>
                         <label className={STYLES.label}>Custodio Designado (Nombre)</label>
                         <input 
                             name="funcionario" 
@@ -237,7 +233,7 @@ export default function BienModal({
                             autoComplete="off"
                         />
                         
-                        {/* Custom Dropdown con contraste perfecto */}
+                        {/* Custom Dropdown Custodios */}
                         {showCustodioDropdown && filteredCustodios.length > 0 && (
                             <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-56 overflow-y-auto rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl py-1 divide-y divide-zinc-100 dark:divide-zinc-800/50">
                                 {filteredCustodios.map((f) => (
@@ -272,12 +268,39 @@ export default function BienModal({
                         <label className={STYLES.label}>Cargo Funcional</label>
                         <input name="funcionarioCargo" defaultValue={bienEditing?.funcionarioCargo} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
                     </div>
-                    <div>
+                    <div className="relative" ref={ubicacionDropdownRef}>
                         <label className={STYLES.label}>Ubicación Operativa</label>
-                        <input list="lista-ubicaciones-modal-bien" name="ubicacion" defaultValue={bienEditing?.ubicacion} className={STYLES.input} placeholder="Oficina / Laboratorio..." />
-                        <datalist id="lista-ubicaciones-modal-bien">
-                            {ubicacionesUnicas.map(u => <option key={u} value={u} />)}
-                        </datalist>
+                        <input 
+                            name="ubicacion" 
+                            value={ubicacionTexto} 
+                            onChange={(e) => {
+                                setUbicacionTexto(e.target.value);
+                                setShowUbicacionDropdown(true);
+                            }}
+                            onFocus={() => setShowUbicacionDropdown(true)}
+                            className={STYLES.input} 
+                            placeholder="Oficina / Laboratorio..." 
+                            autoComplete="off"
+                        />
+
+                        {/* Custom Dropdown Ubicaciones */}
+                        {showUbicacionDropdown && filteredUbicaciones.length > 0 && (
+                            <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-52 overflow-y-auto rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl py-1 divide-y divide-zinc-100 dark:divide-zinc-800/50">
+                                {filteredUbicaciones.map((ub) => (
+                                    <button
+                                        type="button"
+                                        key={ub}
+                                        onClick={() => handleSelectUbicacion(ub)}
+                                        className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors flex items-center justify-between cursor-pointer group"
+                                    >
+                                        <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-brand-primary dark:group-hover:text-blue-400 truncate">
+                                            {ub}
+                                        </p>
+                                        <i className="fa-solid fa-location-dot text-[10px] text-zinc-400 group-hover:text-brand-primary"></i>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                   </div>
                 </div>

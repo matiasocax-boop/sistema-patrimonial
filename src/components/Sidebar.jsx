@@ -2,7 +2,7 @@ import React from 'react';
 import { getLogoPorDependencia } from '../utils/helpers';
 
 export default function Sidebar({ 
-    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual 
+    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual, onExportBackup 
 }) {
     // Determinamos qué logo mostrar (prioriza el logo subido manualmente, si no, usa el de la dependencia activa)
     const logoSrc = appLogo || getLogoPorDependencia(dependenciaActual);
@@ -78,6 +78,29 @@ export default function Sidebar({
                             </button>
                         );
                     })}
+
+                    {/* BOTÓN DE BACKUP GENERAL PARA ADMINISTRADORES */}
+                    {isAdmin && (
+                        <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-darkbg-border px-1">
+                            <span className="block px-2 pb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                                Seguridad y Respaldo
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onExportBackup) onExportBackup();
+                                    setIsSidebarOpen(false);
+                                }}
+                                className="group flex w-full items-center gap-x-3 rounded-xl px-3 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/50 shadow-xs transition-all cursor-pointer"
+                                title="Descargar copia de seguridad íntegra de la base de datos"
+                            >
+                                <div className="flex items-center justify-center w-6 text-amber-600 dark:text-amber-400">
+                                    <i className="fa-solid fa-cloud-arrow-down text-sm"></i>
+                                </div>
+                                <span className="flex-1 text-left tracking-tight">Backup General (.JSON)</span>
+                            </button>
+                        </div>
+                    )}
                 </nav>
             </aside>
         </>

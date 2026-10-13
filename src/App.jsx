@@ -38,7 +38,7 @@ import { registrarAuditoria } from './services/auditService';
 import Papa from 'papaparse';
 
 const STYLES = {
-    input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
+    input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
     label: "block text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-2",
     btnPrimary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-brand-primary px-6 py-3 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50",
     btnSecondary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-white dark:bg-darkbg-main border-2 border-zinc-200 dark:border-darkbg-border px-5 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
@@ -1418,6 +1418,76 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       }
     });
   };
+  // --- BACKUP GENERAL DE PROTECCIÓN DEL SISTEMA (SOLO ADMINS) ---
+  const handleExportBackupGeneral = async () => {
+    if (!isAdmin) return addToast("Acción permitida únicamente para administradores.", "error");
+    setIsProcessing({ active: true, text: "Generando respaldo integral del sistema..." });
+
+    try {
+      const [allBienes, allFc10, allFc11, allFc04, allEstructuras, allUsuarios, allFuncionarios, allNotif, allAudit] = await Promise.all([
+        supabase.from("bens").select("*"),
+        supabase.from("fc10").select("*"),
+        supabase.from("fc11").select("*"),
+        supabase.from("fc04").select("*"),
+        supabase.from("estructuras").select("*"),
+        supabase.from("usuarios").select("*"),
+        supabase.from("funcionarios").select("*"),
+        supabase.from("notificaciones").select("*"),
+        supabase.from("auditoria").select("*")
+      ]);
+
+      const backupData = {
+        metadata: {
+          version: "2.0",
+          sistema: "Sistema de Gestión Patrimonial UNP",
+          fechaGeneracion: new Date().toISOString(),
+          generadoPor: currentUser?.username || "Admin",
+          totalBienes: allBienes.data?.length || 0,
+          totalFuncionarios: allFuncionarios.data?.length || 0
+        },
+        bienes: allBienes.data || [],
+        fc10: allFc10.data || [],
+        fc11: allFc11.data || [],
+        fc04: allFc04.data || [],
+        estructuras: allEstructuras.data || [],
+        usuarios: (allUsuarios.data || []).map(u => ({ username: u.username, nombre: u.nombre, cargo: u.cargo, rol: u.rol })),
+        funcionarios: allFuncionarios.data || [],
+        notificaciones: allNotif.data || [],
+        auditoria: allAudit.data || []
+      };
+
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json;charset=utf-8;" });
+      const fechaStr = new Date().toISOString().split("T")[0];
+      
+      if (window.saveAs) {
+        window.saveAs(blob, `BACKUP_SISTEMA_PATRIMONIAL_UNP_${fechaStr}.json`);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `BACKUP_SISTEMA_PATRIMONIAL_UNP_${fechaStr}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      await registrarAuditoria({
+        usuario: currentUser?.username || "Admin",
+        dependencia: dependenciaActual,
+        accion: "BACKUP_COMPLETO",
+        entidad: "SISTEMA",
+        entidadId: "BACKUP",
+        detalles: { fecha: fechaStr, generadoPor: currentUser?.username }
+      });
+
+      addToast("Copia de seguridad del sistema descargada exitosamente.", "success");
+    } catch (err) {
+      console.error("Error al generar backup general:", err);
+      addToast("Error al generar copia de seguridad del sistema.", "error");
+    } finally {
+      setIsProcessing({ active: false, text: "" });
+    }
+  };
   const handleExportInventarioCSV = () => {
       if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
       setIsProcessing({ active: true, text: 'Generando Reporte Excel...' });
@@ -2276,28 +2346,29 @@ const handleEditFuncionario = (funcionario) => {
 
 
 // --- VISTA PaBLICA DE ESCANEO QR REDISEADA Y OPTIMIZADA PARA MVILES ---
+// --- VISTA PÚBLICA DE ESCANEO QR CLARA, MODERNA Y OPTIMIZADA PARA MÓVILES (iOS / ANDROID) ---
 if (publicBienId) {
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-100 font-sans selection:bg-sky-500">
-      <div className="bg-slate-900/95 border border-slate-800 rounded-[32px] p-5 sm:p-8 max-w-md w-full shadow-2xl backdrop-blur-2xl relative overflow-hidden my-auto">
+    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      <div className="bg-white border border-slate-200/80 rounded-[32px] p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden my-auto">
         
-        {/* Acento superior de color institucional */}
-        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600"></div>
+        {/* Acento superior institucional */}
+        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500"></div>
 
         {/* Header institucional */}
-        <div className="flex flex-col items-center text-center pb-5 border-b border-slate-800/80">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/10 text-sky-400 mb-3 border border-sky-500/20 shadow-inner">
+        <div className="flex flex-col items-center text-center pb-5 border-b border-slate-100">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-3 border border-blue-100 shadow-sm">
             <i className="fa-solid fa-shield-halved text-2xl"></i>
           </div>
 
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-sky-500/10 text-sky-300 mb-2 border border-sky-500/20">
-            <i className="fa-solid fa-circle-check text-[9px] text-sky-400"></i> Verificación Oficial de Activo
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-700 mb-2 border border-blue-200/60">
+            <i className="fa-solid fa-circle-check text-[10px] text-blue-600"></i> Verificación Oficial de Activo
           </span>
 
-          <h1 className="text-base sm:text-lg font-black text-zinc-900 dark:text-white tracking-tight leading-tight">
+          <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
             Universidad Nacional de Pilar
           </h1>
-          <p className="text-[11px] text-slate-400 font-semibold mt-0.5">
+          <p className="text-xs text-slate-500 font-semibold mt-0.5">
             Sistema Integrado de Gestión Patrimonial
           </p>
         </div>
@@ -2307,81 +2378,81 @@ if (publicBienId) {
           <div className="py-5 space-y-3.5">
             
             {/* Tarjeta de Rótulo y Estado */}
-            <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <div className="flex justify-between items-center gap-2">
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Código / Rótulo</p>
-                  <p className="text-xl font-black text-white font-mono tracking-tight mt-0.5">
-                    {publicBienData.rotulo || 'S/Rótulo'}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Código / Rótulo</p>
+                  <p className="text-2xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                    {publicBienData.rotulo || "S/Rótulo"}
                   </p>
                 </div>
                 {publicBienData.estadoConservacion && (
                   <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider ${
-                    publicBienData.estadoConservacion === 'De Baja' 
-                      ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30' 
-                      : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                    publicBienData.estadoConservacion === "De Baja"
+                      ? "bg-rose-50 text-rose-600 border border-rose-200"
+                      : "bg-emerald-50 text-emerald-700 border border-emerald-200"
                   }`}>
                     {publicBienData.estadoConservacion}
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 pt-3 border-t border-slate-800/80">
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Descripción General</p>
-                <p className="text-xs sm:text-sm font-bold text-slate-200 mt-1 leading-relaxed">
-                  {publicBienData.descripcion || 'Sin descripción asignada'}
+              <div className="mt-3 pt-3 border-t border-slate-200/60">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción General</p>
+                <p className="text-xs sm:text-sm font-bold text-slate-800 mt-1 leading-relaxed">
+                  {publicBienData.descripcion || "Sin descripción asignada"}
                 </p>
               </div>
             </div>
 
-            {/* Datos Técnicos y Contables Completos */}
+            {/* Datos Técnicos y Contables */}
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-layer-group text-sky-400"></i> Cuenta
+                  <i className="fa-solid fa-layer-group text-blue-600"></i> Cuenta
                 </p>
-                <p className="text-xs font-mono font-bold text-slate-200 mt-1 truncate">
-                  {publicBienData.cuenta || 'Sin Cuenta'}
+                <p className="text-xs font-mono font-bold text-slate-800 mt-1 truncate">
+                  {publicBienData.cuenta || "Sin Cuenta"}
                 </p>
               </div>
 
-              <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+              <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-coins text-emerald-400"></i> Valor
+                  <i className="fa-solid fa-coins text-emerald-600"></i> Valor
                 </p>
-                <p className="text-xs font-bold text-emerald-400 mt-1">
-                  Gs. {publicBienData.valorUnitario ? formatCurrency(publicBienData.valorUnitario) : '0'}
+                <p className="text-xs font-bold text-emerald-700 mt-1">
+                  Gs. {publicBienData.valorUnitario ? formatCurrency(publicBienData.valorUnitario) : "0"}
                 </p>
               </div>
 
               {publicBienData.subcuenta && (
-                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-solid fa-sitemap text-indigo-400"></i> Sub-Cuenta
+                    <i className="fa-solid fa-sitemap text-indigo-600"></i> Sub-Cuenta
                   </p>
-                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
+                  <p className="text-xs font-bold text-slate-800 mt-1 truncate">
                     {publicBienData.subcuenta}
                   </p>
                 </div>
               )}
 
               {publicBienData.fechaAdquisicion && (
-                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-regular fa-calendar text-amber-400"></i> Adquisición
+                    <i className="fa-regular fa-calendar text-amber-600"></i> Adquisición
                   </p>
-                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
-                    {String(publicBienData.fechaAdquisicion).split('T')[0]}
+                  <p className="text-xs font-bold text-slate-800 mt-1 truncate">
+                    {String(publicBienData.fechaAdquisicion).split("T")[0]}
                   </p>
                 </div>
               )}
 
               {publicBienData.vidaUtil && (
-                <div className="bg-slate-950/50 p-3 rounded-2xl border border-slate-800/80">
+                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-solid fa-hourglass-half text-purple-400"></i> Vida Útil
+                    <i className="fa-solid fa-hourglass-half text-purple-600"></i> Vida Útil
                   </p>
-                  <p className="text-xs font-bold text-slate-200 mt-1 truncate">
+                  <p className="text-xs font-bold text-slate-800 mt-1 truncate">
                     {publicBienData.vidaUtil} años
                   </p>
                 </div>
@@ -2389,41 +2460,41 @@ if (publicBienId) {
             </div>
 
             {/* Custodio, Ubicación y Dependencia */}
-            <div className="bg-slate-950/50 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-3">
               <div>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-user-check text-sky-400"></i> Responsable Asignado
+                  <i className="fa-solid fa-user-check text-blue-600"></i> Responsable Asignado
                 </p>
-                <p className="text-xs font-bold text-slate-200 mt-1">
-                  {publicBienData.funcionario || 'Sin Responsable Asignado'}
+                <p className="text-xs font-bold text-slate-900 mt-1">
+                  {publicBienData.funcionario || "Sin Responsable Asignado"}
                 </p>
                 {publicBienData.funcionarioDoc && (
-                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">
                     C.I.: {publicBienData.funcionarioDoc}
                   </p>
                 )}
                 {publicBienData.funcionarioCargo && (
-                  <p className="text-[10px] text-slate-400 mt-0.5">
+                  <p className="text-[10px] text-slate-500 mt-0.5">
                     Cargo: {publicBienData.funcionarioCargo}
                   </p>
                 )}
               </div>
 
-              <div className="pt-2.5 border-t border-slate-800/80">
+              <div className="pt-2.5 border-t border-slate-200/60">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-location-dot text-rose-400"></i> Ubicación Física
+                  <i className="fa-solid fa-location-dot text-rose-600"></i> Ubicación Física
                 </p>
-                <p className="text-xs font-bold text-slate-200 mt-1">
-                  {publicBienData.ubicacion || 'Sin Ubicación Registrada'}
+                <p className="text-xs font-bold text-slate-900 mt-1">
+                  {publicBienData.ubicacion || "Sin Ubicación Registrada"}
                 </p>
               </div>
 
               {publicBienData.dependencia && (
-                <div className="pt-2.5 border-t border-slate-800/80">
+                <div className="pt-2.5 border-t border-slate-200/60">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-solid fa-building-columns text-emerald-400"></i> Dependencia
+                    <i className="fa-solid fa-building-columns text-emerald-600"></i> Dependencia
                   </p>
-                  <p className="text-xs font-bold text-slate-200 mt-1">
+                  <p className="text-xs font-bold text-slate-900 mt-1">
                     {publicBienData.dependencia}
                   </p>
                 </div>
@@ -2433,8 +2504,8 @@ if (publicBienId) {
           </div>
         ) : (
           <div className="py-12 flex flex-col items-center justify-center text-center">
-            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-sky-400 mb-3"></i>
-            <p className="text-xs text-slate-400 font-semibold">Consultando datos de registro...</p>
+            <i className="fa-solid fa-circle-notch fa-spin text-3xl text-blue-600 mb-3"></i>
+            <p className="text-xs text-slate-500 font-semibold">Consultando datos de registro...</p>
           </div>
         )}
 
@@ -2442,9 +2513,9 @@ if (publicBienId) {
         <div className="pt-2">
           <button 
             onClick={() => window.location.href = window.location.origin} 
-            className="w-full py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-all cursor-pointer border border-slate-700 flex items-center justify-center gap-2 active:scale-98"
+            className="w-full py-3.5 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-blue-600/25 flex items-center justify-center gap-2 active:scale-98"
           >
-            <i className="fa-solid fa-arrow-left"></i> Ir a la Plataforma Principal
+            <i className="fa-solid fa-arrow-left text-xs"></i> Ir a la Plataforma Principal
           </button>
         </div>
 
@@ -2524,7 +2595,7 @@ if (publicBienId) {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={handleExportBackupGeneral} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (

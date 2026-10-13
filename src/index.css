@@ -94,3 +94,18 @@ select:-webkit-autofill:focus {
   -webkit-text-fill-color: #ffffff !important;
   -webkit-box-shadow: 0 0 0px 1000px #18181b inset !important;
 }
+
+/* REGLA MAESTRA CONTRA TEXTO BLANCO EN INPUTS */
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  background-color: #18181b !important;
+  color: #ffffff !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  background-color: #ffffff;
+  color: #09090b;
+}
