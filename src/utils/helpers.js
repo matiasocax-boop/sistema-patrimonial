@@ -28,7 +28,20 @@ export const toInputDateFormat = (val) => {
   return '';
 };
 export const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
-export const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
+export const normalizeStr = (str) => 
+  String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, ' ');
+
+export const matchSearchWords = (text, query) => {
+  if (!query || !String(query).trim()) return true;
+  const target = normalizeStr(text);
+  const tokens = normalizeStr(query).split(' ').filter(Boolean);
+  return tokens.every(token => target.includes(token));
+};
 
 export const decodeText = (buffer) => {
     let text = new TextDecoder('utf-8').decode(buffer);

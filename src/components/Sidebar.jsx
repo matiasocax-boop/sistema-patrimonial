@@ -83,7 +83,7 @@ export default function Sidebar({
                     {isAdmin && (
                         <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-darkbg-border px-1">
                             <span className="block px-2 pb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
-                                Seguridad y Respaldo
+                                Seguridad y Datos
                             </span>
                             <button
                                 type="button"
@@ -91,13 +91,14 @@ export default function Sidebar({
                                     if (onExportBackup) onExportBackup();
                                     setIsSidebarOpen(false);
                                 }}
-                                className="group flex w-full items-center gap-x-3 rounded-xl px-3 py-2.5 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 border border-amber-200/80 dark:border-amber-800/50 shadow-xs transition-all cursor-pointer"
+                                className="group flex w-full items-center gap-x-3 rounded-xl px-3 py-2.5 text-[12px] font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-50 hover:bg-zinc-100 dark:bg-white/[0.03] dark:hover:bg-white/[0.07] border border-zinc-200/80 dark:border-white/5 transition-all cursor-pointer shadow-xs active:scale-98"
                                 title="Descargar copia de seguridad íntegra de la base de datos"
                             >
-                                <div className="flex items-center justify-center w-6 text-amber-600 dark:text-amber-400">
-                                    <i className="fa-solid fa-cloud-arrow-down text-sm"></i>
+                                <div className="flex items-center justify-center w-6 text-zinc-500 dark:text-zinc-400 group-hover:text-brand-primary dark:group-hover:text-blue-400 transition-colors">
+                                    <i className="fa-solid fa-database text-xs"></i>
                                 </div>
-                                <span className="flex-1 text-left tracking-tight">Backup General (.JSON)</span>
+                                <span className="flex-1 text-left tracking-tight">Copia de Seguridad (.json)</span>
+                                <i className="fa-solid fa-download text-[10px] text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200"></i>
                             </button>
                         </div>
                     )}

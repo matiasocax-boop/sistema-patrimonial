@@ -18,7 +18,7 @@ import { supabase } from './supabaseClient';
 import CSVPreviewModal from './components/CSVPreviewModal';
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
-    formatDateText, getEstadoAbbr, normalizeStr, decodeText, getPlaceholderLogo 
+    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, decodeText, getPlaceholderLogo 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
@@ -162,6 +162,8 @@ export default function App() {
 
   const [isFC03ModalOpen, setIsFC03ModalOpen] = useState(false);
   const [fc03Config, setFc03Config] = useState({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+  const [fc03FuncionarioTexto, setFc03FuncionarioTexto] = useState('');
+  const [showFC03FuncDropdown, setShowFC03FuncDropdown] = useState(false);
 
   const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
   const [usuarioEditing, setUsuarioEditing] = useState(null);
@@ -1099,6 +1101,8 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
   const openFC03Modal = () => {
       setFc03Config({ tipoFiltro: 'general', filtroValor: '', lugar: 'Pilar' });
+      setFc03FuncionarioTexto('');
+      setShowFC03FuncDropdown(false);
       setIsFC03ModalOpen(true);
   };
 
@@ -2628,7 +2632,7 @@ if (publicBienId) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 mb-2">
                               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/5">
-                                  <i className="fa-solid fa-shield-halved text-[9px]"></i> Panel Institucional
+                                  <i className="fa-solid fa-shield-halved text-[9px]"></i> Panel General
                               </span>
                           </div>
                           <h3 className="text-2xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight truncate">
@@ -2769,7 +2773,7 @@ if (publicBienId) {
                       <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                             <i className="fa-solid fa-chart-pie text-emerald-500"></i> Cobertura Institucional
+                             <i className="fa-solid fa-chart-pie text-emerald-500"></i> Metas de Cobertura
                           </h2>
                           <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider bg-zinc-100 dark:bg-white/5 px-2.5 py-1 rounded-lg border border-zinc-200 dark:border-white/5">Metas</span>
                         </div>
@@ -2809,7 +2813,7 @@ if (publicBienId) {
                       <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                             <i className="fa-solid fa-chart-line text-brand-primary"></i> Tendencias Operativas
+                             <i className="fa-solid fa-chart-line text-brand-primary"></i> Gestión Anual
                           </h2>
                         </div>
                         <div className="flex flex-1 flex-col sm:flex-row gap-8">
@@ -2858,14 +2862,14 @@ if (publicBienId) {
         <div>
           <div className="flex items-center gap-2.5">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
-              Directorio Patrimonial
+              Inventario General
             </h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/5">
               {filteredBienes.length} registros
             </span>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Gestión integral e inventario consolidado de activos institucionales
+            Gestión integral e inventario consolidado de activos de la Universidad
           </p>
         </div>
       </div>
@@ -3118,18 +3122,18 @@ if (publicBienId) {
                                     </div>
                                   </td>
 
-                                                                    {/* Columna 3: Condicin y QR (Botn interactivo) */}
-                                  <td className="px-4 py-4 align-top">
-                                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                                      <span className={`inline-flex items-center px-2.5 py-1 rounded-xl text-[11px] font-bold border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
+                                  {/* Columna 3: Condición y QR (Botón interactivo) */}
+                                  <td className="px-4 py-4 align-middle">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className={`inline-flex items-center justify-center px-2.5 py-1 min-w-[76px] text-center rounded-xl text-[11px] font-bold border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
                                         {item.estadoConservacion || 'Regular'}
                                       </span>
 
                                       <button 
                                         type="button"
                                         onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
-                                        title={item.hasQR ? "Ver / Descargar Cdigo QR" : "Generar Cdigo QR"}
-                                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border transition-all cursor-pointer active:scale-95 ${
+                                        title={item.hasQR ? "Ver / Descargar Código QR" : "Generar Código QR"}
+                                        className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 min-w-[76px] rounded-xl text-[11px] font-semibold border transition-all cursor-pointer active:scale-95 ${
                                           item.hasQR 
                                             ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs hover:opacity-85' 
                                             : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-white/10 hover:border-zinc-400'
@@ -3418,7 +3422,7 @@ if (publicBienId) {
                                 {funcionariosPurosDependencia.length} Registrados
                               </span>
                             </div>
-                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Padrón de Funcionarios</h2>
+                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Plantel de Funcionarios</h2>
                             <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">
                               Directorio oficial de personal asignado a <span className="text-brand-primary dark:text-brand-accent font-bold">{dependenciaActual}</span>
                             </p>
@@ -3798,12 +3802,12 @@ if (publicBienId) {
                             <p className="text-lg font-medium leading-8 text-brand-light">Documentación oficial para la correcta administración y trazabilidad del ciclo de vida de los bienes institucionales dentro de la universidad.</p>
                         </div>
                     </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        <div className="lg:col-span-5">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+                        <div className="lg:col-span-5 flex flex-col">
                             <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
                                 <i className="fa-solid fa-network-wired text-brand-primary"></i> Procedimiento Lógico
                             </h2>
-                            <div className={`${STYLES.card} p-6 sm:p-8 relative overflow-hidden`}>
+                            <div className={`${STYLES.card} p-6 sm:p-8 relative overflow-hidden flex-1`}>
                                 <div className="absolute left-[56px] top-12 bottom-12 w-0.5 bg-zinc-200 dark:bg-darkbg-border hidden sm:block z-0"></div>
                                 <div className="space-y-2 relative z-10">
                                     <WorkflowStep number="1" title="Alta (FC-04)" description="La incorporación inicial exige la creación de un FC-04 de Alta. Esto registra contablemente el ítem en la base de datos principal." icon="fa-arrow-trend-up" color="bg-zinc-500" />
@@ -3894,7 +3898,11 @@ if (publicBienId) {
                 <div className="space-y-2">
                     <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Tipo de Reporte</label>
                     <div className="relative">
-                        <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => setFc03Config({...fc03Config, tipoFiltro: e.target.value})}>
+                        <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => {
+                            setFc03Config({...fc03Config, tipoFiltro: e.target.value, filtroValor: ''});
+                            setFc03FuncionarioTexto('');
+                            setShowFC03FuncDropdown(false);
+                        }}>
                             <option value="general">General (Toda la Dependencia)</option>
                             <option value="ubicacion">Por Ubicación Específica</option>
                             <option value="funcionario">Por Funcionario Responsable</option>
@@ -3914,23 +3922,104 @@ if (publicBienId) {
                         </div>
                     </div>
                 )}               
-                {fc03Config.tipoFiltro === 'funcionario' && (
-    <div className="space-y-2 animate-fade-in">
-        <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Funcionario</label>
-        <div className="relative">
-            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
-                <option value="">Seleccione por Cédula o Nombre...</option>
-                {/* APLICAR .filter AQUÍ */}
-                {funcionariosPadron.filter(f => f.dependencia === dependenciaActual).map(f => (
-                    <option key={f.id || f.cedula} value={f.nombre}>
-                        {f.cedula !== 'S/C' ? `${formatCI(f.cedula)} - ${f.nombre}` : `S/C - ${f.nombre}`}
-                    </option>
-                ))}
-            </select>
-            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
-        </div>
-    </div>
-)}
+                {fc03Config.tipoFiltro === 'funcionario' && (() => {
+                    const depFuncionarios = funcionariosPadron.filter(f => f.dependencia === dependenciaActual);
+                    const listadoFiltrado = depFuncionarios.filter(f => 
+                        matchSearchWords(`${f.cedula} ${f.nombre}`, fc03FuncionarioTexto)
+                    );
+
+                    return (
+                        <div className="space-y-2 animate-fade-in relative">
+                            <div className="flex items-center justify-between">
+                                <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                                    Buscar Funcionario Responsable
+                                </label>
+                                {fc03Config.filtroValor && (
+                                    <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                        <i className="fa-solid fa-check mr-1"></i> Seleccionado
+                                    </span>
+                                )}
+                            </div>
+
+                            <div className="relative">
+                                <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
+                                <input 
+                                    type="text"
+                                    value={fc03FuncionarioTexto}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFc03FuncionarioTexto(val);
+                                        setShowFC03FuncDropdown(true);
+                                        if (!val) {
+                                            setFc03Config(prev => ({ ...prev, filtroValor: '' }));
+                                        }
+                                    }}
+                                    onFocus={() => setShowFC03FuncDropdown(true)}
+                                    placeholder="Escriba Marta Ocampo, apellido o CI..."
+                                    className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 pl-10 pr-10 py-3.5 text-sm font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner"
+                                />
+                                {fc03FuncionarioTexto && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFc03FuncionarioTexto('');
+                                            setFc03Config(prev => ({ ...prev, filtroValor: '' }));
+                                            setShowFC03FuncDropdown(true);
+                                        }}
+                                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 p-1"
+                                    >
+                                        <i className="fa-solid fa-xmark text-xs"></i>
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Dropdown flotante */}
+                            {showFC03FuncDropdown && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-40" 
+                                        onClick={() => setShowFC03FuncDropdown(false)} 
+                                    />
+                                    <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-52 overflow-y-auto rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl py-1 divide-y divide-zinc-100 dark:divide-zinc-800/60 custom-scrollbar">
+                                        {listadoFiltrado.length === 0 ? (
+                                            <div className="p-4 text-center text-xs font-semibold text-zinc-400">
+                                                No se encontraron funcionarios coincidentes
+                                            </div>
+                                        ) : (
+                                            listadoFiltrado.slice(0, 50).map(f => {
+                                                const isSelected = fc03Config.filtroValor === f.nombre;
+                                                return (
+                                                    <button
+                                                        key={f.id || (f.cedula + '-' + f.nombre)}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setFc03Config(prev => ({ ...prev, filtroValor: f.nombre }));
+                                                            setFc03FuncionarioTexto(f.nombre);
+                                                            setShowFC03FuncDropdown(false);
+                                                        }}
+                                                        className={`w-full text-left px-4 py-2.5 flex items-center justify-between text-xs transition-colors cursor-pointer ${
+                                                            isSelected 
+                                                                ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold' 
+                                                                : 'text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 font-medium'
+                                                        }`}
+                                                    >
+                                                        <div className="flex flex-col truncate pr-2">
+                                                            <span className="truncate">{f.nombre}</span>
+                                                            <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                                                                {f.cedula !== 'S/C' ? `CI: ${formatCI(f.cedula)}` : 'Sin Cédula'}
+                                                            </span>
+                                                        </div>
+                                                        {isSelected && <i className="fa-solid fa-check text-amber-600 shrink-0"></i>}
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
                 <div className="space-y-2">
                     <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Lugar de Emisión</label>
                     <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
