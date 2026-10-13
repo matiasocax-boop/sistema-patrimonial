@@ -173,6 +173,9 @@ export default function App() {
   const [pendingFuncionariosToImport, setPendingFuncionariosToImport] = useState([]);
 
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [motivoSolicitudBaja, setMotivoSolicitudBaja] = useState('');
+  const [confirmBackupModal, setConfirmBackupModal] = useState(false);
+  const [pendingCSVImport, setPendingCSVImport] = useState(null);
   const [resolucionBaja, setResolucionBaja] = useState(null);
   const [motivoResolucion, setMotivoResolucion] = useState('');
 
@@ -414,33 +417,80 @@ export default function App() {
       setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); 
       setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
   };
-  // --- CONSULTA PaBLICA PARA ESCANEO DE QR ---
-// --- CONSULTA PaBLICA PARA ESCANEO DE QR (CORREGIDO) ---
+// --- CONSULTA PÚBLICA PARA ESCANEO DE QR ROBUSTA CON EXTRACCIÓN DE VALOR ---
 useEffect(() => {
   if (!publicBienId) return;
 
+  const normalizarBien = (raw) => {
+    if (!raw) return null;
+    const item = Array.isArray(raw) ? raw[0] : raw;
+    if (!item) return null;
+    let d = item;
+    if (item.data) {
+      d = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
+    }
+    const merged = { ...item, ...d };
+    const valorRaw = merged.valorUnitario || merged.valor || merged.valorAdquisicion || merged.precio || merged.costo || '0';
+    merged.valorUnitario = valorRaw;
+    return merged;
+  };
+
   const cargarBienPublico = async () => {
     try {
-      // Sanitizamos el parámetro limpiando espacios y codificación de URL
       const idSanitizado = decodeURIComponent(publicBienId).trim();
+      let bienEncontrado = null;
 
-      // Invocamos la función pública con bypass RLS
-      const { data, error } = await supabase.rpc('obtener_bien_publico', {
-        p_id: idSanitizado
-      });
-
-      if (error) {
-        console.error("Error al consultar el bien público:", error);
-        setPublicBienData({
-          rotulo: 'Error de Lectura',
-          descripcion: 'No se pudo obtener la información del activo desde el servidor.'
+      // 1. Intentar por RPC público
+      try {
+        const { data: rpcData, error: rpcError } = await supabase.rpc('obtener_bien_publico', {
+          p_id: idSanitizado
         });
-        return;
+        if (!rpcError && rpcData) {
+          bienEncontrado = normalizarBien(rpcData);
+        }
+      } catch (e) {}
+
+      // 2. Si no se encontró por RPC, consultar directamente en tabla 'bens'
+      if (!bienEncontrado) {
+        try {
+          const { data: directData } = await supabase
+            .from('bens')
+            .select('*')
+            .or(`id.eq.${idSanitizado},data->>rotulo.eq.${idSanitizado}`)
+            .limit(1);
+          if (directData && directData.length > 0) {
+            bienEncontrado = normalizarBien(directData[0]);
+          }
+        } catch (e) {}
       }
 
-      setPublicBienData(data);
+      // 3. Fallback en caché IndexedDB local
+      if (!bienEncontrado) {
+        try {
+          const allKeys = await localforage.keys();
+          for (const k of allKeys) {
+            if (k.startsWith('bienes_cache')) {
+              const cache = (await localforage.getItem(k)) || [];
+              const found = cache.find(b => b.id === idSanitizado || String(b.rotulo).trim() === idSanitizado);
+              if (found) {
+                bienEncontrado = normalizarBien(found);
+                break;
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (bienEncontrado) {
+        setPublicBienData(bienEncontrado);
+      } else {
+        setPublicBienData({
+          rotulo: idSanitizado,
+          descripcion: 'No se encontraron datos registrados para este activo en la base de datos oficial.'
+        });
+      }
     } catch (err) {
-      console.error("Error inesperado:", err);
+      console.error("Error al cargar bien público:", err);
       setPublicBienData({
         rotulo: 'Error',
         descripcion: 'Ocurrió un problema al procesar la solicitud del código QR.'
@@ -1353,6 +1403,10 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setPendingCSVImport({ type: 'bienes', file });
+  };
+
+  const executeProcessBienesCSV = (file) => {
 
     setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
 
@@ -1563,7 +1617,12 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
     }
   };
   const handleFileUploadFuncionarios = (e) => {
-    const file = e.target.files[0]; if (!file) return; 
+    const file = e.target.files[0];
+    if (!file) return;
+    setPendingCSVImport({ type: 'funcionarios', file });
+  };
+
+  const executeProcessFuncionariosCSV = (file) => { 
     setIsProcessing({ active: true, text: 'Leyendo planilla de funcionarios...' });
     
     setTimeout(() => {
@@ -2083,18 +2142,74 @@ const handleEditFuncionario = (funcionario) => {
       } 
   };
 
-  const handleScanSuccess = (decodedText) => {
+  const handleScanSuccess = async (decodedText) => {
     setIsScannerOpen(false);
-    let codigoLimpio = decodedText;
-    if (decodedText.includes('CDIGO:')) {
-        const partes = decodedText.split('CTA:')[0];
-        codigoLimpio = partes.replace('CDIGO:', '').trim();
-    }
-    addToast(`Bien escaneado: ${codigoLimpio}`, "success");
-    setSearchTerm(codigoLimpio); // x Asignación directa a searchTerm
-    setActiveTab('inventario');
-};
+    let targetId = String(decodedText || '').trim();
 
+    // Si el texto escaneado es una URL del sistema, extraer el parámetro ?id= o ?bienId=
+    if (targetId.startsWith('http://') || targetId.startsWith('https://')) {
+      try {
+        const parsedUrl = new URL(targetId);
+        targetId = parsedUrl.searchParams.get('id') || parsedUrl.searchParams.get('bienId') || targetId;
+      } catch (e) {}
+    } else if (targetId.includes('CTA:') || targetId.includes('DIGO:')) {
+      const partes = targetId.split('CTA:')[0];
+      targetId = partes.replace(/.*DIGO:/i, '').trim();
+    }
+
+    // 1. Buscar en la lista de bienes cargados en memoria
+    let bienEncontrado = bienes.find(b => 
+      b.id === targetId || 
+      normalizeStr(b.rotulo) === normalizeStr(targetId)
+    );
+
+    // 2. Si no se encuentra en memoria, consultar directamente en Supabase
+    if (!bienEncontrado) {
+      setIsProcessing({ active: true, text: 'Buscando activo escaneado en el sistema...' });
+      try {
+        const { data: dbItem } = await supabase
+          .from('bens')
+          .select('*')
+          .or(`id.eq.${targetId},data->>rotulo.eq.${targetId}`)
+          .maybeSingle();
+
+        if (dbItem) {
+          const parsed = dbItem.data ? (typeof dbItem.data === 'string' ? JSON.parse(dbItem.data) : dbItem.data) : dbItem;
+          bienEncontrado = { id: dbItem.id, ...parsed };
+
+          if (bienEncontrado.dependencia && normalizeStr(bienEncontrado.dependencia) !== normalizeStr(dependenciaActual)) {
+            if (isAdmin) {
+              setDependenciaActual(bienEncontrado.dependencia);
+              addToast(`Activo ubicado en dependencia: ${bienEncontrado.dependencia}`, "info");
+            } else {
+              addToast(`Este bien pertenece a la dependencia: ${bienEncontrado.dependencia}`, "warning");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error buscando bien escaneado:", err);
+      } finally {
+        setIsProcessing({ active: false, text: '' });
+      }
+    }
+
+    if (bienEncontrado) {
+      addToast(`Bien localizado: ${bienEncontrado.rotulo} - ${bienEncontrado.descripcion || ''}`, "success");
+      clearAllFilters();
+      const rotuloLimpio = bienEncontrado.rotulo || '';
+      setSearchTerm(rotuloLimpio);
+      setSearchInput(rotuloLimpio);
+      setActiveTab('inventario');
+      setBienEditing(bienEncontrado);
+      setIsBienModalOpen(true);
+    } else {
+      addToast(`Activo "${targetId}" no encontrado en el inventario.`, "warning");
+      clearAllFilters();
+      setSearchTerm(targetId);
+      setSearchInput(targetId);
+      setActiveTab('inventario');
+    }
+  };
   useEffect(() => {
       if (isScannerOpen) {
           setTimeout(() => {
@@ -2113,7 +2228,30 @@ const handleEditFuncionario = (funcionario) => {
       }
   }, [isScannerOpen]);
 
-  const misNotificaciones = useMemo(() => { return notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username).sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [notificaciones, currentUser]);
+  const misNotificaciones = useMemo(() => { 
+    const directas = notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username);
+
+    if (isAdmin) {
+      const solicitudesComoNotif = notificaciones
+        .filter(n => n.tipo === 'BAJA_BIEN' && n.estado === 'PENDIENTE')
+        .map(n => ({
+          id: n.id,
+          tipoRegistro: 'NOTIFICACION',
+          esSolicitud: true,
+          accion: 'solicitud',
+          titulo: `Solicitud de Baja: #${n.rotulo || 'S/R'}`,
+          mensaje: `${n.solicitante || 'Un funcionario'} solicita la baja de "${n.descripcion || 'Bien'}". Motivo: ${n.motivo || 'No especificado'}.`,
+          fecha: n.created_at || new Date().toISOString(),
+          leido: false,
+          notifOrigen: n
+        }));
+
+      return [...solicitudesComoNotif, ...directas].sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+    }
+
+    return directas.sort((a,b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); 
+  }, [notificaciones, currentUser, isAdmin]);
+
   const unreadCount = misNotificaciones.filter(n => !n.leido).length;
   const saludoBienvenida = useMemo(() => {
     const hora = new Date().getHours();
@@ -2256,12 +2394,30 @@ const handleEditFuncionario = (funcionario) => {
       try { 
           let res = { error: null };
           if (type === 'requestBaja') {
+              if (!motivoSolicitudBaja.trim()) {
+                  return addToast("Debe ingresar el motivo de la baja.", "warning");
+              }
               const solicitudId = generateId();
-              const nuevaSolicitud = { id: solicitudId, bienId: item.id || id, rotulo: item.rotulo, descripcion: item.descripcion, ubicacion: item.ubicacion, funcionario: item.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: item.dependencia, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', created_at: new Date().toISOString() };
+              const nuevaSolicitud = { 
+                  id: solicitudId, 
+                  bienId: item.id || id, 
+                  rotulo: item.rotulo, 
+                  descripcion: item.descripcion, 
+                  ubicacion: item.ubicacion, 
+                  funcionario: item.funcionario, 
+                  solicitante: currentUser?.username || 'Usuario', 
+                  dependencia: item.dependencia || dependenciaActual, 
+                  tipo: 'BAJA_BIEN', 
+                  estado: 'PENDIENTE', 
+                  motivo: motivoSolicitudBaja.trim(),
+                  created_at: new Date().toISOString() 
+              };
               res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
               
               if (!res.error) { 
-                addToast("Solicitud enviada.", "success"); 
+                addToast("Solicitud de baja enviada con éxito al administrador.", "success"); 
+                setMotivoSolicitudBaja('');
+                setItemToDelete(null);
                 cargarNotificaciones(); 
 
                 await registrarAuditoria({
@@ -2270,7 +2426,7 @@ const handleEditFuncionario = (funcionario) => {
                   accion: 'SOLICITUD_BAJA',
                   entidad: 'BIEN',
                   entidadId: item.id || id,
-                  detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion }
+                  detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion, motivo: motivoSolicitudBaja.trim() }
                 });
               }
           } else {
@@ -2425,7 +2581,7 @@ if (publicBienId) {
                   <i className="fa-solid fa-coins text-emerald-600"></i> Valor
                 </p>
                 <p className="text-xs font-bold text-emerald-700 mt-1">
-                  Gs. {publicBienData.valorUnitario ? formatCurrency(publicBienData.valorUnitario) : "0"}
+                  Gs. {formatCurrency(publicBienData.valorUnitario || publicBienData.valor || publicBienData.valorAdquisicion || "0")}
                 </p>
               </div>
 
@@ -2599,7 +2755,7 @@ if (publicBienId) {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={handleExportBackupGeneral} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
@@ -2610,7 +2766,7 @@ if (publicBienId) {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -3280,6 +3436,14 @@ if (publicBienId) {
                                       <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2">
                                         {bienAsociado.descripcion}
                                       </p>
+                                      {notif.motivo && (
+                                        <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                                          <i className="fa-solid fa-comment-dots text-xs mt-0.5 shrink-0 text-amber-600"></i>
+                                          <div className="flex-1">
+                                            <span className="font-bold">Motivo:</span> {notif.motivo}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   </td>
                                   <td className="px-4 py-4 align-top text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -3430,18 +3594,42 @@ if (publicBienId) {
                         </div>
 
                         {/* Botones de Acción Principal */}
-                        <div className="flex flex-wrap items-center gap-2.5">
-                          <button onClick={sincronizarBienesConPadron} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary hover:text-brand-primary transition-all cursor-pointer shadow-2xs">
-                            <i className="fa-solid fa-rotate text-brand-primary"></i> Sincronizar
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button 
+                            onClick={sincronizarBienesConPadron} 
+                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                            title="Sincronizar custodios con inventario"
+                          >
+                            <i className="fa-solid fa-rotate text-brand-primary dark:text-blue-400"></i>
+                            <span>Sincronizar</span>
                           </button>
-                          <button onClick={handleDownloadTemplateFuncionarios} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-2xs">
-                            <i className="fa-solid fa-file-excel text-emerald-500"></i> Plantilla
+
+                          <button 
+                            onClick={handleDownloadTemplateFuncionarios} 
+                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                            title="Descargar plantilla de funcionarios"
+                          >
+                            <i className="fa-solid fa-file-excel text-emerald-600"></i>
+                            <span>Plantilla</span>
                           </button>
-                          <button onClick={() => fileInputFuncionariosRef.current?.click()} className="inline-flex items-center gap-2 rounded-2xl bg-zinc-50 dark:bg-darkbg-main border border-zinc-200/80 dark:border-darkbg-border px-4 py-3 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:border-emerald-500 hover:text-emerald-600 transition-all cursor-pointer shadow-2xs">
-                            <i className="fa-solid fa-file-import text-emerald-600"></i> Importar CSV
+
+                          <button 
+                            onClick={() => fileInputFuncionariosRef.current?.click()} 
+                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                            title="Importar lista de funcionarios desde CSV"
+                          >
+                            <i className="fa-solid fa-file-import text-emerald-600"></i>
+                            <span>Importar CSV</span>
                           </button>
-                          <button onClick={() => setIsNewFuncionarioModalOpen(true)} className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 px-6 py-3 text-xs font-black text-white shadow-lg shadow-emerald-600/25 transition-all cursor-pointer active:scale-95">
-                            <i className="fa-solid fa-user-plus text-sm"></i> Nuevo Funcionario
+
+                          <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block"></div>
+
+                          <button 
+                            onClick={() => setIsNewFuncionarioModalOpen(true)} 
+                            className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+                          >
+                            <i className="fa-solid fa-user-plus text-xs"></i>
+                            <span>Nuevo Funcionario</span>
                           </button>
                         </div>
 
@@ -3514,17 +3702,17 @@ if (publicBienId) {
                                           </span>
                                       </td>
                                       <td className="relative py-4 pl-4 pr-8 align-middle text-right">
-                                          <div className="flex items-center justify-end gap-2">
+                                          <div className="flex items-center justify-end gap-1.5">
                                               <button 
                                                   onClick={() => handleEditFuncionario(f)} 
-                                                  className="h-10 w-10 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/60 rounded-2xl transition-all cursor-pointer shadow-2xs"
+                                                  className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/50 dark:hover:text-blue-400 rounded-xl transition-all active:scale-90 cursor-pointer shadow-xs"
                                                   title="Editar funcionario"
                                               >
                                                   <i className="fa-solid fa-pen-to-square text-xs"></i>
                                               </button>
                                               <button 
                                                   onClick={() => handleDeleteFuncionario(f.id)} 
-                                                  className="h-10 w-10 flex items-center justify-center text-red-600 bg-red-50 hover:bg-red-100 dark:bg-red-950/40 dark:hover:bg-red-900/60 rounded-2xl transition-all cursor-pointer shadow-2xs"
+                                                  className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 dark:hover:text-rose-400 rounded-xl transition-all active:scale-90 cursor-pointer shadow-xs"
                                                   title="Eliminar funcionario"
                                               >
                                                   <i className="fa-solid fa-trash-can text-xs"></i>
@@ -4126,34 +4314,134 @@ if (publicBienId) {
                 </div>
 
                 <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
-                    {itemToDelete.type === 'requestBaja' ? '¿Solicitar baja de este bien?' : '¿Eliminar o dar de baja el registro?'}
+                    {itemToDelete.type === 'requestBaja' ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?'}
                 </h3>
 
-                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
+                <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
                     {itemToDelete.type === 'requestBaja' 
-                        ? `Se enviará una notificación formal al administrador para que evalúe la exclusión del bien con rótulo: "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
+                        ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
                         : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || ''}" a De Baja o lo removerá del inventario activo.`
                     }
                 </p>
 
+                {itemToDelete.type === 'requestBaja' && (
+                  <div className="text-left mb-6 space-y-1.5">
+                    <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
+                      Motivo de la Baja <span className="text-rose-500">*</span>
+                    </label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={motivoSolicitudBaja}
+                      onChange={(e) => setMotivoSolicitudBaja(e.target.value)}
+                      placeholder="Ej: Avería irreparable, rotura física, obsolescencia, desuso..."
+                      className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3.5 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner resize-none"
+                    />
+                  </div>
+                )}
+
                 <div className="flex gap-3 justify-end">
                     <button 
-                        onClick={() => setItemToDelete(null)}
+                        onClick={() => { setItemToDelete(null); setMotivoSolicitudBaja(''); }}
                         className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
                     >
                         Cancelar
                     </button>
                     <button 
                         onClick={confirmDeleteAction}
-                        className={`flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white transition-all shadow-md cursor-pointer ${itemToDelete.type === 'requestBaja' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                        disabled={itemToDelete.type === 'requestBaja' && !motivoSolicitudBaja.trim()}
+                        className={`flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white transition-all shadow-md cursor-pointer disabled:opacity-50 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
                     >
-                        {itemToDelete.type === 'requestBaja' ? 'Sí, enviar solicitud' : 'Confirmar Acción'}
+                        {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Confirmar Acción'}
                     </button>
                 </div>
 
             </div>
         </div>
       )}
+      {/* MODAL DE CONFIRMACIÓN DE BACKUP GENERAL */}
+      {confirmBackupModal && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/50 text-brand-primary dark:text-blue-400 mb-4 shadow-inner">
+              <i className="fa-solid fa-database text-2xl"></i>
+            </div>
+            <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+              ¿Descargar Copia de Seguridad?
+            </h3>
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
+              Esta operación compilará y descargará una copia completa e íntegra (.json) de todos los registros patrimoniales, funcionarios, asignaciones y auditorías de la Universidad.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setConfirmBackupModal(false)}
+                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  setConfirmBackupModal(false);
+                  handleExportBackupGeneral();
+                }}
+                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
+              >
+                <i className="fa-solid fa-download mr-1.5 text-xs"></i> Sí, Descargar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMACIÓN DE IMPORTACIÓN MASIVA CSV */}
+      {pendingCSVImport && (
+        <div className={STYLES.modalOverlay}>
+          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mb-4 shadow-inner">
+              <i className="fa-solid fa-file-csv text-2xl"></i>
+            </div>
+            <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+              ¿Confirmar Importación Masiva?
+            </h3>
+            <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200/60 dark:border-zinc-700/60 text-left mb-6 space-y-1.5">
+              <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Archivo seleccionado:</p>
+              <p className="text-xs font-mono font-bold text-zinc-800 dark:text-zinc-200 truncate">{pendingCSVImport.file?.name}</p>
+              <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider pt-1">Destino:</p>
+              <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{dependenciaActual}</p>
+            </div>
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
+              Los registros serán validados para evitar duplicados e incorporados a la base de datos oficial. ¿Desea proceder con la carga?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => {
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  if (fileInputFuncionariosRef.current) fileInputFuncionariosRef.current.value = '';
+                  setPendingCSVImport(null);
+                }}
+                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  const { type, file } = pendingCSVImport;
+                  setPendingCSVImport(null);
+                  if (type === 'bienes') {
+                    executeProcessBienesCSV(file);
+                  } else {
+                    executeProcessFuncionariosCSV(file);
+                  }
+                }}
+                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 transition-all cursor-pointer"
+              >
+                <i className="fa-solid fa-check mr-1.5 text-xs"></i> Sí, Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showChangelog && (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden"}>

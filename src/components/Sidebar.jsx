@@ -27,8 +27,8 @@ export default function Sidebar({
                             />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-[15px] font-black tracking-tight text-zinc-900 dark:text-white truncate">Patrimonio UNP</h1>
-                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Gestión Institucional</p>
+                            <h1 className="text-[14px] font-black tracking-tight text-zinc-900 dark:text-white truncate">Dpto. Bienes Patrimoniales</h1>
+                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Universidad Nacional de Pilar</p>
                         </div>
                     </div>
                     <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden flex items-center justify-center h-8 w-8 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:hover:bg-darkbg-hover dark:hover:text-white transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
@@ -43,8 +43,8 @@ export default function Sidebar({
 
                     {[ 
                         { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie' },
-                        { id: 'inventario', label: 'Directorio de Bienes', icon: 'fa-boxes-stacked' },
-                        { id: 'funcionarios', label: 'Padrón de Funcionarios', icon: 'fa-address-book' },
+                        { id: 'inventario', label: 'Inventario General', icon: 'fa-boxes-stacked' },
+                        { id: 'funcionarios', label: 'Plantel de Funcionarios', icon: 'fa-address-book' },
                         { id: 'fc04', label: 'Altas y Bajas (FC-04)', icon: 'fa-file-invoice' },
                         { id: 'fc10', label: 'Asignaciones (FC-10)', icon: 'fa-file-signature' },
                         { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast' },

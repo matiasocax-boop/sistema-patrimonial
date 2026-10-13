@@ -1,7 +1,7 @@
 import React from 'react';
 
 export default function Header({
-    setIsSidebarOpen, activeTab, setIsScannerOpen, pdfPaperSize, setPdfPaperSize,
+    setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen, pdfPaperSize, setPdfPaperSize,
     dependenciaActual, setDependenciaActual, todasDependencias, clearAllFilters,
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
     misNotificaciones, markAsRead, currentUser, isAdmin, handleLogout
@@ -17,7 +17,7 @@ export default function Header({
                 </button>
 
                 <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white capitalize truncate hidden sm:block drop-shadow-sm">
-                   {activeTab === 'dashboard' ? 'Panel Principal' : activeTab === 'inventario' ? 'Directorio Patrimonial' : activeTab === 'usuarios' ? 'Directorio de Usuarios' : activeTab === 'ayuda' ? 'Centro de Ayuda' : activeTab.replace('fc', 'Registro FC-')}
+                   {activeTab === 'dashboard' ? 'Panel Principal' : activeTab === 'inventario' ? 'Inventario General' : activeTab === 'funcionarios' ? 'Plantel de Funcionarios' : activeTab === 'usuarios' ? 'Directorio de Usuarios' : activeTab === 'ayuda' ? 'Centro de Ayuda' : activeTab.replace('fc', 'Registro FC-')}
                 </h1>
              </div>
 
@@ -86,14 +86,37 @@ export default function Header({
                                         </div>
                                     ) : (
                                         misNotificaciones.map(n => (
-                                            <div key={n.id} onClick={() => markAsRead(n)} className={`p-5 border-b border-zinc-50 dark:border-darkbg-border/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover cursor-pointer transition-colors relative ${!n.leido ? 'bg-zinc-50/80 dark:bg-zinc-800/40' : ''}`}>
+                                            <div 
+                                                key={n.id} 
+                                                onClick={() => {
+                                                    markAsRead(n);
+                                                    if (n.esSolicitud && setActiveTab) {
+                                                        setActiveTab('aprobaciones');
+                                                        setIsNotifOpen(false);
+                                                    }
+                                                }} 
+                                                className={`p-5 border-b border-zinc-50 dark:border-darkbg-border/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover cursor-pointer transition-colors relative ${!n.leido ? 'bg-zinc-50/80 dark:bg-zinc-800/40' : ''}`}
+                                            >
                                                 {!n.leido && <div className="absolute left-0 top-0 bottom-0 w-1 bg-brand-primary shadow-[0_0_8px_rgba(30,58,138,0.5)]"></div>}
                                                 <div className="flex items-start gap-4">
-                                                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${n.accion === 'aprobar' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900/50' : 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50'}`}>
-                                                        <i className={`fa-solid ${n.accion === 'aprobar' ? 'fa-check' : 'fa-xmark'} text-[13px]`}></i>
+                                                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${
+                                                        n.esSolicitud 
+                                                            ? 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
+                                                            : n.accion === 'aprobar' 
+                                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900/50' 
+                                                                : 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50'
+                                                    }`}>
+                                                        <i className={`fa-solid ${n.esSolicitud ? 'fa-paper-plane' : n.accion === 'aprobar' ? 'fa-check' : 'fa-xmark'} text-[13px]`}></i>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <p className={`text-[13px] text-zinc-900 dark:text-white leading-tight tracking-tight ${!n.leido ? 'font-black' : 'font-bold'}`}>{n.titulo}</p>
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <p className={`text-[13px] text-zinc-900 dark:text-white leading-tight tracking-tight ${!n.leido ? 'font-black' : 'font-bold'}`}>{n.titulo}</p>
+                                                            {n.esSolicitud && (
+                                                                <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 shrink-0">
+                                                                    Revisar
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 font-medium leading-relaxed">{n.mensaje}</p>
                                                         <p className="text-[10px] font-bold text-zinc-400 mt-2.5 uppercase tracking-widest">{new Date(n.fecha).toLocaleString('es-PY', {dateStyle: 'short', timeStyle: 'short'})}</p>
                                                     </div>
