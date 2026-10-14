@@ -30,6 +30,8 @@ export default function LoginScreen({
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/70 via-[#0a1c38]/50 to-[#0a1c38] dark:from-[#070f22]/70 dark:via-[#070f22]/50 dark:to-[#070f22]"></div>
         <div className="absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-[44rem] rounded-full bg-blue-500/15 blur-3xl"></div>
+        <div className="absolute top-1/3 -right-40 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"></div>
+        <div className="absolute -bottom-40 -left-24 h-72 w-72 rounded-full bg-violet-600/[0.07] blur-3xl"></div>
       </div>
 
       {/* TOASTS FLOTANTES */}

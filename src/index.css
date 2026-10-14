@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+html {
+  scroll-behavior: smooth;
+}
+
 @theme {
   --color-brand-primary: #1d4ed8;
   --color-brand-hover: #1e40af;

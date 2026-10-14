@@ -109,6 +109,10 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
+  // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
+  useEffect(() => {
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
   const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -736,7 +740,7 @@ useEffect(() => {
       return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas }; 
   }, [bienes, dependenciaActual]);
 
-  const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth] }; }, [bienes, fc10List, dependenciaActual]);
+  const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth], asigCurrent: { year: String(currentYear), month: String(currentMonth + 1).padStart(2, '0') }, asigPrev: { year: String(yearOfPrevMonth), month: String(prevMonth + 1).padStart(2, '0') } }; }, [bienes, fc10List, dependenciaActual]);
   
  const filteredBienes = useMemo(() => { 
     // Compara ignorando mayúsculas y espacios extra
@@ -2859,7 +2863,7 @@ if (publicBienId) {
                         className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none transition-all duration-200 cursor-pointer"
                       >
                         <div className="flex items-center justify-between gap-3 mb-5">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 dark:bg-violet-500 text-white">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-500/10 backdrop-blur border border-violet-500/25 text-violet-600 dark:text-violet-300">
                             <i className="fa-solid fa-qrcode text-lg"></i>
                           </div>
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
@@ -3011,7 +3015,7 @@ if (publicBienId) {
                                   </div>
                               ) : timeStats.adqByYear.map((item, idx) => {
                                   const colors = ["bg-zinc-900 dark:bg-white", "bg-zinc-600 dark:bg-zinc-400", "bg-zinc-400 dark:bg-zinc-600", "bg-zinc-300 dark:bg-zinc-700"];
-                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" />;
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" title={`Filtrar inventario por año ${item.year}`} onClick={() => { clearAllFilters(); setFiltroAnio(item.year); setActiveTab('inventario'); }} />;
                               })}
                             </div>
                           </div>
@@ -3019,8 +3023,8 @@ if (publicBienId) {
                           <div className="flex-1 flex flex-col">
                             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Asignaciones (FC-10)</h3>
                             <div className="flex-1 flex flex-col justify-center gap-6">
-                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500" bgClass="bg-zinc-100 dark:bg-white/5" />
-                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-300 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-white/5" />
+                              <SimpleBar label={`Actual (${timeStats.currentMonthName})`} value={timeStats.asigCurrentMonth} max={timeStats.asigMax} colorClass="bg-emerald-500" bgClass="bg-zinc-100 dark:bg-white/5" title="Ver asignaciones de este mes" onClick={() => { setFc10Year(timeStats.asigCurrent.year); setFc10Month(timeStats.asigCurrent.month); setActiveTab('fc10'); }} />
+                              <SimpleBar label={`Anterior (${timeStats.prevMonthName})`} value={timeStats.asigPreviousMonth} max={timeStats.asigMax} colorClass="bg-zinc-300 dark:bg-zinc-600" bgClass="bg-zinc-100 dark:bg-white/5" title="Ver asignaciones del mes anterior" onClick={() => { setFc10Year(timeStats.asigPrev.year); setFc10Month(timeStats.asigPrev.month); setActiveTab('fc10'); }} />
                             </div>
                           </div>
 
@@ -3048,8 +3052,8 @@ if (publicBienId) {
             <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
               Inventario General
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
-              {filteredBienes.length} registros
+            <span title={hasFilters ? 'Bienes que coinciden con los filtros' : 'Incluye bienes dados de baja; los activos se miden en el Panel'} className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+              {hasFilters ? `${filteredBienes.length} resultados` : `${filteredBienes.length} registros · ${stats.totalItems} activos`}
             </span>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
