@@ -2804,7 +2804,7 @@ if (publicBienId) {
                             Panel General · {dependenciaActual}
                           </p>
                           <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate mt-0.5">
-                            {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}
+                            {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!
                           </h3>
                         </div>
                       </div>

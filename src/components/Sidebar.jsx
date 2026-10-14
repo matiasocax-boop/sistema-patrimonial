@@ -70,10 +70,8 @@ export default function Sidebar({
                 </div>
                 )}
                 
-                <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5 custom-scrollbar">
-                    <div className="px-3 pb-3">
-                        <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Navegación</span>
-                    </div>
+                <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1 custom-scrollbar" aria-label="Navegación principal">
+                    <p className="px-3 pb-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.18em]">Navegación</p>
 
                     {[ 
                         { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie' },
@@ -93,19 +91,21 @@ export default function Sidebar({
                             <button 
                                 key={tab.id} 
                                 onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} 
-                                className={`group flex w-full items-center gap-x-3.5 rounded-xl px-3 py-3 text-[13px] font-bold transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
+                                aria-current={isActive ? 'page' : undefined}
+                                title={tab.label}
+                                className={`group flex w-full items-center gap-3 rounded-xl px-3 h-11 text-[13px] transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
                                     isActive 
-                                        ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20' 
-                                        : 'bg-transparent text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-darkbg-main dark:hover:text-white'
+                                        ? 'bg-brand-primary text-white font-bold shadow-sm' 
+                                        : 'bg-transparent font-semibold text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white'
                                 }`}
                             >
-                                <div className={`flex items-center justify-center w-8 transition-colors ${isActive ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-700 dark:group-hover:text-zinc-300'}`}>
-                                    <i className={`fa-solid ${tab.icon} text-[16px]`}></i>
-                                </div>
+                                <span className={`flex items-center justify-center w-7 shrink-0 ${isActive ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200'}`}>
+                                    <i className={`fa-solid ${tab.icon} text-[15px]`}></i>
+                                </span>
                                 <span className="flex-1 text-left tracking-tight truncate">{tab.label}</span>
                                 
                                 {tab.id === 'aprobaciones' && solicitudesBaja.length > 0 && (
-                                    <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-[11px] font-black shadow-sm ${isActive ? 'bg-rose-500 text-white shadow-rose-500/20' : 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400'}`}>
+                                    <span className={`flex h-5 min-w-5 px-1 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-rose-500/15 text-rose-600 dark:text-rose-400'}`}>
                                         {solicitudesBaja.length}
                                     </span>
                                 )}
@@ -115,24 +115,24 @@ export default function Sidebar({
 
                     {/* BOTÓN DE BACKUP GENERAL PARA ADMINISTRADORES */}
                     {isAdmin && (
-                        <div className="pt-4 mt-4 border-t border-zinc-100 dark:border-darkbg-border px-1">
-                            <span className="block px-2 pb-2 text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                        <div className="pt-4 mt-4 border-t border-zinc-200/70 dark:border-white/10 px-0">
+                            <p className="px-3 pb-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.18em]">
                                 Seguridad y Datos
-                            </span>
+                            </p>
                             <button
                                 type="button"
                                 onClick={() => {
                                     if (onExportBackup) onExportBackup();
                                     setIsSidebarOpen(false);
                                 }}
-                                className="group flex w-full items-center gap-x-3 rounded-xl px-3 py-2.5 text-[12px] font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-50 hover:bg-zinc-100 dark:bg-white/[0.03] dark:hover:bg-white/[0.07] border border-zinc-200/80 dark:border-white/5 transition-all cursor-pointer shadow-xs active:scale-98"
+                                className="group flex w-full items-center gap-3 rounded-xl px-3 h-11 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.06] hover:text-zinc-900 dark:hover:text-white border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                                 title="Descargar copia de seguridad íntegra de la base de datos"
                             >
-                                <div className="flex items-center justify-center w-6 text-zinc-500 dark:text-zinc-400 group-hover:text-brand-primary dark:group-hover:text-blue-400 transition-colors">
-                                    <i className="fa-solid fa-database text-xs"></i>
-                                </div>
-                                <span className="flex-1 text-left tracking-tight">Copia de Seguridad (.json)</span>
-                                <i className="fa-solid fa-download text-[10px] text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200"></i>
+                                <span className="flex items-center justify-center w-7 shrink-0 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200">
+                                    <i className="fa-solid fa-database text-[15px]"></i>
+                                </span>
+                                <span className="flex-1 text-left tracking-tight truncate">Copia de Seguridad (.json)</span>
+                                <i className="fa-solid fa-download text-[11px] text-zinc-300 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0"></i>
                             </button>
                         </div>
                     )}
