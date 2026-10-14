@@ -18,7 +18,8 @@ import { supabase } from './supabaseClient';
 import CSVPreviewModal from './components/CSVPreviewModal';
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
-    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo 
+    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
+    convertirImagenABase64, getLogoPorDependencia 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
@@ -294,7 +295,7 @@ export default function App() {
     try {
       if (!isSilent) setIsLoading(true);
 
-    // --- 1. VALIDACIN DE ROL EN SERVIDOR ---
+    // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
         const { data: dbUser, error: userError } = await supabase
           .from('usuarios')
@@ -315,7 +316,7 @@ export default function App() {
           return;
         }
       }
-    // --- FIN DE VALIDACIN DE ROL ---
+    // --- FIN DE VALIDACIÓN DE ROL ---
 
     const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout de red')), 8000)
@@ -516,7 +517,7 @@ useEffect(() => {
 
   cargarBienPublico();
 }, [publicBienId]);
-  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIN (15 Minutos) ---
+  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIÓN (15 Minutos) ---
 const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
 
 useEffect(() => {
@@ -766,7 +767,7 @@ useEffect(() => {
   }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, debouncedSearchTerm]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
-  const itemsPaginados = paginatedBienes; // <-- AADIDO AQUÍ
+  const itemsPaginados = paginatedBienes; // <-- AÑADIDO AQUÍ
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
@@ -969,13 +970,24 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
 
 
+  // Logo para PDFs: respeta el logo subido por el usuario, si no usa el
+  // institucional según dependencia, y como último recurso el placeholder.
+  const resolveLogoImg = async (dependencia) => {
+    if (appLogo) return appLogo;
+    try {
+      const b64 = await convertirImagenABase64(getLogoPorDependencia(dependencia));
+      if (b64) return b64;
+    } catch (e) {}
+    return getPlaceholderLogo();
+  };
+
   const handleGenerateFC04PDF = (fc) => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     setIsProcessing({ active: true, text: 'Generando PDF FC-04...' });
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
+        const logoImg = await resolveLogoImg(fc.dependencia); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
         let finalY = 62;
         if (fc.sinMovimiento) { doc.setFontSize(16); doc.setTextColor(100, 100, 100); doc.text("NO SE REGISTRA MOVIMIENTO ESTE MES", pageWidth / 2, finalY + 30, { align: 'center' }); finalY += 60; } 
@@ -997,14 +1009,14 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     setIsProcessing({ active: true, text: 'Generando PDF FC-11...' });
     const todayStr = new Date().toISOString().split('T')[0];
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const fc = fcs[0]; const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); const dateParts = (fc.fecha || '').split('-'); let formattedDate = ''; if(dateParts.length === 3) { const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]; formattedDate = `Pilar, ${dateParts[2]} de ${months[parseInt(dateParts[1])-1]} de ${dateParts[0]}`; }
+        const logoImg = await resolveLogoImg(fc.dependencia); const dateParts = (fc.fecha || '').split('-'); let formattedDate = ''; if(dateParts.length === 3) { const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]; formattedDate = `Pilar, ${dateParts[2]} de ${months[parseInt(dateParts[1])-1]} de ${dateParts[0]}`; }
         const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
         for(let i = 0; i < 3; i++) {
             if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
+            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
             doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
             doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`Nº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
             let finalY = 54; doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [`Dependencia Remitente: ${fc.dependenciaRemitente || ''} ${fc.areaRemitente ? '- ' + fc.areaRemitente : ''}`.trim()], [`Dependencia Destinataria: ${fc.dependenciaDestinataria || ''} ${fc.areaDestinataria ? '- ' + fc.areaDestinataria : ''}`.trim()] ], styles: { fontSize: 10, cellPadding: 4, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fontStyle: 'bold', fillColor: [248, 249, 250] } }); finalY = doc.lastAutoTable.finalY + 6;
@@ -1186,13 +1198,13 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setIsProcessing({ active: true, text: 'Generando Reporte Oficial FC-03...' }); 
     const todayStr = new Date().toLocaleDateString('es-PY');
     
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const { jsPDF } = window.jspdf; 
         const doc = new jsPDF('l', 'mm', pdfPaperSize); 
         const pageWidth = doc.internal.pageSize.width; 
         const pageHeight = doc.internal.pageSize.height;
-        const logoImg = appLogo || getPlaceholderLogo(); 
+        const logoImg = await resolveLogoImg(dependenciaActual); 
 
         let totalValor = 0;
         
@@ -1247,9 +1259,9 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 [
                     { content: 'CUENTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'SUB\nCTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'ESPECIFICACIN', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'DESCRIPCIN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'UBICACIN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'ESPECIFICACIÓN', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'UBICACIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'FUNCIONARIO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'EN REGISTROS Y/O DOCUMENTO', colSpan: 5, styles: { halign: 'center' } },
                     { content: 'INVENTARIO\nFÍSICO', colSpan: 2, styles: { halign: 'center' } },
@@ -1259,7 +1271,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 [
                     { content: 'An. 1', styles: { halign: 'center' } },
                     { content: 'An. 2', styles: { halign: 'center' } },
-                    { content: 'FECHA\nADQUISI.', styles: { halign: 'center' } },
+                    { content: 'FECHA\nADQUISICIÓN', styles: { halign: 'center' } },
                     { content: 'ROTULADO', styles: { halign: 'center' } },
                     { content: 'CANT.', styles: { halign: 'center' } },
                     { content: 'VALOR\nUNIT.', styles: { halign: 'center' } },
@@ -1304,7 +1316,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
                 doc.text("UNIDAD JERÁRQUICA", 12, 43.1);
-                doc.text("REPARTICIN", 12, 50.7);
+                doc.text("REPARTICIÓN", 12, 50.7);
                 doc.text("DEPENDENCIA", 12, 58.3);
                 doc.text("ÁREA", 12, 65.9);
 
@@ -1315,7 +1327,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.text(dependenciaActual.toUpperCase(), 44, 58.3, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 65.9, { maxWidth: 94 });
 
-                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIN", 142, 35.5);
+                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 43.1);
                 doc.text("B..........Bueno", 142, 50.7);
@@ -1638,7 +1650,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       reader.onload = async (event) => {
         const buffer = event.target.result;
         
-        // FORZAR LA DECODIFICACIN EN UTF-8 PARA CORREGIR TILDES Y 
+        // FORZAR LA DECODIFICACIÓN EN UTF-8 PARA CORREGIR TILDES Y Ñ
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(buffer);
         
@@ -1887,7 +1899,7 @@ const handleEditFuncionario = (funcionario) => {
     };
     
     try { 
-        // x AQUÍ SE INTERCEPTA EL MODO OFFLINE
+        // xÓ AQUÍ SE INTERCEPTA EL MODO OFFLINE
         if (!navigator.onLine) {
             await enqueueOfflineAction({ type: 'SAVE_BIEN', payload: bienData });
             
@@ -2377,7 +2389,7 @@ const handleEditFuncionario = (funcionario) => {
       }
   };
 
-  // --- INICIO DE CDIGO RESTAURADO ---
+  // --- INICIO DE CÓDIGO RESTAURADO ---
   const cargarNotificaciones = async () => {
       const { data, error } = await supabase.from('notificaciones').select('*');
       if (!error && data) {
@@ -2469,7 +2481,7 @@ const handleEditFuncionario = (funcionario) => {
         setItemToDelete(null); 
       }
   };
-  // x Escuchador de estado de red (Offline / Online)
+  // xÓ Escuchador de estado de red (Offline / Online)
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -2505,7 +2517,7 @@ const handleEditFuncionario = (funcionario) => {
           cargarNotificaciones();
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
-  // --- FIN DE CDIGO RESTAURADO ---
+  // --- FIN DE CÓDIGO RESTAURADO ---
   const addToast = (message, type = 'success') => { 
       const id = Date.now() + Math.random().toString(36).substr(2, 9);
       setToasts(prev => [...prev, { id, message, type }]); 
@@ -2513,7 +2525,7 @@ const handleEditFuncionario = (funcionario) => {
   };
 
 
-// --- VISTA PaBLICA DE ESCANEO QR REDISEADA Y OPTIMIZADA PARA MVILES ---
+// --- VISTA PaBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
 // --- VISTA PÚBLICA DE ESCANEO QR CLARA, MODERNA Y OPTIMIZADA PARA MÓVILES (iOS / ANDROID) ---
 if (publicBienId) {
   return (
@@ -3098,7 +3110,7 @@ if (publicBienId) {
 
     </div>
 
-    {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIN EN GRID */}
+    {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIÓN EN GRID */}
     <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-5 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none space-y-4">
       
       {/* Campo de Búsqueda Principal */}
@@ -3652,7 +3664,7 @@ if (publicBienId) {
 
                       </div>
 
-                      {/* BARRA DE BaSQUEDA DEL PADRN CORREGIDA */}
+                      {/* BARRA DE BaSQUEDA DEL PADRÓN CORREGIDA */}
 <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
   <div className="relative w-full">
     <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
@@ -3671,7 +3683,7 @@ if (publicBienId) {
 
                     </div>
 
-                    {/* TABLA DE FUNCIONARIOS REDISEADA */}
+                    {/* TABLA DE FUNCIONARIOS REDISEÑADA */}
                     <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[32px] flex flex-col overflow-hidden relative min-h-[450px]">
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left border-collapse">
@@ -3852,7 +3864,7 @@ if (publicBienId) {
                       {/* CONTENEDOR DE CONTROLES SUPERIOR */}
                       <div className="flex flex-wrap gap-3 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
-                        {/* NUEVO BOTN CONSOLIDADO */}
+                        {/* NUEVO BOTÓN CONSOLIDADO */}
                         <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " !bg-brand-primary flex items-center gap-2"}>
                             <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
                         </button>
@@ -4230,7 +4242,7 @@ if (publicBienId) {
                     <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
             </div>
-            {/* BOTONES DE ACCIN */}
+            {/* BOTONES DE ACCIÓN */}
             <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[32px]">
               <button onClick={() => setIsFC03ModalOpen(false)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer">Cancelar</button>
               <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2.5 py-3.5 px-7 rounded-2xl text-sm font-black text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/25 transition-all cursor-pointer disabled:opacity-50" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
@@ -4321,7 +4333,7 @@ if (publicBienId) {
     setMotivoResolucion={setMotivoResolucion}
     STYLES={STYLES}
 />
-      {/* MODAL DE AVISO PARA ELIMINACIN O SOLICITUD DE BAJA */}
+      {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
       {itemToDelete && (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>

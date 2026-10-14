@@ -45,7 +45,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, finalY, { align: 'center' });
         finalY += 5;
         doc.setFontSize(10);
-        doc.text("DIRECCIN DE CONTABILIDAD", pageWidth / 2, finalY, { align: 'center' });
+        doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, finalY, { align: 'center' });
         finalY += 5;
         doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, finalY, { align: 'center' });
         finalY += 8;
@@ -53,19 +53,19 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.text("FORMULARIO DE RESPONSABILIDAD INDIVIDUAL FC-10", pageWidth / 2, finalY, { align: 'center' });
         finalY += 6;
         doc.setFontSize(10);
-        doc.text(`PERIODO DE ELABORACIN: ${monthName} ${year}`, pageWidth / 2, finalY, { align: 'center' });
+        doc.text(`PERIODO DE ELABORACIÓN: ${monthName} ${year}`, pageWidth / 2, finalY, { align: 'center' });
         finalY += 8;
 
         doc.autoTable({
             startY: finalY,
             head: [[
                 { content: "1. DATOS DE LA DEPENDENCIA ORGANIZACIONAL", styles: { halign: 'left' } },
-                { content: "CDIGO", styles: { halign: 'center', cellWidth: 25 } }
+                { content: "CÓDIGO", styles: { halign: 'center', cellWidth: 25 } }
             ]],
             body: [
                 [`Institución (Entidad): UNIVERSIDAD NACIONAL DE PILAR`, fc.entidadCod || '28'],
                 [`Unidad Jerárquica: ${fc.unidad || 'RECTORADO'}`, fc.unidadCod || '01'],
-                [`Repartición Administrativa: ${fc.reparticion || 'DIRECCIN GENERAL DE ADMINISTRACIN Y FINANZAS'}`, fc.reparticionCod || '02'],
+                [`Repartición Administrativa: ${fc.reparticion || 'DIRECCIÓN GENERAL DE ADMINISTRACIÓN Y FINANZAS'}`, fc.reparticionCod || '02'],
                 [`Dependencia Específica: ${fc.dependenciaOrg || fc.dependencia || ''}`, fc.dependenciaCod || '02'],
                 [`Área o Departamento: ${fc.area || 'DESPACHO DEL DIRECTOR/A'}`, fc.areaCod || '02']
             ],
@@ -147,7 +147,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             body: [[
                 formatDateText(bienRef.fechaAdquisicion) || '2025-07-31',
                 (fc.estadoConservacion || bienRef.estadoConservacion || 'MUY BUENO').toUpperCase(),
-                bienRef.hasQR ? 'CON CDIGO QR' : 'SIN CDIGO QR'
+                bienRef.hasQR ? 'CON CÓDIGO QR' : 'SIN CÓDIGO QR'
             ]],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
@@ -172,7 +172,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             head: [["TIPO DE MOVIMIENTO", "LUGAR", "FECHA", "RECEPTOR (Solo si es devolución)"]],
             body: [
                 ["ENTREGA", fc.entregadoLugar || 'Rectorado', formatDateText(fc.entregadoFecha || dateStr), fc.receptorEntrega || ''],
-                ["DEVOLUCIN", fc.devolucionLugar || '', fc.devolucionFecha ? formatDateText(fc.devolucionFecha) : '', fc.devolucionReceptor || '']
+                ["DEVOLUCIÓN", fc.devolucionLugar || '', fc.devolucionFecha ? formatDateText(fc.devolucionFecha) : '', fc.devolucionReceptor || '']
             ],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },

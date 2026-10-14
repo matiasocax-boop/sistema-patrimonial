@@ -117,7 +117,8 @@ export const getLogoPorDependencia = (dependencia) => {
     if (dep.includes('aplicadas')) return '/publiclogo_aplicadas.png';
     if (dep.includes('biomédicas') || dep.includes('biomedicas')) return '/publiclogo_biomedicas.png';
     if (dep.includes('derecho')) return '/publiclogo_derecho.png';
-    if (dep.includes('económicas') || dep.includes('economicas')) return '/publiclogo_economicas.png';
+    if (dep.includes('económicas') || dep.includes('economicas') || dep.includes('contables')) return '/publiclogo_contables.png';
+    if (dep.includes('tecnolog')) return '/publiclogo_cta.png';
     if (dep.includes('humanidades')) return '/publiclogo_humanidades.png';
     
     return '/publiclogo_unp.png';
