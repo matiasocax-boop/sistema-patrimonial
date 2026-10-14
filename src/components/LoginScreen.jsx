@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import rectoradoBg from '../assets/rectorado-pilar.jpg';
+import { APP_VERSION } from '../utils/helpers';
 
 export default function LoginScreen({ 
     handleLogin, 
@@ -166,8 +167,7 @@ export default function LoginScreen({
 
       {/* Footer inferior */}
       <footer className="relative z-10 text-center pb-5 px-6">
-        <p className="text-[11px] font-medium text-slate-500">© {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales</p>
-        <p className="text-[11px] font-bold text-slate-400 mt-1">Desarrollador del Sistema: Matias Ocampo</p>
+        <p className="text-[11px] font-medium text-slate-500">© {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales <span className="text-slate-600">· v{APP_VERSION}</span></p>
       </footer>
 
       {/* MODAL DE RECUPERACIÓN / SOPORTE */}

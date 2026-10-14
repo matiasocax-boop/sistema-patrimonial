@@ -1,4 +1,5 @@
 import React from 'react';
+import { APP_VERSION } from '../utils/helpers';
 
 export default function MaintenanceScreen({ config }) {
   const mejoras = Array.isArray(config?.mejoras)
@@ -7,6 +8,7 @@ export default function MaintenanceScreen({ config }) {
 
   return (
     <div className="min-h-screen flex flex-col w-full bg-[#0a1c38] font-sans relative overflow-hidden">
+      <span className="absolute bottom-4 right-5 z-10 text-[10px] font-semibold text-slate-500">v{APP_VERSION}</span>
       {/* Fondo tenue */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-[44rem] rounded-full bg-blue-500/15 blur-3xl"></div>

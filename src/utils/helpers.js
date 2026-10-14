@@ -36,6 +36,9 @@ export const normalizeStr = (str) =>
     .toUpperCase()
     .replace(/\s+/g, ' ');
 
+// Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
+export const APP_VERSION = '2.6.0';
+
 export const matchSearchWords = (text, query) => {
   if (!query || !String(query).trim()) return true;
   const target = normalizeStr(text);
@@ -43,6 +46,7 @@ export const matchSearchWords = (text, query) => {
   return tokens.every(token => target.includes(token));
 };
 
+// Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
 // Búsqueda robusta de bienes: insensible a tildes/mayúsculas, multi-palabra (AND),
 // tolerante a ceros/guiones en rótulos y ampliada a más campos.
 export const matchBienSearch = (bien, query) => {

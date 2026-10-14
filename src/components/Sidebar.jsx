@@ -1,5 +1,5 @@
 import React from 'react';
-import { getLogoPorDependencia } from '../utils/helpers';
+import { getLogoPorDependencia, APP_VERSION } from '../utils/helpers';
 
 export default function Sidebar({ 
     isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual, onExportBackup,
@@ -154,6 +154,10 @@ export default function Sidebar({
                         </div>
                     )}
                 </nav>
+                <div className="shrink-0 px-5 py-2.5 border-t border-zinc-100 dark:border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">v{APP_VERSION}</span>
+                    <span className="text-[10px] font-medium text-zinc-300 dark:text-zinc-600">UNP · Patrimonio</span>
+                </div>
             </aside>
         </>
     );
