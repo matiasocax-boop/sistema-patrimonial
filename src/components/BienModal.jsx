@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { toInputDateFormat } from '../utils/helpers';
 
 export default function BienModal({
@@ -14,6 +14,7 @@ export default function BienModal({
     funcionariosConDatos,
     ubicacionesUnicas,
     funcionariosPadron = [],
+    sugerenciasBienes = [],
     STYLES
 }) {
     const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
@@ -28,6 +29,47 @@ export default function BienModal({
     const [showUbicacionDropdown, setShowUbicacionDropdown] = useState(false);
     const ubicacionDropdownRef = useRef(null);
 
+    // Estado para autocompletado de descripción (aprende de bienes existentes)
+    const [descTexto, setDescTexto] = useState(bienEditing?.descripcion || '');
+    const [showDescDropdown, setShowDescDropdown] = useState(false);
+    const descDropdownRef = useRef(null);
+    const sugerenciasDesc = useMemo(() => {
+        const q = normalizeStr(descTexto);
+        if (q.length < 3) return [];
+        const tokens = q.split(' ').filter(Boolean);
+        const seen = new Set();
+        const out = [];
+        for (const b of sugerenciasBienes) {
+            const d = String(b.descripcion || '').trim();
+            if (!d) continue;
+            const key = normalizeStr(d);
+            if (seen.has(key)) continue;
+            if (tokens.every(t => key.includes(t))) {
+                seen.add(key);
+                out.push(b);
+                if (out.length >= 6) break;
+            }
+        }
+        return out;
+    }, [descTexto, sugerenciasBienes]);
+    const handleSelectDescripcion = (b) => {
+        setDescTexto(b.descripcion || '');
+        setShowDescDropdown(false);
+        if (bienFormRef.current) {
+            const set = (name, val) => {
+                const el = bienFormRef.current.elements[name];
+                if (el && val !== undefined && val !== null && String(val) !== '') el.value = val;
+            };
+            set('descripcion', b.descripcion);
+            set('cuenta', b.cuenta);
+            set('subcuenta', b.subcuenta);
+            set('analitico1', b.analitico1);
+            set('analitico2', b.analitico2);
+            set('valorUnitario', b.valorUnitario);
+            set('vidaUtil', b.vidaUtil);
+        }
+    };
+
     // Cerrar dropdowns si se hace click fuera
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -36,6 +78,9 @@ export default function BienModal({
             }
             if (ubicacionDropdownRef.current && !ubicacionDropdownRef.current.contains(event.target)) {
                 setShowUbicacionDropdown(false);
+            }
+            if (descDropdownRef.current && !descDropdownRef.current.contains(event.target)) {
+                setShowDescDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -168,9 +213,36 @@ export default function BienModal({
                      <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900 dark:text-white">Especificaciones del Activo</h3>
                   </div>
 
-                  <div className="mb-4">
+                  <div className="mb-4 relative" ref={descDropdownRef}>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Descripción General del Bien *</label>
-                    <textarea name="descripcion" required rows="3" defaultValue={bienEditing?.descripcion} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Detalles, dimensiones, material, características del bien..."></textarea>
+                    <textarea
+                      name="descripcion"
+                      required
+                      rows="3"
+                      defaultValue={bienEditing?.descripcion}
+                      onChange={(e) => { setDescTexto(e.target.value); setShowDescDropdown(true); }}
+                      onFocus={() => { if (normalizeStr(descTexto).length >= 3) setShowDescDropdown(true); }}
+                      className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                      placeholder="Escribe y elige una descripción similar para autocompletar cuenta y valores..."
+                    ></textarea>
+                    {showDescDropdown && sugerenciasDesc.length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 z-30 max-h-56 overflow-y-auto rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-2xl py-1 custom-scrollbar">
+                        <p className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Coincidencias — clic para autocompletar</p>
+                        {sugerenciasDesc.map(b => (
+                          <button
+                            key={b.id}
+                            type="button"
+                            onClick={() => handleSelectDescripcion(b)}
+                            className="w-full text-left px-4 py-2.5 hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                          >
+                            <span className="block text-xs font-bold text-zinc-900 dark:text-zinc-100 truncate">{b.descripcion}</span>
+                            <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono">
+                              {[b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join(' · ')}{b.valorUnitario ? ` · Gs. ${b.valorUnitario}` : ''}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div>

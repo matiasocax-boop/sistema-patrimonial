@@ -4499,6 +4499,7 @@ if (publicBienId) {
         ubicacionesUnicas={ubicacionesUnicas}
         STYLES={STYLES}
         funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
+        sugerenciasBienes={bienes.filter(b => b.dependencia === dependenciaActual)}
     />
 )}
       <FichaBienModal
