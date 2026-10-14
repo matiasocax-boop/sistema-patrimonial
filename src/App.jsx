@@ -444,27 +444,38 @@ useEffect(() => {
     try {
       const idSanitizado = decodeURIComponent(publicBienId).trim();
       let bienEncontrado = null;
+      const tieneValor = (b) => {
+        if (!b) return false;
+        const v = b.valorUnitario ?? b.valor ?? b.valorAdquisicion ?? b.precio ?? b.costo;
+        return v !== undefined && v !== null && String(v).trim() !== '' && String(v).replace(/\D/g, '') !== '' && parseInt(String(v).replace(/\D/g, ''), 10) !== 0;
+      };
 
-      // 1. Intentar por RPC público
+      // 1. Consulta directa a 'bens' (datos completos, incluye valorUnitario).
+      //    El RPC público devuelve una proyección sin valor, por eso ya no va primero.
       try {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('obtener_bien_publico', {
-          p_id: idSanitizado
-        });
-        if (!rpcError && rpcData) {
-          bienEncontrado = normalizarBien(rpcData);
+        const { data: directData } = await supabase
+          .from('bens')
+          .select('*')
+          .or(`id.eq.${idSanitizado},data->>rotulo.eq.${idSanitizado}`)
+          .limit(1);
+        if (directData && directData.length > 0) {
+          bienEncontrado = normalizarBien(directData[0]);
         }
       } catch (e) {}
 
-      // 2. Si no se encontró por RPC, consultar directamente en tabla 'bens'
-      if (!bienEncontrado) {
+      // 2. RPC público como respaldo (puede no traer valorUnitario).
+      if (!bienEncontrado || !tieneValor(bienEncontrado)) {
         try {
-          const { data: directData } = await supabase
-            .from('bens')
-            .select('*')
-            .or(`id.eq.${idSanitizado},data->>rotulo.eq.${idSanitizado}`)
-            .limit(1);
-          if (directData && directData.length > 0) {
-            bienEncontrado = normalizarBien(directData[0]);
+          const { data: rpcData, error: rpcError } = await supabase.rpc('obtener_bien_publico', {
+            p_id: idSanitizado
+          });
+          if (!rpcError && rpcData) {
+            const rpcBien = normalizarBien(rpcData);
+            if (!bienEncontrado) {
+              bienEncontrado = rpcBien;
+            } else if (!tieneValor(bienEncontrado) && tieneValor(rpcBien)) {
+              bienEncontrado = rpcBien;
+            }
           }
         } catch (e) {}
       }
