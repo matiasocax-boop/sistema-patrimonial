@@ -243,17 +243,22 @@ export default function App() {
     addToast(`Entorno cambiado a ${pendingDependencia}`, "success");
   };
   
-  // 1. Filtramos solo los registros que son funcionarios (excluyendo los separadores de la paginación)
+  // Búsqueda robusta: insensible a tildes/mayúsculas y multi-palabra (AND),
+  // así "gomez cordioli", "cordioli daniel" o "daniel 123" encuentran igual.
   const funcionariosPurosDependencia = useMemo(() => {
       let lista = funcionariosPadron.filter(f => f.dependencia === dependenciaActual);
-      
+
       if (searchFuncionarioInput.trim() !== '') {
-          const termino = searchFuncionarioInput.toLowerCase().trim();
-          lista = lista.filter(f => 
-              String(f.cedula || '').toLowerCase().includes(termino) || 
-              String(f.nombre || '').toLowerCase().includes(termino) ||
-              String(f.cargo || '').toLowerCase().includes(termino)
-          );
+          const tokens = normalizeStr(searchFuncionarioInput).split(' ').filter(Boolean);
+          lista = lista.filter(f => {
+              const haystack = normalizeStr(`${f.cedula || ''} ${f.nombre || ''} ${f.cargo || ''}`);
+              const hayDigits = `${f.cedula || ''}`.replace(/\D/g, '');
+              return tokens.every(tok => {
+                  if (haystack.includes(tok)) return true;
+                  const tokDigits = tok.replace(/\D/g, '');
+                  return Boolean(tokDigits) && hayDigits.includes(tokDigits);
+              });
+          });
       }
 
       return lista.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
@@ -3690,12 +3695,12 @@ if (publicBienId) {
 
                     </div>
 
-                    {/* TABLA DE FUNCIONARIOS REDISEÑADA */}
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-sm border border-zinc-200/80 dark:border-darkbg-border rounded-[32px] flex flex-col overflow-hidden relative min-h-[450px]">
+                    {/* TABLA DE FUNCIONARIOS */}
+                    <div className="flex-1 bg-white dark:bg-white/[0.04] shadow-sm border border-zinc-200/70 dark:border-white/10 rounded-3xl flex flex-col overflow-hidden relative min-h-[450px]">
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left border-collapse">
-                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                              <tr className="text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-zinc-900/95 backdrop-blur-md z-10 border-b border-zinc-200/70 dark:border-white/10">
+                              <tr className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em]">
                                 <th className="py-4 pl-8 pr-4">Cédula de Identidad</th>
                                 <th className="px-4 py-4 w-1/3">Nombre Completo</th>
                                 <th className="px-4 py-4 w-1/3">Cargo Institucional</th>
@@ -3706,11 +3711,10 @@ if (publicBienId) {
                               {funcionariosPaginados.map((f, idx) => {
                                 if (f.esSeparador) {
                                     return (
-                                        <tr key={`sep-${f.letra}-${idx}`} className="bg-zinc-100/70 dark:bg-zinc-950/70 border-y border-zinc-200/60 dark:border-zinc-800">
-                                            <td colSpan="4" className="py-3 pl-8 pr-4 font-black text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
-                                                <span className="inline-flex items-center gap-2.5">
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm"></span>
-                                                    Sección {f.letra}
+                                        <tr key={`sep-${f.letra}-${idx}`}>
+                                            <td colSpan="4" className="py-2.5 pl-8 pr-4 bg-zinc-50/70 dark:bg-white/[0.02] border-y border-zinc-100 dark:border-white/5">
+                                                <span className="inline-flex items-center justify-center h-6 w-6 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[11px] font-bold">
+                                                    {f.letra}
                                                 </span>
                                             </td>
                                         </tr>
@@ -3720,35 +3724,35 @@ if (publicBienId) {
                                 const inicial = f.nombre ? f.nombre.charAt(0).toUpperCase() : 'F';
 
                                 return (
-                                  <tr key={f.id} className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/30 transition-colors group">
-                                      <td className="py-4 pl-8 pr-4 align-middle font-mono font-bold text-zinc-700 dark:text-zinc-300 text-sm">
+                                  <tr key={f.id} className="hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] transition-colors group">
+                                      <td className="py-4 pl-8 pr-4 align-middle tabular-nums font-semibold text-zinc-700 dark:text-zinc-300 text-sm">
                                           {formatCI(f.cedula)}
                                       </td>
                                       <td className="px-4 py-4 align-middle">
-                                          <div className="flex items-center gap-3.5">
-                                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-black text-xs shadow-inner border border-emerald-500/20">
+                                          <div className="flex items-center gap-3">
+                                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 font-bold text-xs">
                                                   {inicial}
                                               </div>
-                                              <span className="font-extrabold text-zinc-900 dark:text-white text-sm">{f.nombre}</span>
+                                              <span className="font-bold text-zinc-900 dark:text-white text-sm">{f.nombre}</span>
                                           </div>
                                       </td>
                                       <td className="px-4 py-4 align-middle">
-                                          <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700 uppercase tracking-wide">
+                                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300">
                                               {f.cargo || 'Funcionario'}
                                           </span>
                                       </td>
                                       <td className="relative py-4 pl-4 pr-8 align-middle text-right">
-                                          <div className="flex items-center justify-end gap-1.5">
-                                              <button 
-                                                  onClick={() => handleEditFuncionario(f)} 
-                                                  className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-950/50 dark:hover:text-blue-400 rounded-xl transition-all active:scale-90 cursor-pointer shadow-xs"
+                                          <div className="flex items-center justify-end gap-1">
+                                              <button
+                                                  onClick={() => handleEditFuncionario(f)}
+                                                  className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                                                   title="Editar funcionario"
                                               >
                                                   <i className="fa-solid fa-pen-to-square text-xs"></i>
                                               </button>
-                                              <button 
-                                                  onClick={() => handleDeleteFuncionario(f.id)} 
-                                                  className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/50 dark:hover:text-rose-400 rounded-xl transition-all active:scale-90 cursor-pointer shadow-xs"
+                                              <button
+                                                  onClick={() => handleDeleteFuncionario(f.id)}
+                                                  className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
                                                   title="Eliminar funcionario"
                                               >
                                                   <i className="fa-solid fa-trash-can text-xs"></i>
@@ -4117,20 +4121,20 @@ if (publicBienId) {
 />
       {isFC03ModalOpen && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-900 animate-slide-up"}>           
+          <div className={STYLES.modalContent + " max-w-md overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-900 animate-slide-up"}>
             {/* CABECERA LIMPIA */}
-            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 flex justify-between items-center">
+            <div className="relative px-6 sm:px-8 py-6 border-b border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-sm">
-                   <i className="fa-solid fa-file-pdf text-xl"></i>
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                   <i className="fa-solid fa-file-pdf text-lg"></i>
                 </div>
                 <div>
-                  <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
-                  <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
+                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
                 </div>
               </div>
-              <button onClick={() => setIsFC03ModalOpen(false)} className="rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700">
-                 <i className="fa-solid fa-xmark text-lg"></i>
+              <button onClick={() => setIsFC03ModalOpen(false)} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
             {/* CUERPO DEL MODAL */}
@@ -4138,7 +4142,7 @@ if (publicBienId) {
                 <div className="space-y-2">
                     <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Tipo de Reporte</label>
                     <div className="relative">
-                        <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => {
+                        <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => {
                             setFc03Config({...fc03Config, tipoFiltro: e.target.value, filtroValor: ''});
                             setFc03FuncionarioTexto('');
                             setShowFC03FuncDropdown(false);
@@ -4154,7 +4158,7 @@ if (publicBienId) {
                     <div className="space-y-2 animate-fade-in">
                         <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Ubicación</label>
                         <div className="relative">
-                            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
+                            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
                                 <option value="">Seleccione una ubicación...</option>
                                 {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
@@ -4196,7 +4200,7 @@ if (publicBienId) {
                                     }}
                                     onFocus={() => setShowFC03FuncDropdown(true)}
                                     placeholder="Escriba Marta Ocampo, apellido o CI..."
-                                    className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 pl-10 pr-10 py-3.5 text-sm font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner"
+                                    className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 pl-10 pr-10 py-3.5 text-sm font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner"
                                 />
                                 {fc03FuncionarioTexto && (
                                     <button
@@ -4262,13 +4266,13 @@ if (publicBienId) {
                 })()}
                 <div className="space-y-2">
                     <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Lugar de Emisión</label>
-                    <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
+                    <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
             </div>
             {/* BOTONES DE ACCIÓN */}
-            <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[32px]">
-              <button onClick={() => setIsFC03ModalOpen(false)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 shadow-sm transition-all cursor-pointer">Cancelar</button>
-              <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2.5 py-3.5 px-7 rounded-2xl text-sm font-black text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/25 transition-all cursor-pointer disabled:opacity-50" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
+            <div className="flex justify-end gap-2 px-6 sm:px-8 py-5 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[24px]">
+              <button onClick={() => setIsFC03ModalOpen(false)} className="h-10 px-5 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/70 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Cancelar</button>
+              <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900 dark:disabled:hover:bg-white" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
                 <i className="fa-solid fa-file-pdf text-xs"></i> Generar Documento
               </button>
             </div>
@@ -4359,13 +4363,13 @@ if (publicBienId) {
       {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
       {itemToDelete && (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
-                
-                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl mb-4 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400'}`}>
-                    <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-paper-plane' : 'fa-triangle-exclamation'} text-2xl`}></i>
+            <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+
+                <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl mb-4 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                    <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-paper-plane' : 'fa-triangle-exclamation'} text-xl`}></i>
                 </div>
 
-                <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+                <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
                     {itemToDelete.type === 'requestBaja' ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?'}
                 </h3>
 
@@ -4387,22 +4391,22 @@ if (publicBienId) {
                       value={motivoSolicitudBaja}
                       onChange={(e) => setMotivoSolicitudBaja(e.target.value)}
                       placeholder="Ej: Avería irreparable, rotura física, obsolescencia, desuso..."
-                      className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3.5 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none transition-all shadow-inner resize-none"
+                      className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3.5 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner resize-none"
                     />
                   </div>
                 )}
 
-                <div className="flex gap-3 justify-end">
-                    <button 
+                <div className="flex gap-2 justify-end">
+                    <button
                         onClick={() => { setItemToDelete(null); setMotivoSolicitudBaja(''); }}
-                        className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+                        className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                     >
                         Cancelar
                     </button>
-                    <button 
+                    <button
                         onClick={confirmDeleteAction}
                         disabled={itemToDelete.type === 'requestBaja' && !motivoSolicitudBaja.trim()}
-                        className={`flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white transition-all shadow-md cursor-pointer disabled:opacity-50 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20' : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20'}`}
+                        className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Confirmar Acción'}
                     </button>
@@ -4414,29 +4418,29 @@ if (publicBienId) {
       {/* MODAL DE CONFIRMACIÓN DE BACKUP GENERAL */}
       {confirmBackupModal && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-950/50 text-brand-primary dark:text-blue-400 mb-4 shadow-inner">
-              <i className="fa-solid fa-database text-2xl"></i>
+          <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white mb-4">
+              <i className="fa-solid fa-database text-xl"></i>
             </div>
-            <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+            <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
               ¿Descargar Copia de Seguridad?
             </h3>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
               Esta operación compilará y descargará una copia completa e íntegra (.json) de todos los registros patrimoniales, funcionarios, asignaciones y auditorías de la Universidad.
             </p>
             <div className="flex gap-3 justify-end">
-              <button 
+              <button
                 onClick={() => setConfirmBackupModal(false)}
-                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+                className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setConfirmBackupModal(false);
                   handleExportBackupGeneral();
                 }}
-                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-600/25 transition-all cursor-pointer"
+                className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
                 <i className="fa-solid fa-download mr-1.5 text-xs"></i> Sí, Descargar
               </button>
@@ -4448,11 +4452,11 @@ if (publicBienId) {
       {/* MODAL DE CONFIRMACIÓN DE IMPORTACIÓN MASIVA CSV */}
       {pendingCSVImport && (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md !rounded-[32px] p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 mb-4 shadow-inner">
-              <i className="fa-solid fa-file-csv text-2xl"></i>
+          <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white mb-4">
+              <i className="fa-solid fa-file-csv text-xl"></i>
             </div>
-            <h3 className="text-lg font-black text-zinc-900 dark:text-white mb-2">
+            <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
               ¿Confirmar Importación Masiva?
             </h3>
             <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200/60 dark:border-zinc-700/60 text-left mb-6 space-y-1.5">
@@ -4471,11 +4475,11 @@ if (publicBienId) {
                   if (fileInputFuncionariosRef.current) fileInputFuncionariosRef.current.value = '';
                   setPendingCSVImport(null);
                 }}
-                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+                className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
                 Cancelar
               </button>
-              <button 
+              <button
                 onClick={() => {
                   const { type, file } = pendingCSVImport;
                   setPendingCSVImport(null);
@@ -4485,7 +4489,7 @@ if (publicBienId) {
                     executeProcessFuncionariosCSV(file);
                   }
                 }}
-                className="flex-1 py-3.5 px-5 rounded-2xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/25 transition-all cursor-pointer"
+                className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
                 <i className="fa-solid fa-check mr-1.5 text-xs"></i> Sí, Continuar
               </button>
