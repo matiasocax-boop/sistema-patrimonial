@@ -1,21 +1,24 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
 import StatCard from './components/StatCard';
 import FaqItem from './components/FaqItem';
 import WorkflowStep from './components/WorkflowStep';
 import DonutChart from './components/DonutChart';
 import SimpleBar from './components/SimpleBar';
 import { SelectFilter, PeriodSelector } from './components/FilterComponents';
+import AnimatedNumber from './components/AnimatedNumber';
 import BienRow from './components/BienRow';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
-import BienModal from './components/BienModal';
-import FC04Modal from './components/FC04Modal';
-import FC10Modal from './components/FC10Modal';
-import FC11Modal from './components/FC11Modal';
+// Modales de apertura bajo demanda: carga diferida para acelerar el arranque
+const BienModal = lazy(() => import('./components/BienModal'));
+const FC04Modal = lazy(() => import('./components/FC04Modal'));
+const FC10Modal = lazy(() => import('./components/FC10Modal'));
+const FC11Modal = lazy(() => import('./components/FC11Modal'));
 import localforage from 'localforage';
 import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
-import CSVPreviewModal from './components/CSVPreviewModal';
+// Modales pesados: carga diferida para acelerar el arranque
+const CSVPreviewModal = lazy(() => import('./components/CSVPreviewModal'));
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
@@ -26,17 +29,17 @@ import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import FichaBienModal from './components/FichaBienModal';
-import LogoutModal from './components/modals/LogoutModal';
-import ResolucionBajaModal from './components/modals/ResolucionBajaModal';
-import DeleteConfirmModal from './components/modals/DeleteConfirmModal';
-import DependenciaConfirmModal from './components/modals/DependenciaConfirmModal';
-import QRModal from './components/modals/QRModal';
-import ConsolidadoFC10Modal from './components/modals/ConsolidadoFC10Modal';
-import UsuarioModal from './components/modals/UsuarioModal';
-import NuevoFuncionarioModal from './components/modals/NuevoFuncionarioModal';
-import FuncionarioModal from './components/modals/FuncionarioModal';
-import ScannerModal from './components/modals/ScannerModal';
-import UnsavedChangesModal from './components/modals/UnsavedChangesModal';
+const LogoutModal = lazy(() => import('./components/modals/LogoutModal'));
+const ResolucionBajaModal = lazy(() => import('./components/modals/ResolucionBajaModal'));
+const DeleteConfirmModal = lazy(() => import('./components/modals/DeleteConfirmModal'));
+const DependenciaConfirmModal = lazy(() => import('./components/modals/DependenciaConfirmModal'));
+const QRModal = lazy(() => import('./components/modals/QRModal'));
+const ConsolidadoFC10Modal = lazy(() => import('./components/modals/ConsolidadoFC10Modal'));
+const UsuarioModal = lazy(() => import('./components/modals/UsuarioModal'));
+const NuevoFuncionarioModal = lazy(() => import('./components/modals/NuevoFuncionarioModal'));
+const FuncionarioModal = lazy(() => import('./components/modals/FuncionarioModal'));
+const ScannerModal = lazy(() => import('./components/modals/ScannerModal'));
+const UnsavedChangesModal = lazy(() => import('./components/modals/UnsavedChangesModal'));
 import { processOfflineQueue, enqueueOfflineAction } from './services/offlineSyncService';
 import { registrarAuditoria } from './services/auditService';
 import Papa from 'papaparse';
@@ -312,6 +315,24 @@ export default function App() {
     () => bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual)),
     [bienes, dependenciaActual]
   );
+  const padronDep = useMemo(
+    () => funcionariosPadron.filter(f => f.dependencia === dependenciaActual),
+    [funcionariosPadron, dependenciaActual]
+  );
+  // Atajo "/": enfoca el buscador del inventario
+  const searchRef = useRef(null);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (activeTab !== 'inventario') return;
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeTab]);
   const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
   // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);
@@ -3131,7 +3152,7 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.totalItems} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Bienes Activos
@@ -3154,8 +3175,8 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? '…' : Number(stats.withQR || 0).toLocaleString('es-PY')}
-                          <span className="text-base text-zinc-400 font-semibold"> / {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}</span>
+                          {isLoading ? '…' : <><AnimatedNumber value={stats.withQR} />
+                          <span className="text-base text-zinc-400 font-semibold"> / {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}</span></>}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Bienes con QR
@@ -3178,7 +3199,7 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? '…' : Number(stats.withoutFc10 || 0).toLocaleString('es-PY')}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.withoutFc10} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Sin FC-10
@@ -3201,7 +3222,7 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? '…' : Number(stats.withoutQR || 0).toLocaleString('es-PY')}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.withoutQR} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Pendiente QR
@@ -3237,7 +3258,7 @@ if (publicBienId) {
                                         <i className={`fa-solid ${p.icon} text-sm`}></i>
                                     </span>
                                     <span className="min-w-0 flex-1">
-                                        <span className="block text-lg font-bold tabular-nums text-zinc-900 dark:text-white leading-tight">{p.count}</span>
+                                        <span className="block text-lg font-bold tabular-nums text-zinc-900 dark:text-white leading-tight"><AnimatedNumber value={p.count} /></span>
                                         <span className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 truncate">{p.label}</span>
                                     </span>
                                     <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 group-hover:translate-x-0.5 transition-all shrink-0"></i>
@@ -3445,6 +3466,8 @@ if (publicBienId) {
         <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
         <input 
           type="text"
+          ref={searchRef}
+          title="Buscar (atajo: /)"
           placeholder="Buscar por rótulo, descripción, funcionario... Ej: 1045 silla"
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setSearchInput(e.target.value); setCurrentPage(1); }}
@@ -4609,7 +4632,8 @@ if (publicBienId) {
           </main>
       </div>
 
-      {/* Modales y componentes flotantes */}
+      {/* Modales y componentes flotantes (carga diferida) */}
+      <Suspense fallback={null}>
       {isCSVPreviewOpen && (
           <CSVPreviewModal 
               isOpen={isCSVPreviewOpen}
@@ -4876,7 +4900,7 @@ if (publicBienId) {
         funcionariosConDatos={funcionariosConDatos}
         ubicacionesUnicas={ubicacionesUnicas}
         STYLES={STYLES}
-        funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
+        funcionariosPadron={padronDep}
         sugerenciasBienes={sugerenciasBienesDep}
     />
 )}
@@ -5121,6 +5145,7 @@ if (publicBienId) {
           pendingDependencia={pendingDependencia}
           STYLES={STYLES}
       />
+      </Suspense>
     </div>
   );
 }
