@@ -4,13 +4,20 @@ import { getLogoPorDependencia } from '../utils/helpers';
 export default function Sidebar({ 
     isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual, onExportBackup 
 }) {
-    // Logo oficial del sistema (blanco, para fondos oscuros) + sello (para fondos claros y PDFs).
+    // Logo oficial del sistema (blanco para modo oscuro, negro para modo claro) + sello (respaldo).
     const LOGO_SISTEMA = '/UNP-Site-Logo.png';
+    const LOGO_SISTEMA_NEGRO = '/UNP-Site-Logo-negro.png';
     const logoDep = getLogoPorDependencia(dependenciaActual);
     const closeBtn = (
         <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden flex shrink-0 items-center justify-center h-8 w-8 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:hover:bg-darkbg-hover dark:hover:text-white transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
             <i className="fa-solid fa-xmark"></i>
         </button>
+    );
+    const brandCaption = (
+        <div className="mt-3 flex items-center gap-2.5">
+            <span className="h-px w-4 bg-brand-primary/60"></span>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Dpto. Bienes Patrimoniales</p>
+        </div>
     );
 
     return (
@@ -39,41 +46,29 @@ export default function Sidebar({
                     </div>
                     {closeBtn}
                 </div>
-                ) : (<>
-                {/* Modo oscuro: logo oficial blanco horizontal */}
-                <div className="hidden dark:flex flex-col gap-2 px-5 py-4 shrink-0 border-b border-darkbg-border bg-darkbg-card">
+                ) : (
+                <div className="shrink-0 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card px-5 py-5">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-14 flex-1 items-center overflow-hidden rounded-xl border border-white/10 bg-[#0a1f44] px-4">
-                            <img
-                                src={LOGO_SISTEMA}
-                                alt="Universidad Nacional de Pilar"
-                                className="h-full w-full object-contain"
-                                onError={(e) => { e.target.style.display = 'none'; }}
-                            />
-                        </div>
+                        {/* Modo oscuro: lockup oficial blanco */}
+                        <img
+                            src={LOGO_SISTEMA}
+                            alt="Universidad Nacional de Pilar"
+                            className="hidden dark:block h-12 w-auto max-w-[195px] object-contain object-left"
+                            onError={(e) => { e.target.style.display = 'none'; }}
+                        />
+                        {/* Modo claro: lockup oficial negro */}
+                        <img
+                            src={LOGO_SISTEMA_NEGRO}
+                            alt="Universidad Nacional de Pilar"
+                            className="dark:hidden h-12 w-auto max-w-[195px] object-contain object-left"
+                            onError={(e) => { e.target.onerror = null; e.target.src = logoDep; }}
+                        />
+                        <div className="flex-1" />
                         {closeBtn}
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Dpto. Bienes Patrimoniales</p>
+                    {brandCaption}
                 </div>
-                {/* Modo claro: sello institucional */}
-                <div className="flex dark:hidden h-[90px] shrink-0 items-center justify-between px-7 border-b border-zinc-100 bg-white">
-                    <div className="flex items-center gap-4 w-full">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm border border-zinc-200 overflow-hidden p-1.5">
-                            <img
-                                src={logoDep}
-                                alt="Logo Institucional"
-                                className="w-full h-full object-contain filter drop-shadow-xs"
-                                onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
-                            />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h1 title="Dpto. Bienes Patrimoniales" className="text-[13px] font-black tracking-tight leading-snug text-zinc-900">Dpto. Bienes Patrimoniales</h1>
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5 leading-relaxed">Universidad Nacional de Pilar</p>
-                        </div>
-                    </div>
-                    {closeBtn}
-                </div>
-                </>)}
+                )}
                 
                 <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1.5 custom-scrollbar">
                     <div className="px-3 pb-3">
