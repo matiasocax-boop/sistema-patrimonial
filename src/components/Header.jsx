@@ -6,43 +6,63 @@ export default function Header({
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
     misNotificaciones, markAsRead, currentUser, isAdmin, handleLogout
 }) {
+    const TITULOS = {
+        dashboard: 'Panel Principal',
+        inventario: 'Inventario General',
+        funcionarios: 'Plantel de Funcionarios',
+        fc04: 'Registro FC-04',
+        fc10: 'Registro FC-10',
+        fc11: 'Registro FC-11',
+        aprobaciones: 'Aprobaciones',
+        usuarios: 'Directorio de Usuarios',
+        ayuda: 'Centro de Ayuda'
+    };
     return (
-        <header className="sticky top-0 z-30 flex h-[90px] shrink-0 items-center justify-between bg-white/90 dark:bg-darkbg-card/90 backdrop-blur-xl px-6 lg:px-10 border-b border-zinc-200/80 dark:border-darkbg-border transition-all shadow-sm">
-             <div className="flex items-center gap-x-4">
+        <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center justify-between bg-white/90 dark:bg-darkbg-card/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 border-b border-zinc-200/80 dark:border-darkbg-border transition-all">
+             <div className="flex items-center gap-3 min-w-0">
                 <button 
                     onClick={() => setIsSidebarOpen(true)} 
-                    className="lg:hidden flex items-center justify-center h-10 w-10 rounded-xl bg-zinc-50 dark:bg-darkbg-main text-zinc-500 hover:text-brand-primary dark:text-zinc-400 dark:hover:text-brand-accent transition-all cursor-pointer border border-zinc-200/80 dark:border-darkbg-border shadow-sm focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                    className="lg:hidden flex items-center justify-center h-10 w-10 rounded-xl bg-zinc-100 dark:bg-white/5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white transition-all cursor-pointer border border-zinc-200/80 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                    title="Abrir menú"
                 >
-                    <i className="fa-solid fa-bars text-lg"></i>
+                    <i className="fa-solid fa-bars"></i>
                 </button>
 
-                <h1 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white capitalize truncate hidden sm:block drop-shadow-sm">
-                   {activeTab === 'dashboard' ? 'Panel Principal' : activeTab === 'inventario' ? 'Inventario General' : activeTab === 'funcionarios' ? 'Plantel de Funcionarios' : activeTab === 'usuarios' ? 'Directorio de Usuarios' : activeTab === 'ayuda' ? 'Centro de Ayuda' : activeTab.replace('fc', 'Registro FC-')}
+                <h1 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white truncate hidden sm:block">
+                   {TITULOS[activeTab] || 'Panel Principal'}
                 </h1>
              </div>
 
-             <div className="flex items-center gap-x-3 sm:gap-x-5">
+             <div className="flex items-center gap-2 sm:gap-3">
                 <button 
                     onClick={() => setIsScannerOpen(true)} 
-                    className="hidden md:inline-flex items-center gap-2.5 bg-zinc-900 text-white dark:bg-brand-primary hover:bg-zinc-800 dark:hover:bg-brand-hover px-5 py-2.5 rounded-2xl text-[13px] font-bold transition-all cursor-pointer shadow-md hover:shadow-lg active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                    title="Escanear código QR"
+                    className="hidden md:inline-flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 px-4 h-10 rounded-xl text-[13px] font-bold transition-all cursor-pointer active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                 >
-                    <i className="fa-solid fa-qrcode"></i> Escanear QR
+                    <i className="fa-solid fa-qrcode text-xs"></i> Escanear QR
+                </button>
+                <button
+                    onClick={() => setIsScannerOpen(true)}
+                    title="Escanear código QR"
+                    className="md:hidden flex items-center justify-center h-10 w-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                >
+                    <i className="fa-solid fa-qrcode text-sm"></i>
                 </button>
 
-                <div className="hidden lg:flex items-center gap-3">
-                    <div className="relative flex items-center group focus-within:ring-2 focus-within:ring-brand-primary/50 rounded-2xl">
-                      <i className="fa-regular fa-file-pdf text-zinc-400 group-hover:text-red-500 absolute left-4 text-[13px] transition-colors"></i>
-                      <select className="appearance-none bg-zinc-50 border border-zinc-200/80 text-zinc-700 text-[13px] font-bold rounded-2xl pl-10 pr-9 py-2.5 outline-none cursor-pointer hover:bg-white dark:bg-darkbg-main dark:border-darkbg-border dark:text-zinc-200 dark:hover:bg-darkbg-hover transition-all shadow-sm hover:shadow" value={pdfPaperSize} onChange={(e) => setPdfPaperSize(e.target.value)}>
+                <div className="hidden lg:flex items-center gap-2">
+                    <div className="relative flex items-center">
+                      <i className="fa-regular fa-file-pdf text-zinc-400 absolute left-3.5 text-xs pointer-events-none"></i>
+                      <select title="Tamaño de papel para PDFs" className="appearance-none bg-zinc-100 dark:bg-white/5 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 text-[13px] font-semibold rounded-xl pl-9 pr-8 h-10 outline-none cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-brand-primary" value={pdfPaperSize} onChange={(e) => setPdfPaperSize(e.target.value)}>
                         <option value="a4">Formato A4</option>
                         <option value="legal">Oficio</option>
                       </select>
-                      <i className="fa-solid fa-chevron-down absolute right-4 text-[10px] text-zinc-400 pointer-events-none"></i>
+                      <i className="fa-solid fa-chevron-down absolute right-3 text-[10px] text-zinc-400 pointer-events-none"></i>
                     </div>
 
-                    <div className="relative flex items-center group focus-within:ring-2 focus-within:ring-brand-primary/50 rounded-2xl">
-                      <i className={`fa-solid ${isAdmin ? 'fa-building-columns' : 'fa-lock'} text-zinc-400 group-hover:text-brand-primary absolute left-4 text-[13px] transition-colors`}></i>
+                    <div className="relative flex items-center">
+                      <i className={`fa-solid ${isAdmin ? 'fa-building-columns' : 'fa-lock'} text-zinc-400 absolute left-3.5 text-xs pointer-events-none`}></i>
                       <select 
-                         className={`appearance-none text-[13px] font-bold rounded-2xl pl-10 pr-9 py-2.5 outline-none transition-all shadow-sm max-w-[220px] truncate ${isAdmin ? 'bg-zinc-50 border border-zinc-200/80 text-zinc-700 cursor-pointer hover:bg-white dark:bg-darkbg-main dark:border-darkbg-border dark:text-zinc-200 dark:hover:bg-darkbg-hover hover:shadow' : 'bg-zinc-100 border border-zinc-200/50 text-zinc-500 cursor-not-allowed dark:bg-darkbg-main/50 dark:text-zinc-500'}`} 
+                         className={`appearance-none text-[13px] font-semibold rounded-xl pl-9 pr-8 h-10 outline-none transition-all max-w-[200px] truncate focus-visible:ring-2 focus-visible:ring-brand-primary ${isAdmin ? 'bg-zinc-100 dark:bg-white/5 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 cursor-pointer' : 'bg-transparent border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 cursor-not-allowed'}`} 
                          value={dependenciaActual} 
                          onChange={(e) => { setDependenciaActual(e.target.value); clearAllFilters(); }}
                          disabled={!isAdmin}
@@ -58,18 +78,18 @@ export default function Header({
                     </div>
                 </div>
 
-                <div className="h-8 w-px bg-zinc-200 dark:bg-darkbg-border hidden sm:block mx-1"></div>
+                <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 hidden sm:block"></div>
 
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setDarkMode(!darkMode)} className="flex h-11 w-11 items-center justify-center rounded-2xl text-zinc-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-darkbg-hover dark:hover:text-amber-400 border border-transparent hover:border-amber-200/50 dark:hover:border-darkbg-border transition-all cursor-pointer shadow-sm focus-visible:ring-2 focus-visible:ring-amber-400 outline-none" title="Alternar Tema">
-                        <i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'} text-lg`}></i>
+                <div className="flex items-center gap-1.5">
+                    <button onClick={() => setDarkMode(!darkMode)} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Alternar tema claro / oscuro">
+                        <i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
                     </button>
                     
                     <div className="relative flex items-center">
                         {isNotifOpen && <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>}
-                        <button onClick={() => setIsNotifOpen(!isNotifOpen)} className="relative flex h-11 w-11 items-center justify-center rounded-2xl text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 dark:hover:bg-darkbg-hover dark:hover:text-brand-accent border border-transparent hover:border-brand-primary/20 dark:hover:border-darkbg-border transition-all cursor-pointer z-50 shadow-sm focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
-                            <i className="fa-regular fa-bell text-lg"></i>
-                            {unreadCount > 0 && <span className="absolute top-2 right-2 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-red-500 ring-2 ring-white dark:ring-darkbg-card"></span>}
+                        <button onClick={() => setIsNotifOpen(!isNotifOpen)} title="Notificaciones" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer z-50 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                            <i className="fa-regular fa-bell"></i>
+                            {unreadCount > 0 && <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-darkbg-card"></span>}
                         </button>
                         
                         {isNotifOpen && (
@@ -130,18 +150,18 @@ export default function Header({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 pl-3 sm:pl-5 border-l border-zinc-200 dark:border-darkbg-border">
-                    <div className="flex flex-col text-right hidden sm:flex">
-                        <span className="text-[13px] font-black text-zinc-900 dark:text-white leading-tight tracking-tight">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
-                        <span className="text-[10px] font-bold text-brand-primary dark:text-brand-accent uppercase tracking-widest mt-0.5">
+                <div className="flex items-center gap-2.5 pl-2 sm:pl-3 ml-1 border-l border-zinc-200 dark:border-white/10">
+                    <div className="flex-col text-right hidden xl:flex leading-tight">
+                        <span className="text-[13px] font-bold text-zinc-900 dark:text-white truncate max-w-[140px]">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
+                        <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em] mt-0.5">
                             {isAdmin ? 'Administrador' : 'Funcionario'}
                         </span>
                     </div>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-hover text-white font-black text-lg shadow-md shadow-brand-primary/20 ring-2 ring-brand-primary/10 select-none">
+                    <div title={currentUser?.nombre || 'Usuario'} className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold select-none">
                         {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <button onClick={handleLogout} className="flex h-11 w-11 items-center justify-center rounded-2xl text-zinc-400 hover:text-red-600 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-900/30 border border-transparent transition-all cursor-pointer ml-1 shadow-sm focus-visible:ring-2 focus-visible:ring-red-500 outline-none" title="Cerrar Sesión">
-                        <i className="fa-solid fa-power-off text-[17px]"></i>
+                    <button onClick={handleLogout} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Cerrar sesión">
+                        <i className="fa-solid fa-power-off"></i>
                     </button>
                 </div>
              </div>
