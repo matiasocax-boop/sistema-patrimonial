@@ -2793,151 +2793,154 @@ if (publicBienId) {
                                 {activeTab === 'dashboard' && (
                   <div className="space-y-5 sm:space-y-6 animate-fade-in pb-12">
                     
-                    {/* 1. HERO BANNER - BENTO MINIMALISTA */}
-                    <div className="relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl p-8 sm:p-10 rounded-[32px] border border-zinc-200/50 dark:border-white/5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-8 group transition-all">
-                      
-                      <div className="absolute top-0 right-0 w-96 h-96 bg-brand-primary/10 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2"></div>
-                      <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl -z-10 -translate-x-1/2 translate-y-1/2"></div>
-
-                      <div className="flex items-center gap-6 relative z-10">
-                        <div className="relative shrink-0">
-                            <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-brand-primary to-indigo-500 text-white font-semibold text-2xl sm:text-3xl shadow-lg shadow-brand-primary/30 border border-white/20">
-                              {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
-                            </div>
+                    {/* 1. ENCABEZADO DE PÁGINA COMPACTO */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-xl sm:text-2xl shadow-md">
+                          {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                         </div>
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/5">
-                                  <i className="fa-solid fa-shield-halved text-[9px]"></i> Panel General
-                              </span>
-                          </div>
-                          <h3 className="text-2xl sm:text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight truncate">
-                            {saludoBienvenida}! {currentUser?.nombre || 'Usuario'}
-                          </h3>
-                          <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 mt-1.5 flex items-center gap-2 truncate">
-                              <i className="fa-solid fa-building-columns shrink-0"></i>
-                              <span className="truncate">Dependencia: <strong className="text-zinc-900 dark:text-zinc-200 font-semibold">{dependenciaActual}</strong></span>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 truncate">
+                            Panel General · {dependenciaActual}
                           </p>
+                          <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate mt-0.5">
+                            {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}
+                          </h3>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 relative z-10 bg-white dark:bg-zinc-950/50 px-5 py-3.5 rounded-2xl border border-zinc-200/80 dark:border-white/5 shadow-sm self-start md:self-auto shrink-0 backdrop-blur-md">
-                        <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"></div>
+                      <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0 rounded-2xl bg-white dark:bg-white/5 px-4 py-2.5 border border-zinc-200/80 dark:border-white/10 shadow-sm">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
                         <div className="flex flex-col">
-                            <span className="text-xs font-bold text-zinc-900 dark:text-white tracking-wide">Sistema Sincronizado</span>
-                            <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400">Conexión activa</span>
+                          <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Sistema Sincronizado</span>
+                          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">Conexión activa</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* 2. TARJETAS DE M0TRICAS (GRID BENTO) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                      
+                    {/* 2. TARJETAS DE MÉTRICAS ACCIONABLES */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+
                       {/* Bienes Activos */}
-                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
-                        <div className="flex items-start justify-between gap-3 mb-6">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-brand-primary dark:text-white border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
-                            <i className="fa-solid fa-boxes-stacked text-xl"></i>
+                      <button
+                        onClick={() => { clearAllFilters(); setActiveTab('inventario'); }}
+                        title="Ver inventario completo"
+                        className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+                            <i className="fa-solid fa-boxes-stacked text-lg"></i>
                           </div>
+                          <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
-                        <div>
-                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
-                            {isLoading ? '...' : stats.totalItems}
-                          </h3>
-                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
-                            <span className="h-1.5 w-1.5 rounded-full bg-brand-primary"></span>
-                            Bienes Activos
-                          </p>
-                        </div>
-                      </div>
+                        <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
+                          {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}
+                        </p>
+                        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
+                          Bienes Activos
+                        </p>
+                        <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500 mt-2 truncate">
+                          Total en {dependenciaActual}
+                        </p>
+                      </button>
 
                       {/* Bienes con QR */}
-                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
-                        <div className="flex items-start justify-between gap-3 mb-6">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-purple-600 dark:text-purple-400 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
-                            <i className="fa-solid fa-qrcode text-xl"></i>
+                      <button
+                        onClick={() => { clearAllFilters(); setFiltroQR('YES'); setActiveTab('inventario'); }}
+                        title="Ver bienes con QR"
+                        className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-violet-600 dark:bg-violet-500 text-white">
+                            <i className="fa-solid fa-qrcode text-lg"></i>
                           </div>
+                          <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
-                        <div>
-                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight flex items-baseline gap-1">
-                            {isLoading ? '...' : stats.withQR}
-                            <span className="text-xl text-zinc-400 font-medium tracking-normal">/{stats.totalItems}</span>
-                          </h3>
-                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
-                            <span className="h-1.5 w-1.5 rounded-full bg-purple-500"></span>
-                            Bienes con QR
-                          </p>
+                        <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
+                          {isLoading ? '…' : Number(stats.withQR || 0).toLocaleString('es-PY')}
+                          <span className="text-base text-zinc-400 font-semibold"> / {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}</span>
+                        </p>
+                        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
+                          Bienes con QR
+                        </p>
+                        <div className="mt-2.5 h-1.5 w-full bg-zinc-100 dark:bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-violet-500 rounded-full transition-all duration-700" style={{ width: `${stats.percQR || 0}%` }}></div>
                         </div>
-                      </div>
+                      </button>
 
                       {/* Sin FC-10 */}
-                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
-                        <div className="flex items-start justify-between gap-3 mb-6">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-amber-500 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
-                            <i className="fa-solid fa-file-signature text-xl"></i>
+                      <button
+                        onClick={() => { clearAllFilters(); setFiltroFC10('NO'); setActiveTab('inventario'); }}
+                        title="Ver bienes sin FC-10"
+                        className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-amber-200/70 dark:border-amber-400/20 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-amber-500 outline-none transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-500 text-white">
+                            <i className="fa-solid fa-file-signature text-lg"></i>
                           </div>
+                          <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
-                        <div>
-                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
-                            {isLoading ? '...' : stats.withoutFc10}
-                          </h3>
-                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                            Sin FC-10
-                          </p>
-                        </div>
-                      </div>
+                        <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
+                          {isLoading ? '…' : Number(stats.withoutFc10 || 0).toLocaleString('es-PY')}
+                        </p>
+                        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
+                          Sin FC-10
+                        </p>
+                        <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
+                          Pendientes de asignación
+                        </p>
+                      </button>
 
                       {/* Pendiente QR */}
-                      <div className="group relative bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none hover:-translate-y-1 hover:shadow-lg transition-all duration-300 cursor-default">
-                        <div className="flex items-start justify-between gap-3 mb-6">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-rose-500 border border-zinc-200/50 dark:border-white/5 transition-transform group-hover:scale-105">
-                            <i className="fa-solid fa-triangle-exclamation text-xl"></i>
+                      <button
+                        onClick={() => { clearAllFilters(); setFiltroQR('NO'); setActiveTab('inventario'); }}
+                        title="Ver bienes sin QR"
+                        className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-rose-200/70 dark:border-rose-400/20 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-rose-500 outline-none transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-rose-500 text-white">
+                            <i className="fa-solid fa-triangle-exclamation text-lg"></i>
                           </div>
+                          <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
-                        <div>
-                          <h3 className="text-4xl font-semibold text-zinc-900 dark:text-white tracking-tight">
-                            {isLoading ? '...' : stats.withoutQR}
-                          </h3>
-                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-2 flex items-center gap-2 uppercase tracking-widest">
-                            <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
-                            Pendiente QR
-                          </p>
-                        </div>
-                      </div>
+                        <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
+                          {isLoading ? '…' : Number(stats.withoutQR || 0).toLocaleString('es-PY')}
+                        </p>
+                        <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
+                          Pendiente QR
+                        </p>
+                        <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 mt-2">
+                          Sin etiqueta generada
+                        </p>
+                      </button>
 
                     </div>
 
-                    {/* 3. ACCIONES RÁPIDAS (MINIMALISTA) */}
-                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 p-3 flex flex-wrap gap-3 items-center justify-between sm:justify-start">
-                        <div className="flex items-center gap-4 pl-4 pr-6 py-2 border-r border-zinc-200 dark:border-white/10 hidden lg:flex">
-                          <div className="h-10 w-10 rounded-full bg-zinc-100 dark:bg-white/5 flex items-center justify-center text-zinc-900 dark:text-white">
-                            <i className="fa-solid fa-bolt"></i>
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-zinc-900 dark:text-white leading-tight">Acciones</p>
-                            <p className="text-[10px] font-semibold text-zinc-500">Accesos directos</p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-2.5 lg:pl-2">
-                            <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-black font-semibold text-sm transition-all shadow-md active:scale-95 cursor-pointer">
-                                <i className="fa-solid fa-plus text-xs"></i> Registro
+                    {/* 3. ACCESOS DIRECTOS */}
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-3 sm:p-4 shadow-sm">
+                        <p className="px-2 pb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Accesos directos</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} title="Añadir nuevo registro" className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-[13px] transition-all shadow-sm active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-plus text-xs"></i> Nuevo registro
                             </button>
-                            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                            <span className="hidden sm:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1"></span>
+                            <button onClick={() => fileInputRef.current?.click()} title="Importar archivo CSV" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-file-import text-emerald-600 dark:text-emerald-400"></i> Importar
                             </button>
-                            <button onClick={handleExportInventarioCSV} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                            <button onClick={handleExportInventarioCSV} title="Exportar archivo CSV" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-file-export text-sky-600 dark:text-sky-400"></i> Exportar
                             </button>
-                            <button onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
-                                <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i> Lote QRs
+                            <button onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} title="Generar lote masivo de QRs" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-qrcode text-violet-600 dark:text-violet-400"></i> Lote QRs
                             </button>
-                            <button onClick={openFC03Modal} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
+                            <button onClick={openFC03Modal} title="Generar reporte FC-03" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-print text-amber-600 dark:text-amber-400"></i> FC-03
                             </button>
-                            <button onClick={() => logoInputRef.current?.click()} className="flex items-center gap-2.5 px-6 py-3 rounded-[20px] bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-zinc-700 dark:text-zinc-300 font-semibold text-sm transition-all active:scale-95 cursor-pointer">
-                                <i className="fa-solid fa-image text-brand-primary dark:text-brand-accent"></i> Logo
+                            <button onClick={() => logoInputRef.current?.click()} title="Cambiar logo institucional" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
+                                <i className="fa-solid fa-image text-zinc-500 dark:text-zinc-400"></i> Logo
                             </button>
                         </div>
                     </div>
@@ -2946,7 +2949,7 @@ if (publicBienId) {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                       
                       {/* Estado de Regularización */}
-                      <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col overflow-hidden p-6 sm:p-7">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                              <i className="fa-solid fa-chart-pie text-emerald-500"></i> Metas de Cobertura
@@ -2986,7 +2989,7 @@ if (publicBienId) {
                       </div>
 
                       {/* Tendencias Operativas */}
-                      <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col overflow-hidden p-6 sm:p-8">
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col overflow-hidden p-6 sm:p-7">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                              <i className="fa-solid fa-chart-line text-brand-primary"></i> Gestión Anual
