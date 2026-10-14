@@ -23,6 +23,8 @@ import {
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
+import MaintenanceScreen from './components/MaintenanceScreen';
+import MantenimientoModal from './components/modals/MantenimientoModal';
 import LogoutModal from './components/modals/LogoutModal';
 import ResolucionBajaModal from './components/modals/ResolucionBajaModal';
 import DeleteConfirmModal from './components/modals/DeleteConfirmModal';
@@ -126,6 +128,22 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState({ active: false, text: '' });
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  // Modo mantenimiento: aviso global que bloquea el uso para todos
+  const [mantenimiento, setMantenimiento] = useState(null);
+  const [isMantenimientoModalOpen, setIsMantenimientoModalOpen] = useState(false);
+  const [isSavingMant, setIsSavingMant] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    const cargar = async () => {
+      try {
+        const { data, error } = await supabase.from('app_config').select('*').eq('id', 'global').limit(1);
+        if (!error && data && data[0] && alive) setMantenimiento(data[0]);
+      } catch (e) {}
+    };
+    cargar();
+    const t = setInterval(cargar, 60000);
+    return () => { alive = false; clearInterval(t); };
+  }, []);
 
   const [showDependenciaConfirm, setShowDependenciaConfirm] = useState(false);
   const [pendingDependencia, setPendingDependencia] = useState('');
@@ -2541,6 +2559,36 @@ const handleEditFuncionario = (funcionario) => {
 
 // --- VISTA PaBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
 // --- VISTA PÚBLICA DE ESCANEO QR CLARA, MODERNA Y OPTIMIZADA PARA MÓVILES (iOS / ANDROID) ---
+// Bypass de desarrollador (?mant=off): permite trabajar durante el mantenimiento
+if (typeof window !== 'undefined') {
+  try {
+    if (new URLSearchParams(window.location.search).get('mant') === 'off') {
+      sessionStorage.setItem('mant_bypass', '1');
+    }
+  } catch (e) {}
+}
+const mantBypass = typeof window !== 'undefined' && sessionStorage.getItem('mant_bypass') === '1';
+const saveMantenimiento = async (data) => {
+  setIsSavingMant(true);
+  try {
+    const payload = { id: 'global', ...data, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from('app_config').upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    setMantenimiento(payload);
+    setIsMantenimientoModalOpen(false);
+    addToast(
+      data.en_mantenimiento ? 'Modo mantenimiento activado para todos.' : 'Sistema habilitado nuevamente.',
+      data.en_mantenimiento ? 'warning' : 'success'
+    );
+  } catch (e) {
+    addToast('No se pudo guardar. Crea la tabla app_config en Supabase (te pasé el SQL).', 'error');
+  } finally {
+    setIsSavingMant(false);
+  }
+};
+if (mantenimiento?.en_mantenimiento && !mantBypass) {
+  return <MaintenanceScreen config={mantenimiento} />;
+}
 if (publicBienId) {
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
@@ -2784,7 +2832,7 @@ if (publicBienId) {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
@@ -4393,6 +4441,14 @@ if (publicBienId) {
         funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
     />
 )}
+      <MantenimientoModal
+        isOpen={isMantenimientoModalOpen}
+        onClose={() => setIsMantenimientoModalOpen(false)}
+        initial={mantenimiento}
+        onSave={saveMantenimiento}
+        isSaving={isSavingMant}
+        STYLES={STYLES}
+      />
       <LogoutModal 
     isOpen={showLogoutConfirm} 
     onClose={() => setShowLogoutConfirm(false)} 

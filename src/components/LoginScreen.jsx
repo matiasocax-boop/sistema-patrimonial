@@ -165,8 +165,9 @@ export default function LoginScreen({
       </main>
 
       {/* Footer inferior */}
-      <footer className="relative z-10 text-center text-[11px] font-medium text-slate-500 pb-5">
-        © {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales
+      <footer className="relative z-10 text-center pb-5 px-6">
+        <p className="text-[11px] font-medium text-slate-500">© {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales</p>
+        <p className="text-[11px] font-bold text-slate-400 mt-1">Desarrollador del Sistema: Matias Ocampo</p>
       </footer>
 
       {/* MODAL DE RECUPERACIÓN / SOPORTE */}
