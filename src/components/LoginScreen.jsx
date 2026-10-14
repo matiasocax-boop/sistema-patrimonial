@@ -53,12 +53,12 @@ export default function LoginScreen({
 
         {/* Centro de la columna izquierda: Logo y Títulos */}
         <div className="relative z-10 flex flex-col items-center text-center max-w-lg my-auto animate-fade-in">
-          <div className="w-40 h-40 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 shadow-2xl mb-8 flex items-center justify-center transform transition-transform hover:scale-105 duration-500">
+          <div className="w-72 h-28 bg-[#0a1f44]/60 backdrop-blur-md border border-white/20 rounded-3xl px-8 py-4 shadow-2xl mb-8 flex items-center justify-center transform transition-transform hover:scale-105 duration-500">
             <img 
-              src={appLogo || '/publiclogo_unp.png'} 
+              src={appLogo || '/UNP-Site-Logo.png'} 
               alt="Universidad Nacional de Pilar" 
               className="w-full h-full object-contain filter drop-shadow-lg"
-              onError={(e) => { e.target.src = '/publiclogo_unp.png'; }}
+              onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
             />
           </div>
 
