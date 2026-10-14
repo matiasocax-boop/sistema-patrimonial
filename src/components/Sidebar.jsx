@@ -4,8 +4,20 @@ import { getLogoPorDependencia } from '../utils/helpers';
 export default function Sidebar({ 
     isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual, onExportBackup 
 }) {
-    // Determinamos qué logo mostrar (prioriza el logo subido manualmente, si no, usa el de la dependencia activa)
-    const logoSrc = appLogo || getLogoPorDependencia(dependenciaActual);
+    // Logo del sistema: prioriza el subido manualmente, luego el oficial nuevo,
+    // y como respaldo el de la dependencia activa.
+    const LOGO_SISTEMA = '/logo_sistema.png';
+    const logoSrc = appLogo || LOGO_SISTEMA;
+    const handleLogoError = (e) => {
+        const fb = getLogoPorDependencia(dependenciaActual);
+        if (!e.target.dataset.fb) {
+            e.target.dataset.fb = '1';
+            e.target.src = fb;
+        } else {
+            e.target.onerror = null;
+            e.target.src = '/publiclogo_unp.png';
+        }
+    };
 
     return (
         <>
@@ -23,12 +35,12 @@ export default function Sidebar({
                                 src={logoSrc} 
                                 alt="Logo Institucional" 
                                 className="w-full h-full object-contain filter drop-shadow-xs" 
-                                onError={(e) => { e.target.src = '/publiclogo_unp.png'; }}
+                                onError={handleLogoError}
                             />
                         </div>
                         <div className="min-w-0 flex-1">
-                            <h1 className="text-[14px] font-black tracking-tight text-zinc-900 dark:text-white truncate">Dpto. Bienes Patrimoniales</h1>
-                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5">Universidad Nacional de Pilar</p>
+                            <h1 title="Dpto. Bienes Patrimoniales" className="text-[13px] font-black tracking-tight leading-snug text-zinc-900 dark:text-white">Dpto. Bienes Patrimoniales</h1>
+                            <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest mt-0.5 leading-relaxed">Universidad Nacional de Pilar</p>
                         </div>
                     </div>
                     <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden flex items-center justify-center h-8 w-8 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:hover:bg-darkbg-hover dark:hover:text-white transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
