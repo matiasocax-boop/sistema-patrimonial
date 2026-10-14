@@ -615,46 +615,6 @@ useEffect(() => {
         setIsProcessing({ active: false, text: '' });
     }
   };
- 
-  const handleLogoUpload = (e) => { 
-  const file = e.target.files[0]; 
-  if (!file) return; 
-
-  const MAX_SIZE = 2 * 1024 * 1024; // 2 MB
-  if (file.size > MAX_SIZE) {
-    addToast("El logo no debe superar los 2 MB de peso.", "warning");
-    e.target.value = null;
-    return;
-  }
-
-  const reader = new FileReader(); 
-  reader.onload = (event) => { 
-      const img = new Image(); 
-      img.onload = () => { 
-          const canvas = document.createElement('canvas'); 
-          const maxSize = 300; 
-          let width = img.width; 
-          let height = img.height; 
-          if (width > height) { 
-              if (width > maxSize) { height *= maxSize / width; width = maxSize; } 
-          } else { 
-              if (height > maxSize) { width *= maxSize / height; height = maxSize; } 
-          } 
-          canvas.width = width; 
-          canvas.height = height; 
-          const ctx = canvas.getContext('2d'); 
-          ctx.clearRect(0, 0, width, height); 
-          ctx.drawImage(img, 0, 0, width, height); 
-          const compressedLogo = canvas.toDataURL('image/png'); 
-          localStorage.setItem('logoOficial', compressedLogo); 
-          setAppLogo(compressedLogo); 
-          addToast("Logo oficial actualizado correctamente", "success"); 
-      }; 
-      img.src = event.target.result; 
-  };
-  reader.readAsDataURL(file); 
-  e.target.value = null; 
-};
 
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
@@ -2948,9 +2908,6 @@ if (publicBienId) {
                             <button onClick={openFC03Modal} title="Generar reporte FC-03" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-print text-amber-600 dark:text-amber-400"></i> FC-03
                             </button>
-                            <button onClick={() => logoInputRef.current?.click()} title="Cambiar logo institucional" className="flex items-center gap-2 px-4 py-2.5 rounded-2xl hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 font-semibold text-[13px] transition-all active:scale-95 cursor-pointer">
-                                <i className="fa-solid fa-image text-zinc-500 dark:text-zinc-400"></i> Logo
-                            </button>
                         </div>
                     </div>
 
@@ -3912,42 +3869,41 @@ if (publicBienId) {
                             const bien = bienes.find(b=>b.id === fc.bienId) || {};
                             const isDevuelto = !!fc.devolucionFecha;
                             return (
-                              <div key={fc.id} className="bg-white dark:bg-darkbg-card rounded-xl border border-zinc-200 dark:border-darkbg-border shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
-                                <div className={`absolute top-0 left-0 w-full h-1 ${isDevuelto ? 'bg-zinc-300 dark:bg-zinc-600' : 'bg-brand-primary'}`}></div>                           
+                              <div key={fc.id} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
                                 <div className="p-5 flex-1 flex flex-col">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div className="flex flex-col gap-1.5">
+                                    <div className="flex justify-between items-start gap-2 mb-4">
+                                        <div className="flex flex-col gap-1.5 min-w-0">
                                             {isDevuelto ? (
-                                                <span className="inline-flex w-fit items-center rounded-md bg-zinc-100 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                                                <span className="inline-flex w-fit items-center rounded-lg bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
                                                     Devuelto
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex w-fit items-center rounded-md bg-brand-light/50 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent border border-brand-primary/20 shadow-sm">
+                                                <span className="inline-flex w-fit items-center rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                                                     Vigente
                                                 </span>
                                             )}
-                                            <span className="text-xs font-medium text-zinc-500 flex items-center gap-1">
+                                            <span className="text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
                                                 <i className="fa-regular fa-calendar"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}
                                             </span>
                                         </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity bg-white dark:bg-white/10 rounded-xl shadow-sm border border-zinc-200/70 dark:border-white/10 p-1">
-                                            <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Imprimir"><i className="fa-solid fa-print"></i></button>
-                                            <button onClick={() => openFC10Modal(bien, fc)} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Editar / Cerrar"><i className="fa-solid fa-pen-to-square"></i></button>
+                                        <div className="flex gap-1 shrink-0 rounded-xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/70 dark:border-white/10 p-1">
+                                            <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Imprimir acta"><i className="fa-solid fa-print text-xs"></i></button>
+                                            <button onClick={() => openFC10Modal(bien, fc)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar / Cerrar acta"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
                                             {isAdmin && (
-                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="text-zinc-500 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md transition cursor-pointer" title="Eliminar"><i className="fa-solid fa-trash-can"></i></button>
+                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar acta"><i className="fa-solid fa-trash-can text-xs"></i></button>
                                             )}
                                         </div>
-                                    </div>                                   
-                                    <div className="mt-2 flex flex-col h-full">
-    <h4 className="font-bold text-zinc-900 dark:text-white text-sm uppercase tracking-tight">{fc.funcionarioNombre}</h4>
-    <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 font-medium">{fc.funcionarioCargo}</p>
-    
-    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-darkbg-border bg-zinc-50/50 dark:bg-darkbg-main/50 -mx-5 -mb-5 px-5 pb-5 rounded-b-xl">
-        <p className="text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate" title={bien.descripcion || 'Descripción no disponible'}>
+                                    </div>
+                                    <div className="mt-1 flex flex-col flex-1">
+    <h4 className="font-bold text-zinc-900 dark:text-white text-sm tracking-tight truncate" title={fc.funcionarioNombre}>{fc.funcionarioNombre}</h4>
+    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium truncate">{fc.funcionarioCargo}{fc.funcionarioDoc ? ` · CI ${formatCI(fc.funcionarioDoc)}` : ''}</p>
+
+    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-white/10">
+        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 line-clamp-2 leading-relaxed" title={bien.descripcion || 'Descripción no disponible'}>
             {bien.descripcion || 'Descripción no disponible'}
         </p>
-        <p className="text-[11px] text-zinc-500 mt-1 font-mono">
-            <i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {bien.rotulo || 'S/Rótulo'}
+        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1.5 font-semibold tabular-nums">
+            <i className="fa-solid fa-tag mr-1.5"></i>{bien.rotulo || 'S/Rótulo'}
         </p>
     </div>
 </div>

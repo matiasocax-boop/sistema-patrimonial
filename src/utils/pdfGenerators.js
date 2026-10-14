@@ -73,7 +73,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2 },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2.5 },
             columnStyles: { 1: { halign: 'center', fontStyle: 'bold' } },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 4;
 
@@ -89,7 +89,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2 },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2.5 },
             columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 4;
 
@@ -136,7 +136,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
                 7: { halign: 'center', cellWidth: 18 },
                 8: { halign: 'center', cellWidth: 18, fontStyle: 'bold' }
             },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 4;
 
@@ -152,7 +152,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2.5 },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 4;
 
@@ -163,7 +163,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'left' },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, minCellHeight: 18, valign: 'top' },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 4;
 
@@ -178,7 +178,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2.5 },
             columnStyles: { 0: { fontStyle: 'bold' } },
-            margin: { left: 14, right: 14 }
+            margin: { left: 14, right: 14, bottom: 25 }
         });
         finalY = doc.lastAutoTable.finalY + 6;
 
@@ -186,13 +186,22 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.setFont("helvetica", "normal");
         const disclaimer = "Con la firma del presente documento, el funcionario asume la total responsabilidad por la tenencia, uso y debida conservación del bien patrimonial detallado. Asimismo, se obliga a informar al Departamento de Bienes Patrimoniales sobre su renuncia, traslado o desvinculación del cargo, así como reportar inmediatamente cualquier daño, pérdida o hurto del bien asignado para su gestión, en estricto cumplimiento del Manual de Normas y Procedimientos para la Administración, Uso, Custodia, Clasificación y Contabilización de los Bienes del Estado del Ministerio de Economía y Finanzas.";
         const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 28);
+        // Bloque final inseparable: si el texto legal + firmas no caben, pasan juntos a una nueva página
+        const bloqueFinalAltura = (disclaimerLines.length * 3.5) + 16 + 22;
+        if (finalY + bloqueFinalAltura > pageHeight - 20) {
+            doc.addPage();
+            finalY = 20;
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(8);
+            doc.setTextColor(130, 130, 130);
+            doc.text(pageTitle + " (continuación)", pageWidth - 14, 14, { align: 'right' });
+            doc.setTextColor(0, 0, 0);
+            finalY = 24;
+        }
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
         doc.text(disclaimerLines, 14, finalY);
         finalY += (disclaimerLines.length * 3.5) + 16;
-
-        if (finalY > pageHeight - 35) {
-            doc.addPage();
-            finalY = 30;
-        }
 
         const leftX = 25;
         doc.setLineWidth(0.3);
@@ -210,6 +219,16 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.text("Visto Bueno (Jefe Inmediato)", rightX + 35, finalY + 4, { align: 'center' });
         doc.setFont("helvetica", "normal");
         doc.text("Aclaración:", rightX, finalY + 9);
+
+        const totalPagesDoc = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPagesDoc; p++) {
+            doc.setPage(p);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(7);
+            doc.setTextColor(130, 130, 130);
+            doc.text(`Página ${p} de ${totalPagesDoc}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            doc.setTextColor(0, 0, 0);
+        }
 
     });
 
