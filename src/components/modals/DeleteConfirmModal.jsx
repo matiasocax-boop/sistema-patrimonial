@@ -5,23 +5,21 @@ export default function DeleteConfirmModal({ itemToDelete, setItemToDelete, conf
 
     return (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-[380px] !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
+          <div className={STYLES.modalContent + " max-w-[380px] !p-0 overflow-hidden rounded-[24px] shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
             <div className="p-8 text-center bg-white dark:bg-darkbg-card relative overflow-hidden">
-              <div className={`absolute top-0 inset-x-0 h-1 ${itemToDelete.type === 'requestBaja' ? 'bg-orange-500' : 'bg-red-500'}`}></div>
-              
-              <div className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full mb-6 shadow-inner ring-8 ${
+              <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-2xl mb-6 ${
                   itemToDelete.type === 'requestBaja' 
-                      ? 'bg-orange-100 text-orange-600 ring-orange-50 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-900/10' 
-                      : 'bg-red-100 text-red-600 ring-red-50 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-900/10'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' 
+                      : 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400'
               }`}>
-                <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-arrow-down-short-wide' : 'fa-trash-can'} text-2xl`}></i>
+                <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-arrow-down-short-wide' : 'fa-trash-can'} text-xl`}></i>
               </div>
 
-              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-3">
+              <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-3">
                   {itemToDelete.type === 'requestBaja' ? '¿Solicitar Baja?' : '¿Confirmar Eliminación?'}
               </h3>
               
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
                 {itemToDelete.type === 'requestBaja' 
                     ? 'El bien será etiquetado como "Pendiente de Baja" y enviado al Administrador para su revisión y aprobación final.' 
                     : itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja'
@@ -40,14 +38,10 @@ export default function DeleteConfirmModal({ itemToDelete, setItemToDelete, conf
             </div>
             
             <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
-              <button onClick={() => setItemToDelete(null)} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm hover:shadow transition-all cursor-pointer">
+              <button onClick={() => setItemToDelete(null)} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                   Cancelar
               </button>
-              <button onClick={confirmDeleteAction} className={`flex-1 py-3.5 px-4 rounded-2xl text-sm font-black text-white shadow-md transition-all cursor-pointer ${
-                  itemToDelete.type === 'requestBaja' 
-                      ? 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/20' 
-                      : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
-              }`}>
+              <button onClick={confirmDeleteAction} className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                 {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : (itemToDelete.type === 'bien' && itemToDelete.item?.estadoConservacion !== 'De Baja' ? 'Pasar a Baja' : 'Sí, eliminar')}
               </button>
             </div>

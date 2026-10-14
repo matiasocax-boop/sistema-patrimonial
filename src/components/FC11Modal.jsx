@@ -31,26 +31,24 @@ export default function FC11Modal({
 
     return (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-4xl !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-darkbg-border shadow-2xl"}>
+            <div className={STYLES.modalContent + " max-w-4xl"}>
                 
                 {/* CABECERA */}
-                <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center group overflow-hidden">
-                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-bl from-amber-500/20 to-orange-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
-                    
-                    <div className="flex items-center gap-4 relative z-10">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 ring-4 ring-amber-500/10">
-                            <i className="fa-solid fa-truck-fast text-xl"></i>
+                <div className="px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white shrink-0">
+                            <i className="fa-solid fa-truck-fast text-lg"></i>
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+                            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
                                 {fc11Editing ? 'Editar Traslado FC-11' : 'Nuevo Traslado FC-11'}
                             </h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
                         </div>
                     </div>
 
-                    <button type="button" onClick={() => setIsFC11ModalOpen(false)} className="relative z-10 rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-darkbg-hover dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border shadow-sm hover:shadow-md">
-                        <i className="fa-solid fa-xmark text-xl"></i>
+                    <button type="button" title="Cerrar" onClick={() => setIsFC11ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
+                        <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>
                 
@@ -60,7 +58,7 @@ export default function FC11Modal({
                         {/* BARRA DE PROGRESO WIZARD */}
                         <div className="flex gap-2">
                             {[1, 2].map(i => (
-                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-amber-500' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
+                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
                             ))}
                         </div>
 
@@ -75,7 +73,7 @@ export default function FC11Modal({
                             </div>
                             <div className="sm:text-right pl-3 sm:pl-0">
                                 <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1.5">Valor Patrimonial</p>
-                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">Gs. {formatCurrency(fc11TargetBien.valorUnitario)}</p>
+                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Gs. {formatCurrency(fc11TargetBien.valorUnitario)}</p>
                             </div>
                         </div>
 
@@ -89,40 +87,35 @@ export default function FC11Modal({
                                 </h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Nº Formulario (Opcional)</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <input name="numeroFormulario" defaultValue={fc11Editing?.numeroFormulario} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Ej. 001-2026" />
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nº Formulario (Opcional)</label>
+                                        <input name="numeroFormulario" defaultValue={fc11Editing?.numeroFormulario} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 001-2026" />
                                     </div>
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Fecha de Traslado</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <input type="date" name="fecha" required defaultValue={fc11Editing?.fecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`} />
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha de Traslado</label>
+                                        <input type="date" name="fecha" required defaultValue={fc11Editing?.fecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
                                     </div>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="group relative">
-                                        <label className={STYLES.label}>Dependencia Remitente</label>
-                                        <input value={dependenciaActual} disabled className={`${STYLES.input} !rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia Remitente</label>
+                                        <input value={dependenciaActual} disabled className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                     </div>
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Área Remitente</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <input name="areaRemitente" required defaultValue={fc11Editing?.areaRemitente} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Área o Dpto. de origen" />
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área Remitente</label>
+                                        <input name="areaRemitente" required defaultValue={fc11Editing?.areaRemitente} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de origen" />
                                     </div>
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Dependencia Destinataria</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <select name="dependenciaDestinataria" required defaultValue={fc11Editing?.dependenciaDestinataria || ''} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`}>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia Destinataria</label>
+                                        <select name="dependenciaDestinataria" required defaultValue={fc11Editing?.dependenciaDestinataria || ''} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="" disabled>Seleccione destino...</option>
                                             {todasDependencias.map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                     </div>
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-indigo-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Área Destinataria</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <input name="areaDestinataria" required defaultValue={fc11Editing?.areaDestinataria} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Área o Dpto. de destino" />
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área Destinataria</label>
+                                        <input name="areaDestinataria" required defaultValue={fc11Editing?.areaDestinataria} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de destino" />
                                     </div>
                                 </div>
                             </div>
@@ -138,20 +131,18 @@ export default function FC11Modal({
                                 </h3>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Motivo del Traslado</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <select name="motivo" required defaultValue={fc11Editing?.motivo || 'Traspaso'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`}>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Motivo del Traslado</label>
+                                        <select name="motivo" required defaultValue={fc11Editing?.motivo || 'Traspaso'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="Traspaso">Traspaso</option>
                                             <option value="Préstamo">Préstamo</option>
                                             <option value="Inservible">Inservible</option>
                                             <option value="Faltante">Faltante</option>
                                         </select>
                                     </div>
-                                    <div className="group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Estado de Conservación Actual</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <select name="estadoConservacion" required defaultValue={fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner cursor-pointer`}>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación Actual</label>
+                                        <select name="estadoConservacion" required defaultValue={fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="Muy bueno">Muy bueno</option>
                                             <option value="Bueno">Bueno</option>
                                             <option value="Regular">Regular</option>
@@ -159,10 +150,9 @@ export default function FC11Modal({
                                             <option value="Inutilizable">Inutilizable</option>
                                         </select>
                                     </div>
-                                    <div className="md:col-span-2 group relative focus-within:ring-2 focus-within:ring-emerald-500/50 rounded-2xl">
-                                        <label className={STYLES.label}>Observaciones</label>
-                                        <div className="absolute -inset-0.5 bg-gradient-to-r from-brand-primary to-sky-500 rounded-2xl blur opacity-0 group-focus-within:opacity-20 transition duration-500"></div>
-                                        <input name="observaciones" defaultValue={fc11Editing?.observaciones} className={`${STYLES.input} relative !rounded-2xl bg-zinc-50/80 shadow-inner`} placeholder="Anotaciones adicionales..." />
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observaciones</label>
+                                        <input name="observaciones" defaultValue={fc11Editing?.observaciones} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Anotaciones adicionales..." />
                                     </div>
                                 </div>
                             </div>
@@ -170,19 +160,19 @@ export default function FC11Modal({
 
                     </div>
                     
-                    <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 rounded-b-[32px]">
+                    <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10">
                         {step === 1 ? (
-                            <button type="button" onClick={() => setIsFC11ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
+                            <button type="button" onClick={() => setIsFC11ModalOpen(false)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Cancelar</button>
                         ) : (
-                            <button type="button" onClick={() => setStep(step - 1)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Anterior</button>
+                            <button type="button" onClick={() => setStep(step - 1)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Anterior</button>
                         )}
                         
                         {step < 2 ? (
-                            <button type="button" onClick={nextStep} className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 !bg-amber-600 hover:!bg-amber-700 shadow-lg shadow-amber-600/20`}>
+                            <button type="button" onClick={nextStep} className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">
                                 Siguiente Paso <i className="fa-solid fa-arrow-right text-xs ml-1"></i>
                             </button>
                         ) : (
-                            <button type="submit" className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 !bg-amber-600 hover:!bg-amber-700 shadow-lg shadow-amber-600/20`}>
+                            <button type="submit" className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-paper-plane text-xs mr-1"></i> Confirmar Traslado
                             </button>
                         )}

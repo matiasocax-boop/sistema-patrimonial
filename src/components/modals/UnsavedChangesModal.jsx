@@ -5,13 +5,13 @@ export default function UnsavedChangesModal({ isOpen, onConfirmClose, onCancel, 
 
   return (
     <div className={STYLES.modalOverlay}>
-      <div className={STYLES.modalContent + " max-w-sm !rounded-[28px] p-6 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
+      <div className={STYLES.modalContent + " max-w-sm rounded-[24px] p-6 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
         
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 mb-4 shadow-inner">
-          <i className="fa-solid fa-triangle-exclamation text-2xl"></i>
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 mb-4">
+          <i className="fa-solid fa-triangle-exclamation text-xl"></i>
         </div>
 
-        <h3 className="text-base font-black text-zinc-900 dark:text-white mb-1.5">
+        <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-1.5">
           ¿Descartar cambios?
         </h3>
 
@@ -22,13 +22,13 @@ export default function UnsavedChangesModal({ isOpen, onConfirmClose, onCancel, 
         <div className="flex gap-2.5 justify-end">
           <button 
             onClick={onCancel}
-            className="flex-1 py-3 px-4 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all cursor-pointer"
+            className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
           >
             Continuar editando
           </button>
           <button 
             onClick={onConfirmClose}
-            className="flex-1 py-3 px-4 rounded-xl text-xs font-black text-white bg-rose-600 hover:bg-rose-700 transition-all shadow-md cursor-pointer"
+            className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
           >
             Sí, descartar
           </button>

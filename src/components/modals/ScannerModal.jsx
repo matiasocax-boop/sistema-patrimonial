@@ -6,14 +6,21 @@ export default function ScannerModal({ isOpen, onClose, STYLES }) {
 
     return (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-md !p-0 overflow-hidden"}>
-            <div className={STYLES.modalHeader}>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <i className="fa-solid fa-camera text-brand-primary"></i> Escanear Código QR
-              </h2>
-              <button 
-                onClick={onClose} 
-                className="rounded p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"
+          <div className={STYLES.modalContent + " max-w-md !p-0 overflow-hidden rounded-[24px]"}>
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-zinc-100 dark:border-white/10">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-white">
+                <i className="fa-solid fa-camera text-base"></i>
+              </div>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
+                  Escanear Código QR
+                </h2>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Apunte al código de la etiqueta</p>
+              </div>
+              <button
+                onClick={onClose}
+                title="Cerrar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
@@ -27,7 +34,7 @@ export default function ScannerModal({ isOpen, onClose, STYLES }) {
             <div className={STYLES.modalFooter}>
                 <button 
                     onClick={onClose} 
-                    className={STYLES.btnSecondary}
+                    className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                 >
                     Cancelar
                 </button>

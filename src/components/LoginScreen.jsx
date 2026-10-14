@@ -72,7 +72,7 @@ export default function LoginScreen({
       {/* Tarjeta de acceso centrada */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-6">
         <div className="w-full max-w-md">
-          <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-2xl shadow-black/30 animate-slide-up relative flex flex-col">
+          <div className="bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-black/20 animate-slide-up relative flex flex-col">
             
             <div className="flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6 text-left">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary dark:text-brand-accent mb-1.5">
@@ -150,7 +150,7 @@ export default function LoginScreen({
               <div className="pt-2">
                 <button 
                   type="submit" 
-                  className="w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl active:scale-[0.98]"
+                  className="w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl active:scale-[0.98]"
                 >
                   <span>Acceder a la Plataforma</span> 
                   <i className="fa-solid fa-arrow-right-to-bracket text-xs ml-1"></i>
@@ -170,7 +170,7 @@ export default function LoginScreen({
       {/* MODAL DE RECUPERACIÓN / SOPORTE */}
       {showRecoveryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm rounded-[28px] bg-white dark:bg-zinc-900 p-7 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center animate-slide-up">
+          <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-7 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center animate-slide-up">
             <div className="h-14 w-14 rounded-2xl bg-blue-500/10 text-brand-primary dark:text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-headset text-xl"></i>
             </div>

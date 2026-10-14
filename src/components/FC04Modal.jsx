@@ -1,5 +1,11 @@
 import React from 'react';
 
+const LABEL = "block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2";
+const INPUT_FOCUS = " focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
+const BTN_PRIMARY = "inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer disabled:opacity-50";
+const BTN_SECONDARY = "inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer disabled:opacity-50";
+const BTN_SECONDARY_SM = "inline-flex items-center justify-center gap-2 h-8 px-3 rounded-xl text-xs font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all cursor-pointer";
+
 export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, fc10Month, fc10Year, ORIGENES_FC04, fc04SinMovimiento, setFc04SinMovimiento, handleAddFC04Item, fc04Items, handleFC04ItemChange, handleRemoveFC04Item, STYLES }) {
     
     // PROTECCIÓN ANTICRASH: Si la lista de items llega desconectada, usamos un array vacío
@@ -9,23 +15,28 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
     return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-5xl"}>
-                <div className={STYLES.modalHeader}>
-                    <h2 className="text-xl font-semibold text-zinc-800 dark:text-white flex items-center gap-2">
-                        {fc04Editing ? 'Editar Registro FC-04' : 'Nuevo Registro FC-04'}
-                    </h2>
-                    <button type="button" onClick={() => setIsFC04ModalOpen(false)} className="rounded-lg p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer"><i className="fa-solid fa-xmark text-lg"></i></button>
+                <div className={STYLES.modalHeader + " gap-4"}>
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white shrink-0">
+                            <i className="fa-solid fa-file-contract text-lg"></i>
+                        </div>
+                        <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
+                            {fc04Editing ? 'Editar Registro FC-04' : 'Nuevo Registro FC-04'}
+                        </h2>
+                    </div>
+                    <button type="button" title="Cerrar" onClick={() => setIsFC04ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0"><i className="fa-solid fa-xmark text-base"></i></button>
                 </div>
                 
                 <form onSubmit={saveFC04} className="flex flex-col h-full overflow-hidden">
                     <div className={STYLES.modalBody}>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
-                            <div><label className={STYLES.label}>Mes</label><select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                            <div><label className={STYLES.label}>Año</label><select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-                            <div><label className={STYLES.label}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento} className={STYLES.input}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
+                            <div><label className={LABEL}>Mes</label><select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                            <div><label className={LABEL}>Año</label><select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+                            <div><label className={LABEL}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento} className={STYLES.input + INPUT_FOCUS}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
                         </div>
 
                         <div className="flex items-center gap-2 mb-6 p-4 rounded-lg bg-zinc-50 border border-zinc-200 dark:bg-darkbg-main dark:border-darkbg-border">
-                            <input type="checkbox" id="sinMovimiento" checked={fc04SinMovimiento} onChange={(e) => setFc04SinMovimiento(e.target.checked)} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer" />
+                            <input type="checkbox" id="sinMovimiento" checked={fc04SinMovimiento} onChange={(e) => setFc04SinMovimiento(e.target.checked)} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer" />
                             <label htmlFor="sinMovimiento" className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 cursor-pointer">Declarar "Sin Movimiento" para este periodo</label>
                         </div>
 
@@ -33,8 +44,8 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                             <div className="border border-zinc-200 dark:border-darkbg-border rounded-xl overflow-hidden shadow-sm">
                                 <div className="flex justify-between items-center p-4 bg-zinc-50 dark:bg-darkbg-main border-b border-zinc-200 dark:border-darkbg-border">
                                     <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">Bienes Involucrados</h3>
-                                    <button type="button" onClick={handleAddFC04Item} className={STYLES.btnSecondary + " !py-1.5 !px-3 !text-xs"}>
-                                        <i className="fa-solid fa-plus text-brand-primary"></i> Agregar Fila
+                                    <button type="button" onClick={handleAddFC04Item} className={BTN_SECONDARY_SM}>
+                                        <i className="fa-solid fa-plus"></i> Agregar Fila
                                     </button>
                                 </div>
                                 <div className="overflow-x-auto custom-scrollbar">
@@ -54,12 +65,12 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                                                 <tr><td colSpan="6" className="p-8 text-center text-sm font-medium text-zinc-400">Presiona "Agregar Fila" para listar bienes.</td></tr>
                                             ) : safeItems.map(item => (
                                                 <tr key={item.id} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50">
-                                                    <td className="p-1.5"><input required className={STYLES.input + " !py-2 !text-xs"} value={item.cuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'cuenta', e.target.value)} /></td>
-                                                    <td className="p-1.5"><input className={STYLES.input + " !py-2 !text-xs"} value={item.subcuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'subcuenta', e.target.value)} /></td>
-                                                    <td className="p-1.5"><input required className={STYLES.input + " !py-2 !text-xs"} value={item.rotulo || ''} onChange={e => handleFC04ItemChange(item.id, 'rotulo', e.target.value)} /></td>
-                                                    <td className="p-1.5"><input required className={STYLES.input + " !py-2 !text-xs"} value={item.descripcion || ''} onChange={e => handleFC04ItemChange(item.id, 'descripcion', e.target.value)} /></td>
-                                                    <td className="p-1.5"><input required className={STYLES.input + " !py-2 !text-xs text-right font-mono font-bold"} value={item.valorUnitario || ''} onChange={e => handleFC04ItemChange(item.id, 'valorUnitario', e.target.value)} /></td>
-                                                    <td className="p-1.5 text-center"><button type="button" onClick={()=>handleRemoveFC04Item(item.id)} className="text-zinc-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition-colors cursor-pointer"><i className="fa-solid fa-trash-can"></i></button></td>
+                                                    <td className="p-1.5"><input required className={STYLES.input + INPUT_FOCUS + " !py-2 !text-xs tabular-nums"} value={item.cuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'cuenta', e.target.value)} /></td>
+                                                    <td className="p-1.5"><input className={STYLES.input + INPUT_FOCUS + " !py-2 !text-xs tabular-nums"} value={item.subcuenta || ''} onChange={e => handleFC04ItemChange(item.id, 'subcuenta', e.target.value)} /></td>
+                                                    <td className="p-1.5"><input required className={STYLES.input + INPUT_FOCUS + " !py-2 !text-xs"} value={item.rotulo || ''} onChange={e => handleFC04ItemChange(item.id, 'rotulo', e.target.value)} /></td>
+                                                    <td className="p-1.5"><input required className={STYLES.input + INPUT_FOCUS + " !py-2 !text-xs"} value={item.descripcion || ''} onChange={e => handleFC04ItemChange(item.id, 'descripcion', e.target.value)} /></td>
+                                                    <td className="p-1.5"><input required className={STYLES.input + INPUT_FOCUS + " !py-2 !text-xs text-right font-mono font-bold tabular-nums"} value={item.valorUnitario || ''} onChange={e => handleFC04ItemChange(item.id, 'valorUnitario', e.target.value)} /></td>
+                                                    <td className="p-1.5 text-center"><button type="button" onClick={()=>handleRemoveFC04Item(item.id)} className="text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-white/10 p-2 rounded-xl transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"><i className="fa-solid fa-trash-can"></i></button></td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -70,8 +81,8 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                     </div>
                     
                     <div className={STYLES.modalFooter}>
-                        <button type="button" onClick={() => setIsFC04ModalOpen(false)} className={STYLES.btnSecondary}>Cancelar</button>
-                        <button type="submit" className={STYLES.btnPrimary}><i className="fa-solid fa-floppy-disk"></i> Guardar Expediente FC-04</button>
+                        <button type="button" onClick={() => setIsFC04ModalOpen(false)} className={BTN_SECONDARY}>Cancelar</button>
+                        <button type="submit" className={BTN_PRIMARY}><i className="fa-solid fa-floppy-disk"></i> Guardar Expediente FC-04</button>
                     </div>
                 </form>
             </div>

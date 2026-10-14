@@ -100,27 +100,28 @@ export default function BienModal({
 
     return (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-4xl !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-950"}>
+          <div className={STYLES.modalContent + " max-w-4xl overflow-hidden"}>
             
             {/* Header */}
-            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 shrink-0 z-10 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white border border-zinc-200/50 dark:border-white/5">
-                   <i className={`fa-solid ${bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-lg`}></i>
+            <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                   <i className={`fa-solid ${bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
                 </div>
                 <div>
-                  <h2 className="text-xl font-semibold text-zinc-900 dark:text-white tracking-tight">
+                  <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
                     {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
                   </h2>
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Complete la información requerida para el inventario</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Complete la información requerida para el inventario</p>
                 </div>
               </div>
 
-              <button 
-                onClick={() => setIsBienModalOpen(false)} 
-                className="rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+              <button
+                onClick={() => setIsBienModalOpen(false)}
+                title="Cerrar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
               >
-                 <i className="fa-solid fa-xmark text-lg"></i>
+                 <i className="fa-solid fa-xmark text-base"></i>
               </button>
             </div>
             
@@ -136,26 +137,26 @@ export default function BienModal({
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
-                        <label className={STYLES.label}>Cuenta</label>
-                        <input name="cuenta" defaultValue={bienEditing?.cuenta} className={STYLES.input} placeholder="Ej: 11" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cuenta</label>
+                        <input name="cuenta" defaultValue={bienEditing?.cuenta} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 11" />
                     </div>
                     <div>
-                        <label className={STYLES.label}>Subcuenta</label>
-                        <input name="subcuenta" defaultValue={bienEditing?.subcuenta} className={STYLES.input} placeholder="Ej: 01" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Subcuenta</label>
+                        <input name="subcuenta" defaultValue={bienEditing?.subcuenta} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 01" />
                     </div>
                     <div>
-                        <label className={STYLES.label}>Analítico 1</label>
-                        <input name="analitico1" defaultValue={bienEditing?.analitico1} className={STYLES.input} placeholder="Ej: 001" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Analítico 1</label>
+                        <input name="analitico1" defaultValue={bienEditing?.analitico1} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 001" />
                     </div>
                     <div>
-                        <label className={STYLES.label}>Analítico 2</label>
-                        <input name="analitico2" defaultValue={bienEditing?.analitico2} className={STYLES.input} placeholder="Ej: 000" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Analítico 2</label>
+                        <input name="analitico2" defaultValue={bienEditing?.analitico2} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 000" />
                     </div>
                   </div>
 
                   <div>
-                    <label className={STYLES.label}>Rótulo / Código de Barra *</label>
-                    <input name="rotulo" required defaultValue={bienEditing?.rotulo} className={STYLES.input} placeholder="Ej: 104523" />
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Rótulo / Código de Barra *</label>
+                    <input name="rotulo" required defaultValue={bienEditing?.rotulo} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 104523" />
                   </div>
                 </div>
 
@@ -167,13 +168,13 @@ export default function BienModal({
                   </div>
 
                   <div className="mb-4">
-                    <label className={STYLES.label}>Descripción General del Bien *</label>
-                    <textarea name="descripcion" required rows="3" defaultValue={bienEditing?.descripcion} className={STYLES.input} placeholder="Detalles, dimensiones, material, características del bien..."></textarea>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Descripción General del Bien *</label>
+                    <textarea name="descripcion" required rows="3" defaultValue={bienEditing?.descripcion} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Detalles, dimensiones, material, características del bien..."></textarea>
                   </div>
 
                   <div>
-                    <label className={STYLES.label}>Estado de Conservación</label>
-                    <select name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || 'Bueno'} className={STYLES.input}>
+                    <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación</label>
+                    <select name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || 'Bueno'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}>
                         {ESTADOS_CONSERVACION.map(est => <option key={est} value={est}>{est}</option>)}
                     </select>
                   </div>
@@ -188,16 +189,16 @@ export default function BienModal({
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className={STYLES.label}>Valor de Adquisición (Gs.)</label>
-                        <input type="number" step="any" name="valorUnitario" defaultValue={bienEditing?.valorUnitario} className={STYLES.input} placeholder="Ej: 1500000" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Valor de Adquisición (Gs.)</label>
+                        <input type="number" step="any" name="valorUnitario" defaultValue={bienEditing?.valorUnitario} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 1500000" />
                     </div>
                     <div>
-                        <label className={STYLES.label}>Fecha de Adquisición</label>
-                        <input type="date" name="fechaAdquisicion" defaultValue={toInputDateFormat(bienEditing?.fechaAdquisicion)} className={STYLES.input} />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha de Adquisición</label>
+                        <input type="date" name="fechaAdquisicion" defaultValue={toInputDateFormat(bienEditing?.fechaAdquisicion)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                     </div>
                     <div>
-                        <label className={STYLES.label}>Vida Útil (Años)</label>
-                        <input type="number" name="vidaUtil" defaultValue={bienEditing?.vidaUtil} className={STYLES.input} placeholder="Ej: 5 o 10" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Vida Útil (Años)</label>
+                        <input type="number" name="vidaUtil" defaultValue={bienEditing?.vidaUtil} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 5 o 10" />
                     </div>
                   </div>
                 </div>
@@ -211,24 +212,24 @@ export default function BienModal({
                       </div>
                       
                       <label className="flex items-center gap-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 cursor-pointer">
-                        <input type="checkbox" name="hasQR" defaultChecked={bienEditing?.hasQR} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary/20" />
+                        <input type="checkbox" name="hasQR" defaultChecked={bienEditing?.hasQR} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" />
                         <span>Etiqueta QR Impresa</span>
                       </label>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
-                        <label className={STYLES.label}>C.I. Custodio</label>
-                        <input name="funcionarioDoc" defaultValue={bienEditing?.funcionarioDoc} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">C.I. Custodio</label>
+                        <input name="funcionarioDoc" defaultValue={bienEditing?.funcionarioDoc} readOnly className={`${STYLES.input} tabular-nums bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
                     </div>
                     <div className="md:col-span-2 relative" ref={custodioDropdownRef}>
-                        <label className={STYLES.label}>Custodio Designado (Nombre)</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Custodio Designado (Nombre)</label>
                         <input 
                             name="funcionario" 
                             value={custodioTexto} 
                             onChange={handleCustodioChange} 
                             onFocus={() => setShowCustodioDropdown(true)}
-                            className={STYLES.input} 
+                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
                             placeholder="Escribe o selecciona custodio..." 
                             autoComplete="off"
                         />
@@ -241,7 +242,7 @@ export default function BienModal({
                                         type="button"
                                         key={f.id || f.cedula}
                                         onClick={() => handleSelectCustodio(f)}
-                                        className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors flex items-center justify-between cursor-pointer group"
+                                        className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors flex items-center justify-between cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                                     >
                                         <div className="min-w-0 pr-2">
                                             <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-brand-primary dark:group-hover:text-blue-400 truncate">
@@ -252,7 +253,7 @@ export default function BienModal({
                                             </p>
                                         </div>
                                         {f.cedula && (
-                                            <span className="shrink-0 text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                                            <span className="shrink-0 text-[10px] font-mono tabular-nums bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 px-2 py-0.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
                                                 {f.cedula}
                                             </span>
                                         )}
@@ -265,11 +266,11 @@ export default function BienModal({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className={STYLES.label}>Cargo Funcional</label>
-                        <input name="funcionarioCargo" defaultValue={bienEditing?.funcionarioCargo} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed`} placeholder="Auto-completado" />
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
+                        <input name="funcionarioCargo" defaultValue={bienEditing?.funcionarioCargo} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
                     </div>
                     <div className="relative" ref={ubicacionDropdownRef}>
-                        <label className={STYLES.label}>Ubicación Operativa</label>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Ubicación Operativa</label>
                         <input 
                             name="ubicacion" 
                             value={ubicacionTexto} 
@@ -278,7 +279,7 @@ export default function BienModal({
                                 setShowUbicacionDropdown(true);
                             }}
                             onFocus={() => setShowUbicacionDropdown(true)}
-                            className={STYLES.input} 
+                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
                             placeholder="Oficina / Laboratorio..." 
                             autoComplete="off"
                         />
@@ -291,7 +292,7 @@ export default function BienModal({
                                         type="button"
                                         key={ub}
                                         onClick={() => handleSelectUbicacion(ub)}
-                                        className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors flex items-center justify-between cursor-pointer group"
+                                        className="w-full text-left px-4 py-2.5 hover:bg-zinc-100 dark:hover:bg-zinc-800/80 transition-colors flex items-center justify-between cursor-pointer group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                                     >
                                         <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 group-hover:text-brand-primary dark:group-hover:text-blue-400 truncate">
                                             {ub}
@@ -308,11 +309,11 @@ export default function BienModal({
               </div>
 
               {/* Footer Buttons */}
-              <div className="flex justify-end items-center gap-3 px-8 py-5 border-t border-zinc-100 dark:border-zinc-800/80 bg-white dark:bg-zinc-950 shrink-0 z-10">
+              <div className="flex justify-end items-center gap-2 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
                 <button 
                   type="button" 
                   onClick={() => setIsBienModalOpen(false)} 
-                  className="rounded-xl px-5 py-2.5 text-xs font-semibold text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white bg-transparent hover:bg-zinc-100 dark:hover:bg-white/5 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
                 >
                   Cancelar
                 </button>
@@ -322,7 +323,7 @@ export default function BienModal({
                       type="button" 
                       disabled={isSaving}
                       onClick={(e) => saveBien(e, true)} 
-                      className="rounded-xl px-5 py-2.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 transition-all cursor-pointer disabled:opacity-50"
+                      className="inline-flex items-center justify-center h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                     >
                       + Guardar y Añadir Otro
                     </button>
@@ -331,7 +332,7 @@ export default function BienModal({
                 <button 
                   type="submit" 
                   disabled={isSaving}
-                  className="rounded-xl bg-brand-primary hover:bg-brand-hover px-6 py-2.5 text-xs font-semibold text-white shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                  className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                 >
                   {isSaving ? 'Guardando...' : (bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
                 </button>

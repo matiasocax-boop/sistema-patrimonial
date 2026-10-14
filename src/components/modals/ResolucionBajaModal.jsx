@@ -6,17 +6,21 @@ export default function ResolucionBajaModal({ resolucionBaja, setResolucionBaja,
 
     return (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-lg !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
-            <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card">
-              <div className={`absolute top-0 inset-x-0 h-1 ${resolucionBaja.accion === 'aprobar' ? 'bg-red-500' : 'bg-zinc-800 dark:bg-zinc-400'}`}></div>
-              <div className="flex justify-between items-center">
-                  <h2 className={`text-xl font-black tracking-tight ${resolucionBaja.accion === 'aprobar' ? 'text-red-600 dark:text-red-400' : 'text-zinc-900 dark:text-white'} flex items-center gap-3`}>
-                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl shadow-sm ${resolucionBaja.accion === 'aprobar' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 border border-red-100 dark:border-red-900/50' : 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border'}`}>
-                          <i className={`fa-solid ${resolucionBaja.accion === 'aprobar' ? 'fa-check-double' : 'fa-xmark'} text-lg`}></i> 
+          <div className={STYLES.modalContent + " max-w-lg !p-0 overflow-hidden rounded-[24px] shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
+            <div className="relative px-5 py-4 border-b border-zinc-100 dark:border-white/10 bg-white dark:bg-darkbg-card">
+              <div className="flex justify-between items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${resolucionBaja.accion === 'aprobar' ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400' : 'bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-white'}`}>
+                          <i className={`fa-solid ${resolucionBaja.accion === 'aprobar' ? 'fa-check-double' : 'fa-xmark'} text-base`}></i> 
                       </div>
-                      {resolucionBaja.accion === 'aprobar' ? 'Aprobar Baja Definitiva' : 'Rechazar Solicitud'}
-                  </h2>
-                  <button onClick={() => setResolucionBaja(null)} className="rounded-2xl p-2.5 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border"><i className="fa-solid fa-xmark text-xl"></i></button>
+                      <div className="min-w-0">
+                          <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
+                              {resolucionBaja.accion === 'aprobar' ? 'Aprobar Baja Definitiva' : 'Rechazar Solicitud'}
+                          </h2>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{resolucionBaja.bien.rotulo}</p>
+                      </div>
+                  </div>
+                  <button onClick={() => setResolucionBaja(null)} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"><i className="fa-solid fa-xmark"></i></button>
               </div>
             </div>
             
@@ -46,8 +50,8 @@ export default function ResolucionBajaModal({ resolucionBaja, setResolucionBaja,
                     </div>
                 </div>
                 <div className="flex items-center justify-end gap-3 px-8 py-6 bg-white dark:bg-darkbg-card border-t border-zinc-100 dark:border-darkbg-border">
-                    <button type="button" onClick={() => setResolucionBaja(null)} className="py-3.5 px-6 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm transition-all cursor-pointer">Cancelar</button>
-                    <button type="submit" className={`inline-flex items-center justify-center gap-2.5 py-3.5 px-8 rounded-2xl text-sm font-black text-white shadow-md transition-all cursor-pointer ${resolucionBaja.accion === 'aprobar' ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-zinc-900 hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200'}`}>
+                    <button type="button" onClick={() => setResolucionBaja(null)} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">Cancelar</button>
+                    <button type="submit" className={`inline-flex items-center justify-center h-10 px-5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${resolucionBaja.accion === 'aprobar' ? 'bg-rose-600 hover:bg-rose-700 text-white' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'}`}>
                         Confirmar {resolucionBaja.accion === 'aprobar' ? 'Baja Definitiva' : 'Rechazo'}
                     </button>
                 </div>

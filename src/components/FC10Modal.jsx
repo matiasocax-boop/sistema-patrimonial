@@ -57,25 +57,23 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
 
     return (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-4xl !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-darkbg-border shadow-2xl"}>
+            <div className={STYLES.modalContent + " max-w-4xl"}>
                 
-                <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center group overflow-hidden">
-                    <div className="absolute top-0 right-0 -mt-16 -mr-16 w-48 h-48 bg-gradient-to-bl from-brand-primary/20 to-sky-500/20 rounded-full blur-3xl opacity-50 pointer-events-none group-hover:opacity-100 transition-opacity duration-700"></div>
-                    
-                    <div className="flex items-center gap-4 relative z-10">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-primary to-brand-hover text-white shadow-lg shadow-brand-primary/20 ring-4 ring-brand-primary/10">
-                            <i className="fa-solid fa-file-signature text-xl"></i>
+                <div className="px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white shrink-0">
+                            <i className="fa-solid fa-file-signature text-lg"></i>
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-zinc-900 dark:text-white tracking-tight">
+                            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
                                 {fc10Editing ? 'Gestionar FC-10 (Asignación/Devolución)' : 'Nueva Asignación FC-10'}
                             </h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de bienes institucionales</p>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de bienes institucionales</p>
                         </div>
                     </div>
 
-                    <button type="button" onClick={() => setIsFC10ModalOpen(false)} className="relative z-10 rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-darkbg-hover dark:hover:text-zinc-200 transition-colors cursor-pointer border border-transparent hover:border-zinc-200 dark:hover:border-darkbg-border shadow-sm hover:shadow-md">
-                        <i className="fa-solid fa-xmark text-xl"></i>
+                    <button type="button" title="Cerrar" onClick={() => setIsFC10ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
+                        <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>
                 
@@ -84,7 +82,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                         
                         <div className="flex gap-2">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-brand-primary' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
+                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
                             ))}
                         </div>
 
@@ -98,7 +96,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                             </div>
                             <div className="sm:text-right pl-3 sm:pl-0">
                                 <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1.5">Valor Patrimonial</p>
-                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm">Gs. {formatCurrency(fc10TargetBien.valorUnitario)}</p>
+                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Gs. {formatCurrency(fc10TargetBien.valorUnitario)}</p>
                             </div>
                         </div>
 
@@ -112,36 +110,36 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                                     <div>
-                                        <label className={STYLES.label}>Unidad</label>
-                                        <input name="unidad" required defaultValue={fc10Editing?.unidad || savedOrg.unidad} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Unidad</label>
+                                        <input name="unidad" required defaultValue={fc10Editing?.unidad || savedOrg.unidad} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cod. Unidad</label>
-                                        <input name="unidadCod" required defaultValue={fc10Editing?.unidadCod || savedOrg.unidadCod} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Unidad</label>
+                                        <input name="unidadCod" required defaultValue={fc10Editing?.unidadCod || savedOrg.unidadCod} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Repartición</label>
-                                        <input name="reparticion" required defaultValue={fc10Editing?.reparticion || savedOrg.reparticion} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Repartición</label>
+                                        <input name="reparticion" required defaultValue={fc10Editing?.reparticion || savedOrg.reparticion} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cod. Repart.</label>
-                                        <input name="reparticionCod" required defaultValue={fc10Editing?.reparticionCod || savedOrg.reparticionCod} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Repart.</label>
+                                        <input name="reparticionCod" required defaultValue={fc10Editing?.reparticionCod || savedOrg.reparticionCod} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Dependencia</label>
-                                        <input name="dependenciaOrg" required defaultValue={fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia</label>
+                                        <input name="dependenciaOrg" required defaultValue={fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cod. Depend.</label>
-                                        <input name="dependenciaCod" required defaultValue={fc10Editing?.dependenciaCod || savedOrg.dependenciaCod} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Depend.</label>
+                                        <input name="dependenciaCod" required defaultValue={fc10Editing?.dependenciaCod || savedOrg.dependenciaCod} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Área</label>
-                                        <input name="area" required defaultValue={fc10Editing?.area || savedOrg.area} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área</label>
+                                        <input name="area" required defaultValue={fc10Editing?.area || savedOrg.area} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cod. Área</label>
-                                        <input name="areaCod" required defaultValue={fc10Editing?.areaCod || savedOrg.areaCod} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Área</label>
+                                        <input name="areaCod" required defaultValue={fc10Editing?.areaCod || savedOrg.areaCod} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                 </div>
                             </div>
@@ -157,34 +155,34 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                     <div>
-                                        <label className={STYLES.label}>Nombre y Apellido</label>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
                                         <input 
                                             list="funcionarios-list-fc10" 
                                             name="funcionarioNombre" 
                                             required 
                                             value={funcData.nombre}
                                             onChange={handleNameChange}
-                                            className={`${STYLES.input} !rounded-2xl`}
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
                                         />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cédula de Identidad</label>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
                                         <input 
                                             name="funcionarioDoc" 
                                             required 
                                             value={funcData.doc}
                                             onChange={(e) => setFuncData({...funcData, doc: e.target.value})}
-                                            className={`${STYLES.input} !rounded-2xl`} 
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
                                         />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cargo Funcional</label>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
                                         <input 
                                             name="funcionarioCargo" 
                                             required 
                                             value={funcData.cargo}
                                             onChange={(e) => setFuncData({...funcData, cargo: e.target.value})}
-                                            className={`${STYLES.input} !rounded-2xl`} 
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
                                         />
                                     </div>
                                 </div>
@@ -201,24 +199,24 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                 </h3>
                                 <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                                     <div>
-                                        <label className={STYLES.label}>Lugar de Entrega</label>
-                                        <input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || 'Pilar'} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Lugar de Entrega</label>
+                                        <input name="entregadoLugar" required defaultValue={fc10Editing?.entregadoLugar || 'Pilar'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Fecha Asignación</label>
-                                        <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} !rounded-2xl cursor-pointer`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha Asignación</label>
+                                        <input type="date" name="entregadoFecha" required defaultValue={fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Estado del Bien</label>
-                                        <input name="estadoConservacion" required defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado del Bien</label>
+                                        <input name="estadoConservacion" required defaultValue={fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
-                                        <label className={STYLES.label}>Cantidad</label>
-                                        <input name="cantidad" required defaultValue={fc10Editing?.cantidad || '1'} className={`${STYLES.input} !rounded-2xl text-zinc-500`} readOnly />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cantidad</label>
+                                        <input name="cantidad" required defaultValue={fc10Editing?.cantidad || '1'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary text-zinc-500`} readOnly />
                                     </div>
                                     <div className="md:col-span-4">
-                                        <label className={STYLES.label}>Observaciones Adicionales</label>
-                                        <input name="observaciones" defaultValue={fc10Editing?.observaciones} className={`${STYLES.input} !rounded-2xl`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observaciones Adicionales</label>
+                                        <input name="observaciones" defaultValue={fc10Editing?.observaciones} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <input type="hidden" name="valorTotal" value={fc10TargetBien.valorUnitario} />
                                 </div>
@@ -230,27 +228,27 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                     <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 rounded-l-[24px]"></div>
                                     
                                     <label className="flex items-center gap-3 cursor-pointer group/check w-fit">
-                                        <input type="checkbox" checked={isReturning} onChange={(e) => setIsReturning(e.target.checked)} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary cursor-pointer transition-transform group-hover/check:scale-110" />
+                                        <input type="checkbox" checked={isReturning} onChange={(e) => setIsReturning(e.target.checked)} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer transition-transform group-hover/check:scale-110" />
                                         <span className="text-sm font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Registrar Devolución y Liberar Bien</span>
                                     </label>
                                     
                                     {isReturning && (
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-5 animate-fade-in mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border">
                                             <div>
-                                                <label className={STYLES.label}>Lugar Devolución</label>
-                                                <input name="devolucionLugar" required={isReturning} defaultValue={fc10Editing?.devolucionLugar || 'Pilar'} className={`${STYLES.input} !rounded-2xl`} />
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Lugar Devolución</label>
+                                                <input name="devolucionLugar" required={isReturning} defaultValue={fc10Editing?.devolucionLugar || 'Pilar'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                             </div>
                                             <div>
-                                                <label className={STYLES.label}>Fecha Devolución</label>
-                                                <input type="date" name="devolucionFecha" required={isReturning} defaultValue={fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} !rounded-2xl cursor-pointer`} />
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha Devolución</label>
+                                                <input type="date" name="devolucionFecha" required={isReturning} defaultValue={fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
                                             </div>
                                             <div>
-                                                <label className={STYLES.label}>Receptor (Nombre)</label>
-                                                <input name="devolucionReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionReceptor} className={`${STYLES.input} !rounded-2xl`} />
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Receptor (Nombre)</label>
+                                                <input name="devolucionReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionReceptor} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                             </div>
                                             <div>
-                                                <label className={STYLES.label}>Cargo Receptor</label>
-                                                <input name="devolucionCargoReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionCargoReceptor} className={`${STYLES.input} !rounded-2xl`} />
+                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Receptor</label>
+                                                <input name="devolucionCargoReceptor" required={isReturning} defaultValue={fc10Editing?.devolucionCargoReceptor} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                             </div>
                                         </div>
                                     )}
@@ -263,19 +261,19 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                         </datalist>
                     </div>
                     
-                    <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 rounded-b-[32px]">
+                    <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10">
                         {step === 1 ? (
-                            <button type="button" onClick={() => setIsFC10ModalOpen(false)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Cancelar</button>
+                            <button type="button" onClick={() => setIsFC10ModalOpen(false)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Cancelar</button>
                         ) : (
-                            <button type="button" onClick={() => setStep(step - 1)} className={STYLES.btnSecondary + " !rounded-2xl !py-3 !px-6"}>Anterior</button>
+                            <button type="button" onClick={() => setStep(step - 1)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Anterior</button>
                         )}
                         
                         {step < 3 ? (
-                            <button type="button" onClick={nextStep} className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 shadow-lg shadow-brand-primary/20`}>
+                            <button type="button" onClick={nextStep} className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">
                                 Siguiente Paso <i className="fa-solid fa-arrow-right text-xs ml-1"></i>
                             </button>
                         ) : (
-                            <button type="submit" className={`${STYLES.btnPrimary} !rounded-2xl !py-3 !px-8 shadow-lg shadow-brand-primary/20`}>
+                            <button type="submit" className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-floppy-disk text-xs mr-1"></i> Confirmar y Guardar
                             </button>
                         )}

@@ -6,25 +6,23 @@ export default function LogoutModal({ isOpen, onClose, onConfirm, STYLES }) {
 
     return (
         <div className={STYLES.modalOverlay}>
-          <div className={STYLES.modalContent + " max-w-[360px] !p-0 !rounded-[32px] overflow-hidden shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
+          <div className={STYLES.modalContent + " max-w-[360px] !p-0 overflow-hidden rounded-[24px] shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up"}>
             <div className="p-8 text-center bg-white dark:bg-darkbg-card relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-zinc-300 dark:bg-zinc-600"></div>
-              
-              <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-zinc-100 dark:bg-zinc-800 mb-6 text-zinc-600 dark:text-zinc-400 ring-8 ring-zinc-50 dark:ring-zinc-900/50 shadow-inner">
-                <i className="fa-solid fa-right-from-bracket text-2xl relative left-0.5"></i>
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-2xl bg-zinc-100 dark:bg-white/10 mb-6 text-zinc-900 dark:text-white">
+                <i className="fa-solid fa-right-from-bracket text-xl relative left-0.5"></i>
               </div>
               
-              <h3 className="text-xl font-black tracking-tight text-zinc-900 dark:text-white mb-2">¿Cerrar Sesión?</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+              <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">¿Cerrar Sesión?</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
                 Está a punto de salir de su cuenta actual. Deberá ingresar sus credenciales nuevamente para acceder.
               </p>
             </div>
             
             <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
-              <button onClick={onClose} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-darkbg-card border border-zinc-200/80 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover shadow-sm hover:shadow transition-all cursor-pointer">
+              <button onClick={onClose} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                   Cancelar
               </button>
-              <button onClick={onConfirm} className="flex-1 py-3.5 px-4 rounded-2xl text-sm font-black text-white bg-zinc-900 hover:bg-black dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-md transition-all cursor-pointer">
+              <button onClick={onConfirm} className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
                   Sí, salir
               </button>
             </div>

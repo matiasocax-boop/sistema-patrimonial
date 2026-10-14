@@ -40,10 +40,10 @@ import Papa from 'papaparse';
 
 const STYLES = {
     input: "block w-full rounded-xl border border-zinc-200 bg-zinc-50/50 py-3 px-4 text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-brand-primary/20 sm:text-sm font-medium dark:border-darkbg-border dark:bg-darkbg-main dark:text-white transition-all outline-none",
-    label: "block text-xs font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-2",
-    btnPrimary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-brand-primary px-6 py-3 text-sm font-bold text-white hover:bg-brand-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-md hover:shadow-lg disabled:opacity-50",
-    btnSecondary: "inline-flex items-center justify-center gap-2.5 rounded-xl bg-white dark:bg-darkbg-main border-2 border-zinc-200 dark:border-darkbg-border px-5 py-3 text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:border-brand-primary/50 hover:bg-zinc-50 dark:hover:bg-darkbg-hover focus:outline-none transition-all active:scale-95 cursor-pointer shadow-sm disabled:opacity-50",
-    card: "bg-white dark:bg-darkbg-card rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-sm hover:shadow-md overflow-hidden transition-all duration-300",
+    label: "block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2",
+    btnPrimary: "inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-5 h-10 text-[13px] font-bold text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 focus-visible:ring-2 focus-visible:ring-brand-primary focus:outline-none transition-all active:scale-95 cursor-pointer disabled:opacity-50",
+    btnSecondary: "inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 focus-visible:ring-2 focus-visible:ring-brand-primary focus:outline-none transition-all active:scale-95 cursor-pointer",
+    card: "bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm transition-all duration-300",
     modalOverlay: "fixed inset-0 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
     modalContent: "bg-white dark:bg-darkbg-card rounded-[24px] shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-100 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
     modalHeader: "flex justify-between items-center px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
@@ -3031,19 +3031,19 @@ if (publicBienId) {
   <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
     
     {/* 1. ENCABEZADO Y ACCIONES PRINCIPALES */}
-    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-6 sm:p-7 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-      
+    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
       {/* Título de la Sección + Contador */}
       <div className="flex items-center gap-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white border border-zinc-200/50 dark:border-white/5">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
           <i className="fa-solid fa-boxes-stacked text-lg"></i>
         </div>
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white tracking-tight">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
               Inventario General
             </h2>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/5">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
               {filteredBienes.length} registros
             </span>
           </div>
@@ -3057,7 +3057,7 @@ if (publicBienId) {
       <div className="flex flex-wrap items-center gap-2">
         <button 
           onClick={handleDownloadTemplateCSV} 
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
           title="Descargar Plantilla CSV"
         >
           <i className="fa-solid fa-file-excel text-emerald-600"></i>
@@ -3066,7 +3066,7 @@ if (publicBienId) {
 
         <button 
           onClick={() => fileInputRef.current?.click()} 
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
           title="Importar archivo CSV"
         >
           <i className="fa-solid fa-file-import text-emerald-600"></i>
@@ -3075,7 +3075,7 @@ if (publicBienId) {
 
         <button 
           onClick={handleExportInventarioCSV} 
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
           title="Exportar archivo CSV"
         >
           <i className="fa-solid fa-file-export text-sky-600"></i>
@@ -3084,7 +3084,7 @@ if (publicBienId) {
 
         <button 
           onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
           title="Generar Lote Masivo de QRs"
         >
           <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i>
@@ -3093,7 +3093,7 @@ if (publicBienId) {
 
         <button 
           onClick={openFC03Modal} 
-          className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
           title="Generar Reporte FC-03"
         >
           <i className="fa-solid fa-print text-amber-600"></i>
@@ -3104,7 +3104,7 @@ if (publicBienId) {
 
         <button 
           onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} 
-          className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-zinc-900 dark:bg-white hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+          className="inline-flex items-center gap-2 px-5 h-10 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-700 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-bold shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
         >
           <i className="fa-solid fa-plus text-xs"></i>
           <span>Añadir Registro</span>
@@ -3114,7 +3114,7 @@ if (publicBienId) {
     </div>
 
     {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIÓN EN GRID */}
-    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-5 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none space-y-4">
+    <div className="bg-white dark:bg-white/[0.04] p-4 sm:p-5 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm space-y-4">
       
       {/* Campo de Búsqueda Principal */}
       <div className="relative w-full">
@@ -3144,7 +3144,7 @@ if (publicBienId) {
         <select 
           value={filtroFuncionario || ''} 
           onChange={(e) => setFiltroFuncionario(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Responsables: Todos</option>
           {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
@@ -3154,7 +3154,7 @@ if (publicBienId) {
         <select 
           value={filtroUbicacion || ''} 
           onChange={(e) => setFiltroUbicacion(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Ubicación: Todas</option>
           {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
@@ -3164,7 +3164,7 @@ if (publicBienId) {
         <select 
           value={filtroAnio || ''} 
           onChange={(e) => setFiltroAnio(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Año: Todos</option>
           {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
@@ -3174,7 +3174,7 @@ if (publicBienId) {
         <select 
           value={filtroSubcuenta || ''} 
           onChange={(e) => setFiltroSubcuenta(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Subcuenta: Todas</option>
           {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
@@ -3184,7 +3184,7 @@ if (publicBienId) {
         <select 
           value={filtroAnalitico1 || ''} 
           onChange={(e) => setFiltroAnalitico1(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Analítico 1: Todos</option>
           {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
@@ -3194,7 +3194,7 @@ if (publicBienId) {
         <select 
           value={filtroAnalitico2 || ''} 
           onChange={(e) => setFiltroAnalitico2(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="">Analítico 2: Todos</option>
           {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
@@ -3204,7 +3204,7 @@ if (publicBienId) {
         <select 
           value={filtroFC10 || 'ALL'} 
           onChange={(e) => setFiltroFC10(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="ALL">FC-10: Todos</option>
           <option value="YES">Con FC-10</option>
@@ -3215,7 +3215,7 @@ if (publicBienId) {
         <select 
           value={filtroEstado || 'ALL'} 
           onChange={(e) => setFiltroEstado(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-2.5 px-4 text-xs font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-500 cursor-pointer transition-all"
+          className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
           <option value="ALL">Estado: Todos</option>
           {ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}
@@ -3238,7 +3238,7 @@ if (publicBienId) {
     </div>
 
     {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
-                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200/60 dark:border-white/5 rounded-[28px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none overflow-hidden">
+                    <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[900px]">
                           
@@ -3419,15 +3419,15 @@ if (publicBienId) {
 
                 {activeTab === 'aprobaciones' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl p-6 sm:p-7 rounded-[28px] border border-zinc-200/60 dark:border-white/5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
                       <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white border border-zinc-200/50 dark:border-white/5">
-                          <i className="fa-solid fa-check-to-slot text-xl"></i>
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-check-to-slot text-lg"></i>
                         </div>
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <h2 className="text-xl font-semibold text-zinc-900 dark:text-white tracking-tight">Solicitudes de Baja</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-white/5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Solicitudes de Baja</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
                               {solicitudesBaja.length} pendientes
                             </span>
                           </div>
@@ -3438,7 +3438,7 @@ if (publicBienId) {
                       </div>
                     </div>
 
-                    <div className="bg-white/70 dark:bg-zinc-900/40 backdrop-blur-xl border border-zinc-200/60 dark:border-white/5 rounded-[28px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none overflow-hidden">
+                    <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[700px]">
                           <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
@@ -3491,13 +3491,13 @@ if (publicBienId) {
                                     <div className="flex items-center justify-end gap-2">
                                       <button
                                         onClick={() => openResolucionModal(bienAsociado, 'rechazar', notif)}
-                                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 dark:bg-white/5 dark:hover:bg-white/10 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/5 transition-all cursor-pointer"
+                                        className="px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                                       >
                                         Rechazar
                                       </button>
                                       <button
                                         onClick={() => openResolucionModal(bienAsociado, 'aprobar', notif)}
-                                        className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer"
+                                        className="px-4 h-10 rounded-xl text-[13px] font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
                                       >
                                         Aprobar Baja
                                       </button>
@@ -3527,23 +3527,28 @@ if (publicBienId) {
 
                 {activeTab === 'usuarios' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                          <i className="fa-solid fa-users-gear text-xl"></i>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-users-gear text-lg"></i>
                         </div>
                         <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión de cuentas y roles de acceso al sistema</p>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                              {usuariosList.length}
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión de cuentas y roles de acceso al sistema</p>
                         </div>
                       </div>
                       
                       <button onClick={() => { setUsuarioEditing(null); setIsUsuarioModalOpen(true); }} className={STYLES.btnPrimary}>
-                        <i className="fa-solid fa-user-plus"></i> Nuevo Usuario
+                        <i className="fa-solid fa-user-plus text-xs"></i> Nuevo Usuario
                       </button>
                     </div>
 
-                    <div className="flex-1 bg-white dark:bg-darkbg-card shadow-2xs border border-zinc-200/80 dark:border-darkbg-border rounded-2xl flex flex-col overflow-hidden relative">
+                    <div className="flex-1 bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl flex flex-col overflow-hidden relative">
                         <div className="flex-1 overflow-auto custom-scrollbar">
                           <table className="min-w-full text-left">
                             <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
@@ -3574,13 +3579,13 @@ if (publicBienId) {
                                         }
                                     </td>
                                     <td className="relative py-3 pl-4 pr-6 align-middle text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="text-zinc-400 hover:text-brand-primary transition-colors cursor-pointer" title="Editar">
-                                              <i className="fa-solid fa-pen-to-square"></i>
+                                        <div className="flex items-center justify-end gap-1">
+                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar usuario">
+                                              <i className="fa-solid fa-pen-to-square text-[13px]"></i>
                                           </button>
                                           {u.username !== currentUser.username && (
-                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="text-zinc-400 hover:text-red-500 transition-colors cursor-pointer" title="Eliminar">
-                                                  <i className="fa-solid fa-trash-can"></i>
+                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
+                                                  <i className="fa-solid fa-trash-can text-[13px]"></i>
                                               </button>
                                           )}
                                         </div>
@@ -3601,64 +3606,63 @@ if (publicBienId) {
                 {activeTab === 'funcionarios' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-12">
                     
-                    {/* CABECERA MODERNA E INTEGRADA */}
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-[32px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm relative overflow-hidden">
-                      <div className="absolute top-0 right-0 -mt-16 -mr-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                      
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-                        
+                    {/* CABECERA DE SECCIÓN */}
+                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+
                         {/* Identificación de la sección */}
-                        <div className="flex items-center gap-5">
-                          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-inner">
-                            <i className="fa-solid fa-address-book text-2xl"></i>
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                            <i className="fa-solid fa-address-book text-lg"></i>
                           </div>
                           <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                                {funcionariosPurosDependencia.length} Registrados
+                            <div className="flex items-center gap-2.5">
+                              <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Plantel de Funcionarios</h2>
+                              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                                {funcionariosPurosDependencia.length}
                               </span>
                             </div>
-                            <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Plantel de Funcionarios</h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">
-                              Directorio oficial de personal asignado a <span className="text-brand-primary dark:text-brand-accent font-bold">{dependenciaActual}</span>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              Directorio oficial de personal asignado a <strong className="text-zinc-900 dark:text-white font-semibold">{dependenciaActual}</strong>
                             </p>
                           </div>
                         </div>
 
                         {/* Botones de Acción Principal */}
                         <div className="flex flex-wrap items-center gap-2">
-                          <button 
-                            onClick={sincronizarBienesConPadron} 
-                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                          <button
+                            onClick={sincronizarBienesConPadron}
+                            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                             title="Sincronizar custodios con inventario"
                           >
-                            <i className="fa-solid fa-rotate text-brand-primary dark:text-blue-400"></i>
+                            <i className="fa-solid fa-rotate"></i>
                             <span>Sincronizar</span>
                           </button>
 
-                          <button 
-                            onClick={handleDownloadTemplateFuncionarios} 
-                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                          <button
+                            onClick={handleDownloadTemplateFuncionarios}
+                            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                             title="Descargar plantilla de funcionarios"
                           >
-                            <i className="fa-solid fa-file-excel text-emerald-600"></i>
+                            <i className="fa-solid fa-file-excel text-emerald-600 dark:text-emerald-400"></i>
                             <span>Plantilla</span>
                           </button>
 
-                          <button 
-                            onClick={() => fileInputFuncionariosRef.current?.click()} 
-                            className="inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 border border-zinc-200 dark:border-white/5 text-xs font-semibold text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                          <button
+                            onClick={() => fileInputFuncionariosRef.current?.click()}
+                            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                             title="Importar lista de funcionarios desde CSV"
                           >
-                            <i className="fa-solid fa-file-import text-emerald-600"></i>
+                            <i className="fa-solid fa-file-import text-emerald-600 dark:text-emerald-400"></i>
                             <span>Importar CSV</span>
                           </button>
 
-                          <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block"></div>
+                          <span className="hidden sm:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1"></span>
 
-                          <button 
-                            onClick={() => setIsNewFuncionarioModalOpen(true)} 
-                            className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+                          <button
+                            onClick={() => setIsNewFuncionarioModalOpen(true)}
+                            title="Registrar nuevo funcionario"
+                            className="inline-flex items-center gap-2 px-5 h-10 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-700 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-bold shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                           >
                             <i className="fa-solid fa-user-plus text-xs"></i>
                             <span>Nuevo Funcionario</span>
@@ -3667,11 +3671,11 @@ if (publicBienId) {
 
                       </div>
 
-                      {/* BARRA DE BaSQUEDA DEL PADRÓN CORREGIDA */}
-<div className="mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border/60 relative z-10">
+                      {/* Barra de búsqueda del padrón */}
+                      <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-white/10">
   <div className="relative w-full">
-    <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-    <input 
+    <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
+    <input
       type="text"
       placeholder="Buscar funcionario por nombre, apellido o número de cédula..."
       value={searchFuncionarioInput}
@@ -3679,7 +3683,7 @@ if (publicBienId) {
         setSearchFuncionarioInput(e.target.value);
         setCurrentPaginaFuncionarios(1); // Resetea la paginación para mostrar resultados desde la página 1
       }}
-      className="w-full rounded-2xl border border-zinc-200/80 dark:border-darkbg-border bg-zinc-50 dark:bg-darkbg-main py-3.5 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-emerald-500 focus:bg-white dark:focus:bg-zinc-900 outline-none transition-all shadow-inner"
+      className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-11 pl-11 pr-4 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 outline-none transition-all"
     />
   </div>
 </div>
@@ -3775,26 +3779,31 @@ if (publicBienId) {
 
                 {activeTab === 'fc04' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                          <i className="fa-solid fa-file-invoice text-xl"></i>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-file-invoice text-lg"></i>
                         </div>
                         <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Registro Mensual FC-04</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión contable de altas y bajas patrimoniales</p>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Registro Mensual FC-04</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                              {filteredFC04.length}
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Gestión contable de altas y bajas patrimoniales</p>
                         </div>
                       </div>
                       
-                      <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex flex-wrap gap-2 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
                         <button onClick={() => openFC04Modal(null)} className={STYLES.btnPrimary}>
-                            <i className="fa-solid fa-plus"></i> Redactar Planilla
+                            <i className="fa-solid fa-plus text-xs"></i> Redactar Planilla
                         </button>
                       </div>
                     </div>
                     
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
+                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm min-h-[400px]">
                       {isLoading ? ( <SkeletonLoader /> ) : filteredFC04.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
                             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
@@ -3853,14 +3862,19 @@ if (publicBienId) {
 
                 {activeTab === 'fc10' && (
                 <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                          <i className="fa-solid fa-file-signature text-xl"></i>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-file-signature text-lg"></i>
                         </div>
                         <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Actas de Responsabilidad (FC-10)</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de los bienes institucionales</p>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Actas de Responsabilidad (FC-10)</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                              {filteredFC10.length}
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de los bienes institucionales</p>
                         </div>
                       </div>
 
@@ -3868,7 +3882,7 @@ if (publicBienId) {
                       <div className="flex flex-wrap gap-3 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
                         {/* NUEVO BOTÓN CONSOLIDADO */}
-                        <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " !bg-brand-primary flex items-center gap-2"}>
+                        <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " flex items-center gap-2"}>
                             <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
                         </button>
                       </div>
@@ -3908,7 +3922,7 @@ if (publicBienId) {
                                                 <i className="fa-regular fa-calendar"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}
                                             </span>
                                         </div>
-                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white dark:bg-darkbg-card rounded-lg shadow-sm border border-zinc-100 dark:border-darkbg-border p-1">
+                                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity bg-white dark:bg-white/10 rounded-xl shadow-sm border border-zinc-200/70 dark:border-white/10 p-1">
                                             <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Imprimir"><i className="fa-solid fa-print"></i></button>
                                             <button onClick={() => openFC10Modal(bien, fc)} className="text-zinc-500 hover:text-brand-primary hover:bg-brand-light/50 p-1.5 rounded-md transition cursor-pointer" title="Editar / Cerrar"><i className="fa-solid fa-pen-to-square"></i></button>
                                             {isAdmin && (
@@ -3940,24 +3954,29 @@ if (publicBienId) {
             )}
                 {activeTab === 'fc11' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-darkbg-card p-6 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-light dark:bg-brand-primary/20 text-brand-primary dark:text-brand-accent shadow-2xs">
-                          <i className="fa-solid fa-truck-fast text-xl"></i>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-truck-fast text-lg"></i>
                         </div>
                         <div>
-                          <h2 className="text-2xl font-extrabold text-zinc-900 dark:text-white tracking-tight">Autorizaciones de Traslado (FC-11)</h2>
-                          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Autorizaciones de Traslado (FC-11)</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                              {filteredFC11.length}
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex flex-wrap gap-2 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
                         <button onClick={handleExportFC11CSV} className={STYLES.btnSecondary}>
-                            <i className="fa-solid fa-file-csv text-emerald-500"></i> Exportar CSV
+                            <i className="fa-solid fa-file-csv text-emerald-600 dark:text-emerald-400"></i> Exportar CSV
                         </button>
                       </div>
                     </div>                    
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
+                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm min-h-[400px]">
                       {isLoading ? ( <SkeletonLoader /> ) : filteredFC11.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
                           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
@@ -4011,16 +4030,17 @@ if (publicBienId) {
                   </div>
                 )}                
                 {activeTab === 'ayuda' && (
-                  <div className="space-y-8 animate-fade-in">
-                    <div className="relative rounded-2xl overflow-hidden bg-brand-primary dark:bg-brand-dark px-6 py-12 sm:px-12 sm:py-16 shadow-lg">
-                        <div className="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
-                        <div className="relative z-10 max-w-3xl">
-                            <span className="inline-flex items-center gap-x-2 rounded-md bg-white/20 px-3 py-1 text-xs font-bold text-white mb-6 backdrop-blur-sm">
-                                <i className="fa-solid fa-book-open"></i> Guía Operativa
-                            </span>
-                            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl mb-5">Soporte y Normativa</h2>
-                            <p className="text-lg font-medium leading-8 text-brand-light">Documentación oficial para la correcta administración y trazabilidad del ciclo de vida de los bienes institucionales dentro de la universidad.</p>
+                  <div className="space-y-6 animate-fade-in pb-12">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-circle-question text-lg"></i>
                         </div>
+                        <div>
+                          <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Soporte y Normativa</h2>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Guía operativa y documentación oficial del ciclo de vida de los bienes</p>
+                        </div>
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                         <div className="lg:col-span-5 flex flex-col">

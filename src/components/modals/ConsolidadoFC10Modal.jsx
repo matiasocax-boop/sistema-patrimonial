@@ -10,20 +10,20 @@ export default function ConsolidadoFC10Modal({ isOpen, onClose, bienes, dependen
 
     return (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-2xl !rounded-[32px] overflow-hidden border border-zinc-200/80 dark:border-zinc-800 shadow-2xl bg-white dark:bg-zinc-900 animate-slide-up"}>
+            <div className={STYLES.modalContent + " max-w-2xl"}>
                 
-                <div className="relative px-8 py-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900 flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20 shadow-sm">
-                            <i className="fa-solid fa-file-lines text-xl"></i>
+                <div className="px-8 py-6 border-b border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 flex justify-between items-center gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white shrink-0">
+                            <i className="fa-solid fa-file-lines text-lg"></i>
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">Actas FC-10 Consolidadas</h2>
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mt-0.5">Seleccione o busque un funcionario para generar su acta agrupada en {dependenciaActual}</p>
+                            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">Actas FC-10 Consolidadas</h2>
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Seleccione o busque un funcionario para generar su acta agrupada en {dependenciaActual}</p>
                         </div>
                     </div>
-                    <button onClick={() => { onClose(); setSearchConsolidadoModal(''); }} className="rounded-2xl p-2.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer">
-                        <i className="fa-solid fa-xmark text-lg"></i>
+                    <button title="Cerrar" onClick={() => { onClose(); setSearchConsolidadoModal(''); }} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
+                        <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>
 
@@ -35,28 +35,28 @@ export default function ConsolidadoFC10Modal({ isOpen, onClose, bienes, dependen
                             placeholder="Buscar por nombre o número de cédula..."
                             value={searchConsolidadoModal}
                             onChange={(e) => setSearchConsolidadoModal(e.target.value)}
-                            className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-3 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 focus:ring-2 focus:ring-brand-primary/25 outline-none transition-all shadow-inner"
+                            className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-3 pl-11 pr-4 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-brand-primary focus:bg-white dark:focus:bg-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary outline-none transition-all"
                         />
                     </div>
                     
                     {/* FILTRO DE FECHAS */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Bienes asignados Desde</label>
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Bienes asignados Desde</label>
                             <input 
                                 type="date" 
                                 value={fechaDesde} 
                                 onChange={(e) => setFechaDesde(e.target.value)} 
-                                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-2.5 px-4 text-xs font-bold text-zinc-900 dark:text-white outline-none cursor-pointer" 
+                                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-2.5 px-4 text-xs font-bold text-zinc-900 dark:text-white outline-none cursor-pointer tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" 
                             />
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5">Bienes asignados Hasta</label>
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Bienes asignados Hasta</label>
                             <input 
                                 type="date" 
                                 value={fechaHasta} 
                                 onChange={(e) => setFechaHasta(e.target.value)} 
-                                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-2.5 px-4 text-xs font-bold text-zinc-900 dark:text-white outline-none cursor-pointer" 
+                                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 py-2.5 px-4 text-xs font-bold text-zinc-900 dark:text-white outline-none cursor-pointer tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" 
                             />
                         </div>
                     </div>
@@ -84,17 +84,17 @@ export default function ConsolidadoFC10Modal({ isOpen, onClose, bienes, dependen
                         const infoPadron = funcionariosPadron.find(f => f.dependencia === dependenciaActual && normalizeStr(f.nombre) === normalizeStr(funcNombre));
 
                         return (
-                            <div key={funcNombre} className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 hover:border-brand-primary transition-all">
+                            <div key={funcNombre} className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-950 border border-zinc-200/80 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-white/20 transition-all">
                                 <div className="space-y-1">
                                     <p className="text-sm font-black text-zinc-900 dark:text-white">{funcNombre}</p>
-                                    <p className="text-xs font-bold text-zinc-400">
-                                        C.I: {infoPadron ? formatCI(infoPadron.cedula) : 'S/D'} • <span className="text-brand-primary">{bienesFiltrados.length} bienes encontrados</span>
+                                    <p className="text-xs font-bold text-zinc-400 tabular-nums">
+                                        C.I: {infoPadron ? formatCI(infoPadron.cedula) : 'S/D'} • <span className="text-zinc-900 dark:text-white">{bienesFiltrados.length} bienes encontrados</span>
                                     </p>
                                 </div>
                                 <button 
                                     onClick={() => handleGenerateConsolidatedFC10PDF(funcNombre, fechaDesde, fechaHasta)}
                                     disabled={bienesFiltrados.length === 0}
-                                    className="px-4 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-hover disabled:bg-zinc-300 dark:disabled:bg-zinc-800 text-white disabled:text-zinc-500 text-xs font-black shadow-md shadow-brand-primary/20 transition-all cursor-pointer flex items-center gap-2"
+                                    className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer disabled:opacity-50 tabular-nums"
                                 >
                                     <i className="fa-solid fa-print"></i> Generar Acta
                                 </button>
@@ -104,7 +104,7 @@ export default function ConsolidadoFC10Modal({ isOpen, onClose, bienes, dependen
                 </div>
 
                 <div className="flex justify-end px-8 py-5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900">
-                    <button onClick={() => { onClose(); setSearchConsolidadoModal(''); }} className="py-3 px-6 rounded-2xl text-xs font-bold text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 cursor-pointer hover:bg-zinc-100">Cerrar</button>
+                    <button onClick={() => { onClose(); setSearchConsolidadoModal(''); }} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Cerrar</button>
                 </div>
             </div>
         </div>
