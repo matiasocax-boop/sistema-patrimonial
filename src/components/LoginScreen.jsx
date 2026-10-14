@@ -30,69 +30,68 @@ export default function LoginScreen({
         ))}
       </div>
 
-      {/* COLUMNA IZQUIERDA: IDENTIDAD INSTITUCIONAL SPLIT SCREEN (ESTILO ORIGINAL RESTAURADO Y MEJORADO) */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-950 via-blue-900 to-indigo-950 p-12 flex-col justify-between items-center relative overflow-hidden shadow-2xl z-10">
-        
-        {/* Textura fotográfica sutil de fondo */}
-        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden opacity-25 mix-blend-overlay">
-          <img 
-            src={rectoradoBg} 
-            alt="Rectorado UNP" 
-            className="w-full h-full object-cover object-center filter grayscale contrast-125 scale-105" 
-          />
-        </div>
-        <div className="absolute inset-0 bg-blue-950/60 z-0 pointer-events-none"></div>
+      {/* COLUMNA IZQUIERDA: IDENTIDAD INSTITUCIONAL SOBRIA */}
+      <div className="hidden lg:flex w-[46%] bg-[#0a1c38] p-10 xl:p-14 flex-col justify-between relative overflow-hidden z-10">
 
-        {/* Cabecera superior izquierda */}
-        <div className="w-full relative z-10 flex items-center gap-3">
-          <div className="h-2 w-2 rounded-full bg-blue-400 animate-pulse"></div>
-          <span className="text-[11px] font-black tracking-widest uppercase text-blue-200">
+        {/* Foto de fondo muy tenue con velo oscuro */}
+        <div className="absolute inset-0 pointer-events-none">
+          <img
+            src={rectoradoBg}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full object-cover object-center opacity-[0.12] blur-[1px]"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/80 via-[#0a1c38]/40 to-[#0a1c38]"></div>
+        </div>
+
+        {/* Cabecera superior */}
+        <div className="w-full relative z-10 flex items-center gap-2.5">
+          <div className="h-1.5 w-1.5 rounded-full bg-sky-300/80"></div>
+          <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-slate-300/80">
             Dpto. Bienes Patrimoniales · UNP
           </span>
         </div>
 
-        {/* Centro de la columna izquierda: Logo y Títulos */}
-        <div className="relative z-10 flex flex-col items-center text-center max-w-lg my-auto animate-fade-in">
-          <div className="w-72 h-28 bg-[#0a1f44]/60 backdrop-blur-md border border-white/20 rounded-3xl px-8 py-4 shadow-2xl mb-8 flex items-center justify-center transform transition-transform hover:scale-105 duration-500">
-            <img 
-              src={appLogo || '/UNP-Site-Logo.png'} 
-              alt="Universidad Nacional de Pilar" 
-              className="w-full h-full object-contain filter drop-shadow-lg"
-              onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
-            />
-          </div>
+        {/* Centro: logo y mensaje */}
+        <div className="relative z-10 flex flex-col items-start max-w-md my-auto animate-fade-in">
+          <img
+            src={appLogo || '/UNP-Site-Logo.png'}
+            alt="Universidad Nacional de Pilar"
+            className="h-16 w-auto max-w-[300px] object-contain object-left drop-shadow-md mb-8"
+            onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
+          />
 
-          <h1 className="text-3xl xl:text-4xl font-black text-white mb-3 tracking-tight drop-shadow-sm leading-tight">
+          <h1 className="text-3xl xl:text-[2.6rem] font-bold text-white/95 tracking-tight leading-[1.15] mb-4">
             Sistema de Gestión Patrimonial
           </h1>
 
-          <p className="text-blue-100 text-sm xl:text-base font-medium max-w-md opacity-90 leading-relaxed mb-6">
+          <p className="text-slate-300/85 text-sm xl:text-[15px] font-normal max-w-md leading-relaxed mb-8">
             Plataforma integral para el control, custodia y trazabilidad de los bienes de la Universidad Nacional de Pilar.
           </p>
 
-          <div className="flex items-center gap-4 text-xs font-bold text-blue-200">
-            <span className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10">
-              <i className="fa-solid fa-shield-halved text-emerald-400 text-[10px]"></i> Alta Seguridad
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-300/90">
+            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
+              <i className="fa-solid fa-shield-halved text-emerald-300/80 text-[10px]"></i> Alta Seguridad
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10">
-              <i className="fa-solid fa-qrcode text-sky-400 text-[10px]"></i> Código QR Único
+            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
+              <i className="fa-solid fa-qrcode text-sky-300/80 text-[10px]"></i> Código QR Único
             </span>
-            <span className="inline-flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10">
-              <i className="fa-solid fa-file-pdf text-amber-400 text-[10px]"></i> Formularios Oficiales
+            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
+              <i className="fa-solid fa-file-pdf text-amber-200/80 text-[10px]"></i> Formularios Oficiales
             </span>
           </div>
         </div>
 
-        {/* Pie inferior izquierdo */}
-        <div className="w-full relative z-10 text-center border-t border-white/10 pt-4">
-          <p className="text-[11px] font-semibold text-blue-300">
+        {/* Pie inferior */}
+        <div className="w-full relative z-10 border-t border-white/10 pt-4">
+          <p className="text-[11px] font-medium text-slate-400">
             Universidad Nacional de Pilar · Departamento de Bienes Patrimoniales
           </p>
         </div>
       </div>
 
       {/* COLUMNA DERECHA: FORMULARIO DE ACCESO INSTITUCIONAL */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 bg-zinc-50 dark:bg-darkbg-main relative transition-colors">
+      <div className="w-full lg:w-[54%] flex flex-col justify-between p-6 sm:p-12 bg-zinc-50 dark:bg-darkbg-main relative transition-colors">
         
         {/* Botón de alternar tema claro / oscuro */}
         <div className="flex justify-between items-center w-full">
@@ -124,7 +123,7 @@ export default function LoginScreen({
 
         {/* Tarjeta de Inicio de Sesión */}
         <div className="w-full max-w-md mx-auto my-auto py-8">
-          <div className="bg-white dark:bg-darkbg-card rounded-[32px] border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-2xl shadow-zinc-200/50 dark:shadow-none animate-slide-up relative flex flex-col">
+          <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-zinc-900/[0.06] dark:shadow-none animate-slide-up relative flex flex-col">
             
             <div className="flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6 text-left">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary dark:text-brand-accent mb-1.5">
@@ -158,7 +157,7 @@ export default function LoginScreen({
                     value={loginUser} 
                     onChange={e => setLoginUser(e.target.value)} 
                     required 
-                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-4 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal shadow-inner" 
+                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-4 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal" 
                     placeholder="ej. admin / funcionario" 
                   />
                 </div>
@@ -185,7 +184,7 @@ export default function LoginScreen({
                     value={loginPass} 
                     onChange={e => setLoginPass(e.target.value)} 
                     required 
-                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50/80 dark:bg-darkbg-main pl-11 pr-11 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal shadow-inner" 
+                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-11 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal" 
                     placeholder="••••••••" 
                   />
                   <button 
