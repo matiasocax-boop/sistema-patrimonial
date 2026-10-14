@@ -4,6 +4,7 @@ import { toInputDateFormat } from '../utils/helpers';
 export default function BienModal({
     setIsBienModalOpen,
     bienEditing,
+    esDuplicado = false,
     setBienEditing,
     bienFormRef,
     saveBien,
@@ -106,11 +107,11 @@ export default function BienModal({
             <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                   <i className={`fa-solid ${bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
+                   <i className={`fa-solid ${esDuplicado ? 'fa-copy' : bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                    {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
+                    {esDuplicado ? 'Duplicar Bien Patrimonial' : bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Complete la información requerida para el inventario</p>
                 </div>
@@ -334,7 +335,7 @@ export default function BienModal({
                   disabled={isSaving}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                 >
-                  {isSaving ? 'Guardando...' : (bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
+                  {isSaving ? 'Guardando...' : (esDuplicado ? '+ Guardar Copia' : bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
                 </button>
               </div>
 

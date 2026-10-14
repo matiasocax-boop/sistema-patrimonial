@@ -143,6 +143,14 @@ export default function BienRow({ b, fcRecord, onAction, isAdmin }) {
                         <i className="fa-solid fa-pen-to-square text-xs"></i>
                     </button>
 
+                    <button 
+                        onClick={() => onAction('duplicateBien', b)} 
+                        className="flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-zinc-600 dark:text-zinc-300 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-950/50 dark:hover:text-violet-400 transition-all cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-violet-500 outline-none" 
+                        title="Duplicar Registro"
+                    >
+                        <i className="fa-solid fa-copy text-xs"></i>
+                    </button>
+
                     {/* BOTÓN DISPONIBLE PARA TODOS: Admin borra directo, Usuario regular envía solicitud de baja */}
                     <button 
                         onClick={() => {

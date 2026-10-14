@@ -149,6 +149,11 @@ export default function App() {
   
   const [isBienModalOpen, setIsBienModalOpen] = useState(false);
   const [bienEditing, setBienEditing] = useState(null);
+  // Prefill para duplicar: abre el modal en modo creación con datos copiados
+  const [prefillBien, setPrefillBien] = useState(null);
+  useEffect(() => {
+    if (!isBienModalOpen) setPrefillBien(null);
+  }, [isBienModalOpen]);
   const bienFormRef = useRef(null);
 
   const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false);
@@ -215,6 +220,9 @@ export default function App() {
   const [filtroQR, setFiltroQR] = useState('ALL'); 
   const [filtroFC10, setFiltroFC10] = useState('ALL'); 
   const [filtroEstado, setFiltroEstado] = useState('ALL');
+  // Filtro de bandeja de pendientes: '' | sinQR | sinFC10 | sinUbicacion | sinFuncionario | vidaVencida
+  const [filtroPendiente, setFiltroPendiente] = useState('');
+  const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); 
@@ -224,7 +232,7 @@ export default function App() {
   const hasFilters = Boolean(
     searchTerm || filtroFuncionario || filtroUbicacion || filtroAnio || 
     filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || 
-    filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL'
+    filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || filtroPendiente
   );
 
   const fc10Map = useMemo(() => {
@@ -430,7 +438,7 @@ export default function App() {
       setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio(''); 
       setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1(''); 
       setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL'); 
-      setFiltroEstado('ALL'); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
+      setFiltroEstado('ALL'); setFiltroPendiente(''); setSearchInput(''); setSearchTerm(''); setCurrentPage(1); 
   };
 // --- CONSULTA PÚBLICA PARA ESCANEO DE QR ROBUSTA CON EXTRACCIÓN DE VALOR ---
 useEffect(() => {
@@ -700,6 +708,24 @@ useEffect(() => {
       return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas }; 
   }, [bienes, dependenciaActual]);
 
+  // Bandeja de pendientes: conteos operativos para atención directa (mismo universo que stats: activos)
+  const pendientes = useMemo(() => {
+      const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
+      const anioActual = new Date().getFullYear();
+      const esVidaVencida = (b) => {
+        const { year } = parseDateInfo(b.fechaAdquisicion);
+        const vu = parseInt(b.vidaUtil, 10);
+        return year && vu > 0 && (anioActual - parseInt(year, 10)) > vu;
+      };
+      return [
+        { id: 'sinQR', label: 'Sin etiqueta QR', count: base.filter(b => b.hasQR !== true).length, icon: 'fa-qrcode', box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20' },
+        { id: 'sinFC10', label: 'Sin acta FC-10', count: base.filter(b => b.hasFC10 !== true).length, icon: 'fa-file-signature', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+        { id: 'sinUbicacion', label: 'Sin ubicación', count: base.filter(b => !String(b.ubicacion || '').trim()).length, icon: 'fa-location-dot', box: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
+        { id: 'sinFuncionario', label: 'Sin responsable', count: base.filter(b => !String(b.funcionario || '').trim()).length, icon: 'fa-user-tie', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+        { id: 'vidaVencida', label: 'Vida útil vencida', count: base.filter(esVidaVencida).length, icon: 'fa-hourglass-end', box: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+      ];
+  }, [bienes, dependenciaActual]);
+
   const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth], asigCurrent: { year: String(currentYear), month: String(currentMonth + 1).padStart(2, '0') }, asigPrev: { year: String(yearOfPrevMonth), month: String(prevMonth + 1).padStart(2, '0') } }; }, [bienes, fc10List, dependenciaActual]);
   
  const filteredBienes = useMemo(() => { 
@@ -717,6 +743,17 @@ useEffect(() => {
     if (filtroQR === 'NO') filtered = filtered.filter(b => b.hasQR !== true); 
     if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
     if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
+
+    // Bandeja de pendientes: atajos operativos que combinan condiciones
+    if (filtroPendiente === 'sinQR') filtered = filtered.filter(b => b.hasQR !== true);
+    else if (filtroPendiente === 'sinFC10') filtered = filtered.filter(b => b.hasFC10 !== true);
+    else if (filtroPendiente === 'sinUbicacion') filtered = filtered.filter(b => !String(b.ubicacion || '').trim());
+    else if (filtroPendiente === 'sinFuncionario') filtered = filtered.filter(b => !String(b.funcionario || '').trim());
+    else if (filtroPendiente === 'vidaVencida') filtered = filtered.filter(b => {
+      const { year } = parseDateInfo(b.fechaAdquisicion);
+      const vu = parseInt(b.vidaUtil, 10);
+      return year && vu > 0 && (new Date().getFullYear() - parseInt(year, 10)) > vu;
+    });
     
     // Búsqueda robusta: tildes, multi-palabra (AND), rótulo sin ceros/guiones, más campos.
     // Usa término con debounce para no filtrar en cada tecla con 1800+ registros.
@@ -733,7 +770,7 @@ useEffect(() => {
     }); 
     
     return filtered; 
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, debouncedSearchTerm]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, filtroPendiente, debouncedSearchTerm]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const itemsPaginados = paginatedBienes; // <-- AÑADIDO AQUÍ
@@ -2116,6 +2153,14 @@ const handleEditFuncionario = (funcionario) => {
           case 'openFC10': openFC10Modal(item); break; 
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
+          case 'duplicateBien': {
+              const { id, rotulo, hasQR, hasFC10, funcionario, funcionarioDoc, funcionarioCargo, ...resto } = item;
+              setBienEditing(null);
+              setPrefillBien({ ...resto, rotulo: '' });
+              setIsBienModalOpen(true);
+              addToast('Completa el rótulo para guardar la copia.', 'info');
+              break;
+          }
           case 'deleteBien': 
               if (isAdmin) {
                   setItemToDelete({ type: 'bien', id: item.id, item }); 
@@ -2883,6 +2928,39 @@ if (publicBienId) {
 
                     </div>
 
+                    {/* 2B. BANDEJA DE PENDIENTES */}
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-4">
+                            <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                <i className="fa-solid fa-list-check text-zinc-400"></i> Atención requerida
+                            </h2>
+                            {pendientes.every(p => p.count === 0) && (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    <i className="fa-solid fa-circle-check"></i> Todo al día
+                                </span>
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                            {pendientes.map(p => (
+                                <button
+                                    key={p.id}
+                                    onClick={() => { clearAllFilters(); setFiltroPendiente(p.id); setActiveTab('inventario'); }}
+                                    title={`Atender: ${p.label}`}
+                                    className="group flex items-center gap-3 rounded-2xl border border-zinc-200/70 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-white/[0.06] px-3.5 py-3 text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                                >
+                                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${p.box}`}>
+                                        <i className={`fa-solid ${p.icon} text-sm`}></i>
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block text-lg font-bold tabular-nums text-zinc-900 dark:text-white leading-tight">{p.count}</span>
+                                        <span className="block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 truncate">{p.label}</span>
+                                    </span>
+                                    <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 group-hover:translate-x-0.5 transition-all shrink-0"></i>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* 3. ACCESOS DIRECTOS */}
                     <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-3 sm:p-4 shadow-sm">
                         <p className="px-2 pb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Accesos directos</p>
@@ -3199,6 +3277,19 @@ if (publicBienId) {
     </div>
 
     {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
+      {filtroPendiente && (
+        <div className="flex items-center gap-2.5">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Mostrando:</span>
+          <button
+            onClick={() => { setFiltroPendiente(''); setCurrentPage(1); }}
+            title="Quitar filtro de pendientes"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+          >
+            {PENDIENTE_LABELS[filtroPendiente] || filtroPendiente}
+            <i className="fa-solid fa-xmark text-[10px]"></i>
+          </button>
+        </div>
+      )}
                     <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[900px]">
@@ -4288,7 +4379,8 @@ if (publicBienId) {
       {isBienModalOpen && (
     <BienModal 
         setIsBienModalOpen={setIsBienModalOpen}
-        bienEditing={bienEditing}
+        bienEditing={bienEditing || prefillBien}
+        esDuplicado={Boolean(!bienEditing && prefillBien)}
         setBienEditing={setBienEditing}
         bienFormRef={bienFormRef}
         saveBien={saveBien}
