@@ -1521,9 +1521,31 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         const newBienes = [];
         let duplicatesSkipped = 0;
 
+        // Mapeo automático de columnas: acepta encabezados con otros nombres,
+        // sin tildes, mayúsculas o abreviaturas (ej: "Rotulo", "VALOR", "Fecha").
+        const ALIAS_COLUMNAS = {
+          rotulo: ['Nº RÓTULO', 'N ROTULO', 'ROTULO', 'RÓTULO', 'CÓDIGO', 'CODIGO'],
+          cuenta: ['CUENTA MAYOR', 'CUENTA'],
+          subcuenta: ['SUB-CUENTA', 'SUBCUENTA', 'SUB CUENTA'],
+          analitico1: ['ANALÍTICO 1', 'ANALITICO 1', 'AN 1', 'AN. 1'],
+          analitico2: ['ANALÍTICO 2', 'ANALITICO 2', 'AN 2', 'AN. 2'],
+          descripcion: ['DESCRIPCIÓN GENERAL', 'DESCRIPCION GENERAL', 'DESCRIPCIÓN', 'DESCRIPCION', 'DETALLE'],
+          fechaAdquisicion: ['FECHA ADQUISICIÓN (YYYY-MM-DD)', 'FECHA ADQUISICION', 'FECHA ADQUISICIÓN', 'FECHA'],
+          valorUnitario: ['VALOR UNITARIO (SIN PUNTOS)', 'VALOR UNITARIO', 'VALOR', 'PRECIO', 'COSTO'],
+          vidaUtil: ['VIDA ATIL (AÑOS)', 'VIDA ÚTIL', 'VIDA UTIL', 'VIDA'],
+        };
+        const encabezados = results.meta.fields || [];
+        const buscarColumna = (aliases) => {
+          const normas = aliases.map(a => normalizeStr(a));
+          return encabezados.find(h => normas.includes(normalizeStr(h))) || null;
+        };
+        const COL = {};
+        Object.keys(ALIAS_COLUMNAS).forEach(k => { COL[k] = buscarColumna(ALIAS_COLUMNAS[k]); });
+        const val = (row, c) => (c ? String(row[c] ?? '').trim() : '');
+
         results.data.forEach(row => {
           // Mapeo seguro de columnas independientemente del nombre exacto de la cabecera
-          const rotuloCSV = String(row['Nº Rótulo'] || row['Rotulo'] || row['rotulo'] || '').trim();
+          const rotuloCSV = val(row, COL.rotulo);
           if (!rotuloCSV) return;
 
           const isDuplicateDB = bienes.some(b => 
@@ -1539,15 +1561,15 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           newBienes.push({
             id: generateId(),
             dependencia: dependenciaActual,
-            cuenta: String(row['Cuenta Mayor'] || row['cuenta'] || '').trim(),
-            subcuenta: String(row['Sub-Cuenta'] || row['subcuenta'] || '').trim(),
-            analitico1: String(row['Analítico 1'] || row['analitico1'] || '').trim(),
-            analitico2: String(row['Analítico 2'] || row['analitico2'] || '').trim(),
-            descripcion: String(row['Descripción General'] || row['descripcion'] || '').trim(),
-            fechaAdquisicion: String(row['Fecha Adquisición (YYYY-MM-DD)'] || row['fechaAdquisicion'] || '').trim(),
+            cuenta: val(row, COL.cuenta),
+            subcuenta: val(row, COL.subcuenta),
+            analitico1: val(row, COL.analitico1),
+            analitico2: val(row, COL.analitico2),
+            descripcion: val(row, COL.descripcion),
+            fechaAdquisicion: val(row, COL.fechaAdquisicion),
             rotulo: rotuloCSV,
-            valorUnitario: String(row['Valor Unitario (Sin puntos)'] || row['valorUnitario'] || '0').replace(/\D/g, ''),
-            vidaUtil: String(row['Vida atil (Años)'] || row['vidaUtil'] || '').trim(),
+            valorUnitario: (val(row, COL.valorUnitario) || '0').replace(/\D/g, ''),
+            vidaUtil: val(row, COL.vidaUtil),
             funcionario: '',
             ubicacion: '',
             hasFC10: false,
