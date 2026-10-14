@@ -43,6 +43,34 @@ export const matchSearchWords = (text, query) => {
   return tokens.every(token => target.includes(token));
 };
 
+// Búsqueda robusta de bienes: insensible a tildes/mayúsculas, multi-palabra (AND),
+// tolerante a ceros/guiones en rótulos y ampliada a más campos.
+export const matchBienSearch = (bien, query) => {
+  if (!query || !String(query).trim()) return true;
+  const b = bien || {};
+  const fields = [
+    b.rotulo, b.descripcion, b.cuenta, b.subcuenta, b.analitico1, b.analitico2,
+    b.ubicacion, b.funcionario, b.funcionarioDoc, b.id
+  ].map(v => String(v ?? ''));
+  const hayNorm = normalizeStr(fields.join(' '));
+  const fieldDigits = fields.map(f => {
+    const raw = String(f).replace(/\D/g, '');
+    return { raw, stripped: raw.replace(/^0+/, '') || (raw ? '0' : '') };
+  });
+  const tokens = normalizeStr(query).split(' ').filter(Boolean);
+  if (tokens.length === 0) return true;
+  return tokens.every(tok => {
+    if (hayNorm.includes(tok)) return true;
+    const tokRawDigits = String(tok).replace(/\D/g, '');
+    if (!tokRawDigits) return false;
+    const tokStripped = tokRawDigits.replace(/^0+/, '') || '0';
+    return fieldDigits.some(fd => {
+      if (!fd.raw) return false;
+      return fd.stripped.includes(tokStripped) || fd.raw.includes(tokRawDigits);
+    });
+  });
+};
+
 export const decodeText = (buffer) => {
     let text = new TextDecoder('utf-8').decode(buffer);
     if (text.includes('')) {

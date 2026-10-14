@@ -18,7 +18,7 @@ import { supabase } from './supabaseClient';
 import CSVPreviewModal from './components/CSVPreviewModal';
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
-    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, decodeText, getPlaceholderLogo 
+    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
@@ -195,6 +195,11 @@ export default function App() {
   const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
   const [searchInput, setSearchInput] = useState(''); 
   const [searchTerm, setSearchTerm] = useState(''); 
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 250);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
   const [filtroFuncionario, setFiltroFuncionario] = useState(''); 
   const [filtroUbicacion, setFiltroUbicacion] = useState(''); 
   const [filtroAnio, setFiltroAnio] = useState(''); 
@@ -212,7 +217,7 @@ export default function App() {
   const [searchConsolidadoModal, setSearchConsolidadoModal] = useState('');
   const [isConsolidatedFC10ModalOpen, setIsConsolidatedFC10ModalOpen] = useState(false);
   const hasFilters = Boolean(
-    searchInput || filtroFuncionario || filtroUbicacion || filtroAnio || 
+    searchTerm || filtroFuncionario || filtroUbicacion || filtroAnio || 
     filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || 
     filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL'
   );
@@ -732,19 +737,11 @@ useEffect(() => {
     if (filtroFC10 === 'YES') filtered = filtered.filter(b => b.hasFC10 === true); 
     if (filtroFC10 === 'NO') filtered = filtered.filter(b => b.hasFC10 !== true); 
     
-    // CORRECCIN: Unificar búsqueda con searchInput y searchTerm
-    // CORRECCIN: Usar exclusivamente searchTerm como fuente de verdad
-if (searchTerm) { 
-    const term = String(searchTerm).toLowerCase().trim(); 
-    filtered = filtered.filter(b => 
-        String(b.rotulo || '').toLowerCase().includes(term) || 
-        String(b.descripcion || '').toLowerCase().includes(term) || 
-        String(b.cuenta || '').toLowerCase().includes(term) || 
-        String(b.ubicacion || '').toLowerCase().includes(term) || 
-        String(b.funcionario || '').toLowerCase().includes(term) ||
-        String(b.funcionarioDoc || '').toLowerCase().includes(term)
-    ); 
-}
+    // Búsqueda robusta: tildes, multi-palabra (AND), rótulo sin ceros/guiones, más campos.
+    // Usa término con debounce para no filtrar en cada tecla con 1800+ registros.
+    if (debouncedSearchTerm && String(debouncedSearchTerm).trim()) {
+      filtered = filtered.filter(b => matchBienSearch(b, debouncedSearchTerm));
+    }
 
     filtered.sort((a, b) => { 
         const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; }; 
@@ -755,7 +752,7 @@ if (searchTerm) {
     }); 
     
     return filtered; 
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, searchTerm, searchInput]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, debouncedSearchTerm]);
   
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPerPage; return filteredBienes.slice(start, start + itemsPerPage); }, [filteredBienes, currentPage]);
   const itemsPaginados = paginatedBienes; // <-- AADIDO AQUÍ
@@ -3095,14 +3092,23 @@ if (publicBienId) {
       
       {/* Campo de Búsqueda Principal */}
       <div className="relative w-full">
-        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
         <input 
           type="text"
-          placeholder="Buscar por rótulo, descripción, cuenta, responsable..."
+          placeholder="Buscar por rótulo, descripción, funcionario... Ej: 1045 silla"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 pl-11 pr-4 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/5 outline-none transition-all"
+          onChange={(e) => { setSearchTerm(e.target.value); setSearchInput(e.target.value); setCurrentPage(1); }}
+          className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 pl-11 pr-11 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/5 outline-none transition-all"
         />
+        {searchTerm && (
+          <button
+            onClick={() => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); }}
+            title="Limpiar búsqueda"
+            className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/20 transition-all cursor-pointer"
+          >
+            <i className="fa-solid fa-xmark text-xs"></i>
+          </button>
+        )}
       </div>
 
       {/* Rejilla de Filtros Secundarios (4 Columnas Equilibradas) */}
