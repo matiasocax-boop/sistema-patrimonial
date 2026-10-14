@@ -37,7 +37,7 @@ export const normalizeStr = (str) =>
     .replace(/\s+/g, ' ');
 
 // Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
-export const APP_VERSION = '2.7.0';
+export const APP_VERSION = '2.8.0';
 
 export const matchSearchWords = (text, query) => {
   if (!query || !String(query).trim()) return true;
