@@ -145,6 +145,14 @@ export default function App() {
     const t = setInterval(cargar, 60000);
     return () => { alive = false; clearInterval(t); };
   }, []);
+  // Aviso "Sistema Actualizado": una vez por versión, para todo usuario autenticado
+  useEffect(() => {
+    try {
+      const vista = localStorage.getItem('unp_last_version');
+      const v = mantenimiento?.ultima_version;
+      if (v && v !== vista && isAuthenticated && !mantenimiento?.en_mantenimiento) setShowChangelog(true);
+    } catch (e) {}
+  }, [mantenimiento, isAuthenticated]);
 
   const [showDependenciaConfirm, setShowDependenciaConfirm] = useState(false);
   const [pendingDependencia, setPendingDependencia] = useState('');
@@ -177,52 +185,6 @@ export default function App() {
       if (!error && data) setEventosAuditFicha(data);
     } catch (e) {}
   };
-  const eventosFicha = useMemo(() => {
-    if (!fichaBien) return [];
-    const ev = [];
-    const fmt = (f) => { try { return formatDateText(f) || f; } catch (e) { return f; } };
-    if (fichaBien.fechaAdquisicion) {
-      ev.push({ fecha: fichaBien.fechaAdquisicion, fechaFmt: fmt(fichaBien.fechaAdquisicion), tipo: 'alta', titulo: 'Alta en inventario', detalle: `Adquirido el ${fmt(fichaBien.fechaAdquisicion)}` });
-    }
-    fc10List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
-      const f = fc.entregadoFecha || fc.fechaGeneracion;
-      ev.push({
-        fecha: f || '', fechaFmt: f ? fmt(f) : 'Sin fecha', tipo: 'asignacion',
-        titulo: `Acta FC-10 · ${fc.funcionarioNombre || 'Sin responsable'}`,
-        detalle: fc.devolucionFecha ? `Devuelto el ${fmt(fc.devolucionFecha)}` : `Entregado en ${fc.entregadoLugar || fc.dependencia || ''}`.trim()
-      });
-    });
-    fc11List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
-      const rem = fc.dependenciaRemitente || fc.remitente || '';
-      const dest = fc.dependenciaDestinataria || fc.destinatario || '';
-      ev.push({
-        fecha: fc.fecha || '', fechaFmt: fc.fecha ? fmt(fc.fecha) : 'Sin fecha', tipo: 'traslado',
-        titulo: `Traslado ${rem} → ${dest}`,
-        detalle: fc.motivo || fc.tipoRegistro || ''
-      });
-    });
-    eventosAuditFicha.forEach(row => {
-      const a = String(row.accion || '').toUpperCase();
-      const tipo = a.includes('CREA') || a.includes('ALTA') ? 'alta' : a.includes('BAJA') || a.includes('ELIMINA') ? 'baja' : a.includes('MODIF') ? 'modificacion' : a.includes('FC10') || a.includes('ASIGNA') ? 'asignacion' : a.includes('FC11') || a.includes('TRASLADO') ? 'traslado' : 'otro';
-      let detalle = '';
-      try {
-        const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
-        if (m && typeof m === 'object') {
-          if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
-            const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
-            detalle = keys.length ? `Campos: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? '…' : ''}` : 'Registro actualizado';
-          } else {
-            const bits = [];
-            if (m.solicitante) bits.push(`Por: ${m.solicitante}`);
-            if (m.motivo) bits.push(`Motivo: ${m.motivo}`);
-            detalle = bits.join(' · ');
-          }
-        } else if (m) detalle = String(m);
-      } catch (e) { detalle = String(row.mensaje || ''); }
-      ev.push({ fecha: row.fecha || '', fechaFmt: row.fecha ? fmt(String(row.fecha).split('T')[0]) : 'Sin fecha', tipo, titulo: row.titulo || row.accion || 'Evento', detalle });
-    });
-    return ev.sort((x, y) => String(y.fecha || '').localeCompare(String(x.fecha || '')));
-  }, [fichaBien, eventosAuditFicha, fc10List, fc11List]);
   
   const [isBienModalOpen, setIsBienModalOpen] = useState(false);
   const [bienEditing, setBienEditing] = useState(null);
@@ -278,6 +240,52 @@ export default function App() {
   const [usuariosList, setUsuariosList] = useState([]); 
   const [funcionariosPadron, setFuncionariosPadron] = useState([]); 
   const [estructurasDB, setEstructurasDB] = useState([]);
+  const eventosFicha = useMemo(() => {
+    if (!fichaBien) return [];
+    const ev = [];
+    const fmt = (f) => { try { return formatDateText(f) || f; } catch (e) { return f; } };
+    if (fichaBien.fechaAdquisicion) {
+      ev.push({ fecha: fichaBien.fechaAdquisicion, fechaFmt: fmt(fichaBien.fechaAdquisicion), tipo: 'alta', titulo: 'Alta en inventario', detalle: `Adquirido el ${fmt(fichaBien.fechaAdquisicion)}` });
+    }
+    fc10List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
+      const f = fc.entregadoFecha || fc.fechaGeneracion;
+      ev.push({
+        fecha: f || '', fechaFmt: f ? fmt(f) : 'Sin fecha', tipo: 'asignacion',
+        titulo: `Acta FC-10 · ${fc.funcionarioNombre || 'Sin responsable'}`,
+        detalle: fc.devolucionFecha ? `Devuelto el ${fmt(fc.devolucionFecha)}` : `Entregado en ${fc.entregadoLugar || fc.dependencia || ''}`.trim()
+      });
+    });
+    fc11List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
+      const rem = fc.dependenciaRemitente || fc.remitente || '';
+      const dest = fc.dependenciaDestinataria || fc.destinatario || '';
+      ev.push({
+        fecha: fc.fecha || '', fechaFmt: fc.fecha ? fmt(fc.fecha) : 'Sin fecha', tipo: 'traslado',
+        titulo: `Traslado ${rem} → ${dest}`,
+        detalle: fc.motivo || fc.tipoRegistro || ''
+      });
+    });
+    eventosAuditFicha.forEach(row => {
+      const a = String(row.accion || '').toUpperCase();
+      const tipo = a.includes('CREA') || a.includes('ALTA') ? 'alta' : a.includes('BAJA') || a.includes('ELIMINA') ? 'baja' : a.includes('MODIF') ? 'modificacion' : a.includes('FC10') || a.includes('ASIGNA') ? 'asignacion' : a.includes('FC11') || a.includes('TRASLADO') ? 'traslado' : 'otro';
+      let detalle = '';
+      try {
+        const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
+        if (m && typeof m === 'object') {
+          if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
+            const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
+            detalle = keys.length ? `Campos: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? '…' : ''}` : 'Registro actualizado';
+          } else {
+            const bits = [];
+            if (m.solicitante) bits.push(`Por: ${m.solicitante}`);
+            if (m.motivo) bits.push(`Motivo: ${m.motivo}`);
+            detalle = bits.join(' · ');
+          }
+        } else if (m) detalle = String(m);
+      } catch (e) { detalle = String(row.mensaje || ''); }
+      ev.push({ fecha: row.fecha || '', fechaFmt: row.fecha ? fmt(String(row.fecha).split('T')[0]) : 'Sin fecha', tipo, titulo: row.titulo || row.accion || 'Evento', detalle });
+    });
+    return ev.sort((x, y) => String(y.fecha || '').localeCompare(String(x.fecha || '')));
+  }, [fichaBien, eventosAuditFicha, fc10List, fc11List]);
 
   const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
   const [searchInput, setSearchInput] = useState(''); 
@@ -300,6 +308,135 @@ export default function App() {
   // Filtro de bandeja de pendientes: '' | sinQR | sinFC10 | sinUbicacion | sinFuncionario | vidaVencida
   const [filtroPendiente, setFiltroPendiente] = useState('');
   const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
+  // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
+  const [auditoriaList, setAuditoriaList] = useState([]);
+  const [isLoadingAud, setIsLoadingAud] = useState(false);
+  const [searchAud, setSearchAud] = useState('');
+  const [filtroAccionAud, setFiltroAccionAud] = useState('');
+  const [conteoCodigos, setConteoCodigos] = useState([]);
+  const [conteoInput, setConteoInput] = useState('');
+  const [muestraN, setMuestraN] = useState(10);
+  const [muestra, setMuestra] = useState([]);
+  const [verificadosMuestra, setVerificadosMuestra] = useState({});
+  const fetchAuditoria = async () => {
+    setIsLoadingAud(true);
+    try {
+      const { data, error } = await supabase.from('auditoria').select('*').order('fecha', { ascending: false }).limit(500);
+      if (!error && data) setAuditoriaList(data);
+    } catch (e) {}
+    finally { setIsLoadingAud(false); }
+  };
+  useEffect(() => {
+    if (activeTab === 'auditoria' && isAdmin) fetchAuditoria();
+  }, [activeTab]);
+  const detalleAudCorto = (row) => {
+    try {
+      const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
+      if (m && typeof m === 'object') {
+        if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
+          const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
+          return keys.length ? `Campos: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}` : 'Registro actualizado';
+        }
+        const bits = [];
+        if (m.solicitante) bits.push(m.solicitante);
+        if (m.motivo) bits.push(m.motivo);
+        if (m.descripcion) bits.push(String(m.descripcion).slice(0, 60));
+        else if (m.rotulo) bits.push(`Rótulo ${m.rotulo}`);
+        return bits.join(' · ');
+      }
+      return String(row.mensaje || '').slice(0, 120);
+    } catch (e) { return String(row.mensaje || '').slice(0, 120); }
+  };
+  const tonoAccionAud = (accion) => {
+    const a = String(accion || '').toUpperCase();
+    if (a.includes('BAJA') || a.includes('ELIMINA')) return 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20';
+    if (a.includes('CREA') || a.includes('ALTA')) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20';
+    if (a.includes('MODIF')) return 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border-zinc-500/20';
+    if (a.includes('MUESTREO') || a.includes('CONCILIA')) return 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20';
+    return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
+  };
+  const auditoriaFiltrada = useMemo(() => {
+    let lista = auditoriaList;
+    if (filtroAccionAud) lista = lista.filter(r => String(r.accion || '') === filtroAccionAud);
+    if (searchAud.trim()) {
+      const tokens = normalizeStr(searchAud).split(' ').filter(Boolean);
+      lista = lista.filter(r => {
+        const hay = normalizeStr(`${r.titulo || ''} ${r.accion || ''} ${typeof r.mensaje === 'string' ? r.mensaje.slice(0, 300) : ''}`);
+        return tokens.every(t => hay.includes(t));
+      });
+    }
+    return lista;
+  }, [auditoriaList, searchAud, filtroAccionAud]);
+  const accionesUnicasAud = useMemo(() => [...new Set(auditoriaList.map(r => String(r.accion || 'OTROS')))].sort(), [auditoriaList]);
+  const kpisAuditor = useMemo(() => {
+    const hace30 = Date.now() - 30 * 24 * 3600 * 1000;
+    const rec = auditoriaList.filter(r => r.fecha && new Date(r.fecha).getTime() >= hace30);
+    const cuenta = (re) => rec.filter(r => re.test(String(r.accion || ''))).length;
+    return [
+      { label: 'Eventos (30 días)', valor: rec.length, icon: 'fa-bolt', box: 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' },
+      { label: 'Altas registradas', valor: cuenta(/CREA|ALTA/), icon: 'fa-plus', box: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
+      { label: 'Modificaciones', valor: cuenta(/MODIF/), icon: 'fa-pen-to-square', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/20' },
+      { label: 'Bajas y eliminaciones', valor: cuenta(/BAJA|ELIMINA/), icon: 'fa-flag', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' },
+    ];
+  }, [auditoriaList]);
+  const resultadoConteo = useMemo(() => {
+    const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
+    const hallados = new Set();
+    const noReg = [];
+    conteoCodigos.forEach(code => {
+      const f = base.find(b => b.id === code || normalizeStr(b.rotulo) === normalizeStr(code));
+      if (f) hallados.add(f.id); else noReg.push(code);
+    });
+    return { total: base.length, hallados: hallados.size, faltantes: base.filter(b => !hallados.has(b.id)), noRegistrados: noReg };
+  }, [conteoCodigos, bienes, dependenciaActual]);
+  const agregarCodigoConteo = (raw) => {
+    let code = String(raw || '').trim();
+    if (!code) return;
+    if (code.startsWith('http')) {
+      try {
+        const u = new URL(code);
+        code = u.searchParams.get('id') || u.searchParams.get('bienId') || code;
+      } catch (e) {}
+    }
+    setConteoCodigos(prev => (prev.includes(code) ? prev : [...prev, code]));
+    setConteoInput('');
+  };
+  const exportarConteoCSV = () => {
+    const rows = [['Estado', 'Rotulo', 'Descripcion', 'Codigo detectado']];
+    resultadoConteo.faltantes.forEach(b => rows.push(['FALTANTE', b.rotulo || '', `"${String(b.descripcion || '').replace(/"/g, '""')}"`, '']));
+    resultadoConteo.noRegistrados.forEach(c => rows.push(['NO REGISTRADO', '', '', c]));
+    const blob = new Blob(["\uFEFF" + rows.map(r => r.join(';')).join('\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `Conciliacion_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+  };
+  const guardarActaConteo = async () => {
+    await registrarAuditoria({
+      usuario: currentUser?.username || 'Usuario', dependencia: dependenciaActual,
+      accion: 'CONCILIACION_FISICA', entidad: 'CONCILIACION', entidadId: null,
+      detalles: { total: resultadoConteo.total, hallados: resultadoConteo.hallados, faltantes: resultadoConteo.faltantes.length, noRegistrados: resultadoConteo.noRegistrados.length }
+    });
+    addToast('Acta de conciliación registrada en el libro.', 'success');
+    fetchAuditoria();
+  };
+  const generarMuestra = () => {
+    const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
+    const n = Math.max(1, Math.min(parseInt(muestraN, 10) || 10, base.length));
+    const barajada = [...base].sort(() => Math.random() - 0.5);
+    setMuestra(barajada.slice(0, n));
+    setVerificadosMuestra({});
+  };
+  const guardarActaMuestreo = async () => {
+    const verif = Object.values(verificadosMuestra).filter(Boolean).length;
+    await registrarAuditoria({
+      usuario: currentUser?.username || 'Usuario', dependencia: dependenciaActual,
+      accion: 'MUESTREO_VERIFICACION', entidad: 'MUESTREO', entidadId: null,
+      detalles: { total: muestra.length, verificados: verif, rotulos: muestra.map(b => b.rotulo) }
+    });
+    addToast(`Muestreo registrado: ${verif}/${muestra.length} verificados.`, 'success');
+    fetchAuditoria();
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [fc10Year, setFc10Year] = useState(new Date().getFullYear().toString()); 
@@ -3707,6 +3844,199 @@ if (publicBienId) {
                   </div>
                 )}
 
+                {activeTab === 'auditoria' && isAdmin && (
+                  <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-12">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-magnifying-glass-chart text-lg"></i>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2.5">
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Auditoría</h2>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
+                              Solo administradores
+                            </span>
+                          </div>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trazabilidad, conciliación física y verificación por muestreo</p>
+                        </div>
+                      </div>
+                      <button onClick={fetchAuditoria} title="Recargar libro de auditoría" className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                        <i className={`fa-solid fa-rotate ${isLoadingAud ? 'fa-spin' : ''}`}></i> Actualizar
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {kpisAuditor.map(k => (
+                        <div key={k.label} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
+                          <div className={`flex h-10 w-10 items-center justify-center rounded-2xl mb-4 ${k.box}`}>
+                            <i className={`fa-solid ${k.icon}`}></i>
+                          </div>
+                          <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight">{k.valor}</p>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">{k.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
+                          <i className="fa-solid fa-clipboard-check text-emerald-500"></i> Conciliación física
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rótulos y compara contra el inventario activo.</p>
+                        <div className="relative mb-4">
+                          <i className="fa-solid fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
+                          <input
+                            type="text"
+                            value={conteoInput}
+                            onChange={(e) => setConteoInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); agregarCodigoConteo(conteoInput); } }}
+                            placeholder="Rótulo o código QR + Enter..."
+                            className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-11 pl-11 pr-10 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 transition-all"
+                          />
+                          {conteoInput && (
+                            <button onClick={() => agregarCodigoConteo(conteoInput)} title="Agregar" className="absolute right-2 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer">
+                              <i className="fa-solid fa-plus text-[11px]"></i>
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mb-4 text-center">
+                          <div className="rounded-2xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10 py-3">
+                            <p className="text-xl font-bold tabular-nums text-zinc-900 dark:text-white">{resultadoConteo.hallados}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Hallados</p>
+                          </div>
+                          <div className="rounded-2xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10 py-3">
+                            <p className="text-xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{resultadoConteo.faltantes.length}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Faltantes</p>
+                          </div>
+                          <div className="rounded-2xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10 py-3">
+                            <p className="text-xl font-bold tabular-nums text-rose-600 dark:text-rose-400">{resultadoConteo.noRegistrados.length}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">No registrados</p>
+                          </div>
+                        </div>
+                        {resultadoConteo.faltantes.length > 0 && (
+                          <div className="mb-3 max-h-36 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200/60 dark:border-white/10 divide-y divide-zinc-100 dark:divide-white/5">
+                            {resultadoConteo.faltantes.slice(0, 50).map(b => (
+                              <div key={b.id} className="flex items-center justify-between gap-2 px-3.5 py-2 text-xs">
+                                <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300 truncate">{b.rotulo}</span>
+                                <span className="text-zinc-400 truncate">{b.descripcion}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => { setConteoCodigos([]); setConteoInput(''); }} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Limpiar</button>
+                          <button onClick={exportarConteoCSV} disabled={conteoCodigos.length === 0} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Exportar CSV</button>
+                          <button onClick={guardarActaConteo} disabled={conteoCodigos.length === 0} className="h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Guardar acta</button>
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
+                          <i className="fa-solid fa-shuffle text-violet-500"></i> Muestreo aleatorio
+                        </h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Selección al azar para verificación física y acta del resultado.</p>
+                        <div className="flex items-center gap-2 mb-4">
+                          <input
+                            type="number" min="1" max="200"
+                            value={muestraN}
+                            onChange={(e) => setMuestraN(e.target.value)}
+                            className="w-24 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-sm font-bold tabular-nums text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10"
+                          />
+                          <button onClick={generarMuestra} className="h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                            Generar muestra
+                          </button>
+                          {muestra.length > 0 && (
+                            <span className="text-xs font-bold tabular-nums text-zinc-500">{Object.values(verificadosMuestra).filter(Boolean).length}/{muestra.length} verificados</span>
+                          )}
+                        </div>
+                        {muestra.length > 0 && (
+                          <>
+                            <div className="h-1.5 w-full bg-zinc-100 dark:bg-white/10 rounded-full overflow-hidden mb-3">
+                              <div className="h-full bg-violet-500 rounded-full transition-all duration-500" style={{ width: `${muestra.length ? (Object.values(verificadosMuestra).filter(Boolean).length / muestra.length) * 100 : 0}%` }}></div>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200/60 dark:border-white/10 divide-y divide-zinc-100 dark:divide-white/5 mb-4">
+                              {muestra.map(b => (
+                                <label key={b.id} className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer hover:bg-zinc-50 dark:hover:bg-white/[0.04]">
+                                  <input
+                                    type="checkbox"
+                                    checked={Boolean(verificadosMuestra[b.id])}
+                                    onChange={() => setVerificadosMuestra(prev => ({ ...prev, [b.id]: !prev[b.id] }))}
+                                    className="h-4 w-4 rounded accent-violet-600 cursor-pointer"
+                                  />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="block font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{b.rotulo}</span>
+                                    <span className="block text-[11px] text-zinc-400 truncate">{b.descripcion} · {b.ubicacion || 'Sin ubicación'}</span>
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                            <button onClick={guardarActaMuestreo} className="h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                              Guardar acta de muestreo
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm overflow-hidden">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-5 border-b border-zinc-100 dark:border-white/10">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mr-auto">
+                          <i className="fa-solid fa-book-open text-zinc-400"></i> Libro de auditoría
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">{auditoriaFiltrada.length}</span>
+                        </h3>
+                        <div className="relative">
+                          <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
+                          <input
+                            type="text" value={searchAud} onChange={(e) => setSearchAud(e.target.value)} placeholder="Buscar en el libro..."
+                            className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 pl-10 pr-3 text-[13px] font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 w-full sm:w-56"
+                          />
+                        </div>
+                        <select
+                          value={filtroAccionAud} onChange={(e) => setFiltroAccionAud(e.target.value)}
+                          className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary"
+                        >
+                          <option value="">Acción: Todas</option>
+                          {accionesUnicasAud.map(a => <option key={a} value={a}>{a}</option>)}
+                        </select>
+                      </div>
+                      <div className="overflow-x-auto custom-scrollbar">
+                        <table className="w-full text-left border-collapse min-w-[720px]">
+                          <thead className="bg-zinc-50/70 dark:bg-white/[0.02] border-b border-zinc-200/70 dark:border-white/10">
+                            <tr className="text-[10px] sm:text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em]">
+                              <th className="py-3.5 pl-6 pr-4">Fecha</th>
+                              <th className="px-4 py-3.5">Acción</th>
+                              <th className="px-4 py-3.5">Evento</th>
+                              <th className="py-3.5 pl-4 pr-6">Detalle</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
+                            {isLoadingAud ? (
+                              <tr><td colSpan="4" className="p-10 text-center text-xs font-semibold text-zinc-400">Cargando libro...</td></tr>
+                            ) : auditoriaFiltrada.length === 0 ? (
+                              <tr><td colSpan="4" className="p-10 text-center text-xs font-semibold text-zinc-400">Sin eventos para los filtros aplicados.</td></tr>
+                            ) : (
+                              auditoriaFiltrada.slice(0, 100).map(r => (
+                                <tr key={r.id} className="hover:bg-zinc-50/70 dark:hover:bg-white/[0.03] transition-colors">
+                                  <td className="py-3 pl-6 pr-4 align-top text-xs tabular-nums text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                    {r.fecha ? new Date(r.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                                  </td>
+                                  <td className="px-4 py-3 align-top">
+                                    <span className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${tonoAccionAud(r.accion)}`}>
+                                      {r.accion || 'OTROS'}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 align-top text-xs font-bold text-zinc-800 dark:text-zinc-200">{r.titulo || '-'}</td>
+                                  <td className="py-3 pl-4 pr-6 align-top text-xs text-zinc-500 dark:text-zinc-400 max-w-[280px] truncate" title={detalleAudCorto(r)}>{detalleAudCorto(r)}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {activeTab === 'usuarios' && isAdmin && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
@@ -4695,29 +5025,35 @@ if (publicBienId) {
 
       {showChangelog && (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-md !rounded-[32px] overflow-hidden"}>
-                <div className="bg-brand-primary p-8 text-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-white/10 mix-blend-overlay"></div>
+            <div className={STYLES.modalContent + " max-w-md overflow-hidden"}>
+                <div className="px-6 py-8 sm:px-8 text-center relative overflow-hidden bg-[#0a1c38]">
+                    <div className="absolute -top-20 left-1/2 -translate-x-1/2 h-48 w-[22rem] rounded-full bg-violet-500/20 blur-3xl pointer-events-none"></div>
                     <div className="relative z-10">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-black text-white backdrop-blur-md shadow-sm mb-4 uppercase tracking-widest">
-                            ¡Nueva Actualización!
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 px-3 py-1 text-[11px] font-bold text-emerald-300 uppercase tracking-[0.18em] mb-4">
+                            <i className="fa-solid fa-circle-check text-[10px]"></i> Sistema Actualizado
                         </span>
-                        <h2 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">{systemConfig.version}</h2>
+                        <h2 className="text-2xl font-bold text-white tracking-tight">Novedades de la v{mantenimiento?.ultima_version || ''}</h2>
                     </div>
                 </div>
-                <div className="p-8 bg-white dark:bg-darkbg-card">
-                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">Novedades y Mejoras</h3>
-                    <div className="text-sm text-zinc-600 dark:text-zinc-400 font-medium leading-relaxed whitespace-pre-wrap">
-                        {systemConfig.notes}
-                    </div>
+                <div className="p-6 sm:p-8 bg-white dark:bg-darkbg-card">
+                    <ul className="space-y-3">
+                        {(Array.isArray(mantenimiento?.notas_version) ? mantenimiento.notas_version : []).map((n, i) => (
+                            <li key={i} className="flex items-start gap-3 text-sm text-zinc-700 dark:text-zinc-300 font-medium leading-relaxed">
+                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/25 mt-0.5">
+                                    <i className="fa-solid fa-check text-[9px] text-emerald-500"></i>
+                                </span>
+                                <span>{n}</span>
+                            </li>
+                        ))}
+                    </ul>
                 </div>
-                <div className={STYLES.modalFooter + " justify-center !border-none !pt-0 bg-white dark:bg-darkbg-card"}>
-                    <button 
+                <div className="flex px-6 sm:px-8 pb-6 sm:pb-8 bg-white dark:bg-darkbg-card">
+                    <button
                         onClick={() => {
-                            localStorage.setItem('unp_last_version', systemConfig.version);
+                            try { localStorage.setItem('unp_last_version', mantenimiento?.ultima_version || ''); } catch (e) {}
                             setShowChangelog(false);
-                        }} 
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-brand-primary px-6 py-3.5 text-sm font-bold text-white transition-all shadow-md hover:bg-brand-hover active:scale-95 cursor-pointer"
+                        }}
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-zinc-900 dark:bg-white px-6 h-11 text-[13px] font-bold text-white dark:text-zinc-900 transition-all hover:bg-zinc-700 dark:hover:bg-zinc-200 active:scale-[0.98] cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                     >
                         Entendido, continuar al sistema
                     </button>

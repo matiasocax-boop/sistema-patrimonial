@@ -14,6 +14,7 @@ export default function Header({
         fc10: 'Registro FC-10',
         fc11: 'Registro FC-11',
         aprobaciones: 'Aprobaciones',
+        auditoria: 'Auditoría',
         usuarios: 'Directorio de Usuarios',
         ayuda: 'Centro de Ayuda'
     };

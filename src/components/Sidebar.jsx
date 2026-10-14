@@ -83,6 +83,7 @@ export default function Sidebar({
                         { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast' },
                         ...(isAdmin ? [
                             { id: 'aprobaciones', label: 'Aprobaciones', icon: 'fa-check-to-slot' },
+                            { id: 'auditoria', label: 'Auditoría', icon: 'fa-magnifying-glass-chart' },
                             { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear' }
                         ] : []),
                         { id: 'ayuda', label: 'Centro de Ayuda', icon: 'fa-circle-question' }
