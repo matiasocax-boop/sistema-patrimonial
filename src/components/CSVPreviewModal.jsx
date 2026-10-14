@@ -26,7 +26,7 @@ export default function CSVPreviewModal({ isOpen, onClose, onConfirm, data, STYL
 
         <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {/* Resumen rápido */}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-3 gap-3 sm:gap-4">
             <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/40 rounded-2xl text-center">
               <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{validos.length}</p>
               <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 mt-1 uppercase tracking-wider">Listos para importar</p>

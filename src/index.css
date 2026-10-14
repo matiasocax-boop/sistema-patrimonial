@@ -6,6 +6,7 @@ html {
 }
 
 @theme {
+  --font-sans: "Open Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --color-brand-primary: #1d4ed8;
   --color-brand-hover: #1e40af;
   --color-brand-accent: #60a5fa;
@@ -15,7 +16,7 @@ html {
   --color-darkbg-hover: #3f3f46;
 }
 body { 
-  font-family: 'Inter', sans-serif; 
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif; 
   background-color: #f8f9fa; 
   margin: 0; 
   padding: 0; 

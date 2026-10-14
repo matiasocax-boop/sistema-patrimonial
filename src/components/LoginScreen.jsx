@@ -37,7 +37,7 @@ export default function LoginScreen({
       {/* TOASTS FLOTANTES */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
         {toasts?.map(t => (
-          <div key={t.id} className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[300px] rounded-2xl shadow-xl text-xs font-bold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all animate-slide-up border border-white/10 dark:border-black/10">
+          <div key={t.id} className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-bold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all animate-slide-up border border-white/10 dark:border-black/10">
             <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-emerald-400' : t.type === 'error' ? 'fa-circle-exclamation text-rose-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-amber-400' : 'fa-circle-info text-sky-400'} text-base`}></i>
             <span className="flex-1">{t.message}</span>
           </div>

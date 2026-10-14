@@ -2250,7 +2250,7 @@ const handleEditFuncionario = (funcionario) => {
   }, []);
 
   const renderPagination = () => (
-    <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
+    <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
       <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPerPage + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPerPage, filteredBienes.length)}</span> de {filteredBienes.length}</span>
       <div className="flex gap-2">
         <button disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Anterior</button>
@@ -2259,7 +2259,7 @@ const handleEditFuncionario = (funcionario) => {
     </div>
   );
   const renderPaginationFuncionarios = () => (
-    <div className="flex justify-between items-center px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
+    <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
       <span className="text-sm text-zinc-500 font-medium">
         Mostrando <span className="font-bold text-zinc-900 dark:text-white">
           {(currentPaginaFuncionarios - 1) * itemsPorPaginaFuncs + (funcionariosPurosDependencia.length > 0 ? 1 : 0)} - {Math.min(currentPaginaFuncionarios * itemsPorPaginaFuncs, funcionariosPurosDependencia.length)}
@@ -2617,11 +2617,6 @@ if (publicBienId) {
                 <p className="text-xs font-bold text-slate-900 mt-1">
                   {publicBienData.funcionario || "Sin Responsable Asignado"}
                 </p>
-                {publicBienData.funcionarioDoc && (
-                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">
-                    C.I.: {publicBienData.funcionarioDoc}
-                  </p>
-                )}
                 {publicBienData.funcionarioCargo && (
                   <p className="text-[10px] text-slate-500 mt-0.5">
                     Cargo: {publicBienData.funcionarioCargo}
@@ -2711,14 +2706,14 @@ if (publicBienId) {
       <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none">
         
         {!isOnline && (
-          <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
+          <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
             <i className="fa-solid fa-wifi-slash text-base"></i>
             <span className="flex-1">Sin conexión a red (Modo Local)</span>
           </div>
         )}
 
         {toasts.map(t => (
-          <div key={t.id} className="pointer-events-auto flex items-center gap-3.5 px-5 py-4 min-w-[320px] max-w-md rounded-[20px] shadow-2xl text-xs font-bold bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-100 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800 transition-all animate-slide-up">
+          <div key={t.id} className="pointer-events-auto flex items-center gap-3.5 px-5 py-4 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-[20px] shadow-2xl text-xs font-bold bg-white/95 dark:bg-zinc-900/95 text-zinc-800 dark:text-zinc-100 backdrop-blur-xl border border-zinc-200/80 dark:border-zinc-800 transition-all animate-slide-up">
             <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-inner ${
               t.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50' : 
               t.type === 'error' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50' : 
