@@ -18,8 +18,20 @@ export default function LoginScreen({
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   return (
-    <div className={`${darkMode ? 'dark' : ''} min-h-screen flex w-full bg-white dark:bg-darkbg-main font-sans transition-colors duration-300 relative overflow-hidden`}>
+    <div className={`${darkMode ? 'dark' : ''} min-h-screen flex flex-col w-full bg-[#0a1c38] dark:bg-[#070f22] font-sans transition-colors duration-300 relative overflow-hidden`}>
       
+      {/* Fondo institucional tenue */}
+      <div className="absolute inset-0 pointer-events-none">
+        <img
+          src={rectoradoBg}
+          alt=""
+          aria-hidden="true"
+          className="h-full w-full object-cover object-center opacity-[0.10]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/70 via-[#0a1c38]/50 to-[#0a1c38] dark:from-[#070f22]/70 dark:via-[#070f22]/50 dark:to-[#070f22]"></div>
+        <div className="absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-[44rem] rounded-full bg-blue-500/15 blur-3xl"></div>
+      </div>
+
       {/* TOASTS FLOTANTES */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 pointer-events-none">
         {toasts?.map(t => (
@@ -30,100 +42,37 @@ export default function LoginScreen({
         ))}
       </div>
 
-      {/* COLUMNA IZQUIERDA: IDENTIDAD INSTITUCIONAL SOBRIA */}
-      <div className="hidden lg:flex w-[46%] bg-[#0a1c38] p-10 xl:p-14 flex-col justify-between relative overflow-hidden z-10">
-
-        {/* Foto de fondo muy tenue con velo oscuro */}
-        <div className="absolute inset-0 pointer-events-none">
-          <img
-            src={rectoradoBg}
-            alt=""
-            aria-hidden="true"
-            className="h-full w-full object-cover object-center opacity-[0.12] blur-[1px]"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/80 via-[#0a1c38]/40 to-[#0a1c38]"></div>
-        </div>
-
-        {/* Cabecera superior */}
-        <div className="w-full relative z-10 flex items-center gap-2.5">
-          <div className="h-1.5 w-1.5 rounded-full bg-sky-300/80"></div>
-          <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-slate-300/80">
-            Dpto. Bienes Patrimoniales · UNP
-          </span>
-        </div>
-
-        {/* Centro: logo y mensaje */}
-        <div className="relative z-10 flex flex-col items-start max-w-md my-auto animate-fade-in">
+      {/* Encabezado: marca + tema */}
+      <header className="relative z-10 flex items-center justify-between w-full px-6 sm:px-10 py-5">
+        <div className="flex items-center gap-3">
           <img
             src={appLogo || '/UNP-Site-Logo.png'}
             alt="Universidad Nacional de Pilar"
-            className="h-16 w-auto max-w-[300px] object-contain object-left drop-shadow-md mb-8"
+            className="h-9 w-auto max-w-[220px] object-contain object-left drop-shadow-md"
             onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
           />
-
-          <h1 className="text-3xl xl:text-[2.6rem] font-bold text-white/95 tracking-tight leading-[1.15] mb-4">
-            Sistema de Gestión Patrimonial
-          </h1>
-
-          <p className="text-slate-300/85 text-sm xl:text-[15px] font-normal max-w-md leading-relaxed mb-8">
-            Plataforma integral para el control, custodia y trazabilidad de los bienes de la Universidad Nacional de Pilar.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-300/90">
-            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
-              <i className="fa-solid fa-shield-halved text-emerald-300/80 text-[10px]"></i> Alta Seguridad
-            </span>
-            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
-              <i className="fa-solid fa-qrcode text-sky-300/80 text-[10px]"></i> Código QR Único
-            </span>
-            <span className="inline-flex items-center gap-1.5 bg-white/[0.06] px-3 py-1.5 rounded-full border border-white/10">
-              <i className="fa-solid fa-file-pdf text-amber-200/80 text-[10px]"></i> Formularios Oficiales
-            </span>
-          </div>
+          <span className="hidden sm:block h-6 w-px bg-white/15"></span>
+          <span className="hidden sm:block text-[11px] font-bold tracking-[0.2em] uppercase text-slate-300/80">
+            Dpto. Bienes Patrimoniales
+          </span>
         </div>
+        <button 
+          onClick={() => {
+            const newMode = !darkMode;
+            setDarkMode(newMode);
+            localStorage.setItem('theme', newMode ? 'dark' : 'light');
+          }} 
+          className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.06] border border-white/15 text-slate-200 hover:bg-white/[0.12] transition-all cursor-pointer active:scale-95" 
+          title="Alternar Tema"
+        >
+          <i className={`fa-solid ${darkMode ? 'fa-sun text-amber-300' : 'fa-moon text-sky-300'} text-sm`}></i>
+        </button>
+      </header>
 
-        {/* Pie inferior */}
-        <div className="w-full relative z-10 border-t border-white/10 pt-4">
-          <p className="text-[11px] font-medium text-slate-400">
-            Universidad Nacional de Pilar · Departamento de Bienes Patrimoniales
-          </p>
-        </div>
-      </div>
-
-      {/* COLUMNA DERECHA: FORMULARIO DE ACCESO INSTITUCIONAL */}
-      <div className="w-full lg:w-[54%] flex flex-col justify-between p-6 sm:p-12 bg-zinc-50 dark:bg-darkbg-main relative transition-colors">
-        
-        {/* Botón de alternar tema claro / oscuro */}
-        <div className="flex justify-between items-center w-full">
-          {/* Logo visible solo en pantallas móviles */}
-          <div className="flex lg:hidden items-center gap-3">
-            <div className="h-10 w-10 rounded-2xl bg-white dark:bg-zinc-800 p-1.5 shadow-sm border border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
-              <img src={appLogo || '/publiclogo_unp.png'} alt="UNP" className="h-full w-full object-contain" />
-            </div>
-            <div>
-              <h2 className="text-xs font-black text-zinc-900 dark:text-white uppercase tracking-tight">Dpto. Bienes Patrimoniales</h2>
-              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">UNP</p>
-            </div>
-          </div>
-
-          <div className="ml-auto">
-            <button 
-              onClick={() => {
-                const newMode = !darkMode;
-                setDarkMode(newMode);
-                localStorage.setItem('theme', newMode ? 'dark' : 'light');
-              }} 
-              className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-brand-primary dark:hover:text-brand-accent transition-all cursor-pointer shadow-sm active:scale-95" 
-              title="Alternar Tema"
-            >
-              <i className={`fa-solid ${darkMode ? 'fa-sun text-amber-400' : 'fa-moon text-indigo-500'} text-sm`}></i>
-            </button>
-          </div>
-        </div>
-
-        {/* Tarjeta de Inicio de Sesión */}
-        <div className="w-full max-w-md mx-auto my-auto py-8">
-          <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-zinc-900/[0.06] dark:shadow-none animate-slide-up relative flex flex-col">
+      {/* Tarjeta de acceso centrada */}
+      <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-6">
+        <div className="w-full max-w-md">
+          <div className="bg-white dark:bg-darkbg-card rounded-[28px] border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-2xl shadow-black/30 animate-slide-up relative flex flex-col">
             
             <div className="flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6 text-left">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary dark:text-brand-accent mb-1.5">
@@ -211,18 +160,17 @@ export default function LoginScreen({
 
           </div>
         </div>
+      </main>
 
-        {/* Footer inferior */}
-        <div className="text-center text-[11px] font-medium text-zinc-400 py-2">
-          © {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales
-        </div>
-
-      </div>
+      {/* Footer inferior */}
+      <footer className="relative z-10 text-center text-[11px] font-medium text-slate-500 pb-5">
+        © {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales
+      </footer>
 
       {/* MODAL DE RECUPERACIÓN / SOPORTE */}
       {showRecoveryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-md animate-fade-in">
-          <div className="w-full max-w-sm rounded-[32px] bg-white dark:bg-zinc-900 p-7 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center animate-slide-up">
+          <div className="w-full max-w-sm rounded-[28px] bg-white dark:bg-zinc-900 p-7 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center animate-slide-up">
             <div className="h-14 w-14 rounded-2xl bg-blue-500/10 text-brand-primary dark:text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-headset text-xl"></i>
             </div>
@@ -230,10 +178,10 @@ export default function LoginScreen({
               Recuperación de Acceso
             </h3>
             <p className="text-xs text-zinc-600 dark:text-zinc-300 font-medium mt-2 leading-relaxed">
-              Por políticas de seguridad patrimonial de la UNP, el restablecimiento de contraseñas es gestionado por la Administración Central del Departamento de Bienes Patrimoniales.
+              Por políticas de seguridad patrimonial de la UNP, el restablecimiento de contraseñas es gestionado por el Desarrollador del sistema.
             </p>
             <div className="mt-4 p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/80 dark:border-zinc-700/80 text-[11px] font-bold text-zinc-700 dark:text-zinc-300">
-              <i className="fa-solid fa-envelope mr-1.5 text-brand-primary dark:text-blue-400"></i> Contacto: soporte.patrimonio@unp.edu.py
+              <i className="fa-solid fa-envelope mr-1.5 text-brand-primary dark:text-blue-400"></i> Contacto: patrimonio@unp.edu.py
             </div>
             <button
               onClick={() => setShowRecoveryModal(false)}
