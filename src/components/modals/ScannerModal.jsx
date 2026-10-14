@@ -1,7 +1,7 @@
 // src/components/modals/ScannerModal.jsx
 import React from 'react';
 
-export default function ScannerModal({ isOpen, onClose, STYLES }) {
+export default function ScannerModal({ isOpen, onClose, modoConteo, conteoActual, STYLES }) {
     if (!isOpen) return null;
 
     return (
@@ -13,9 +13,11 @@ export default function ScannerModal({ isOpen, onClose, STYLES }) {
               </div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
-                  Escanear Código QR
+                  {modoConteo ? 'Escaneo de conciliación' : 'Escanear Código QR'}
                 </h2>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Apunte al código de la etiqueta</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {modoConteo ? `${conteoActual || 0} bienes contados · apunta al siguiente` : 'Apunte al código de la etiqueta'}
+                </p>
               </div>
               <button
                 onClick={onClose}

@@ -10,6 +10,7 @@ export const registrarAuditoria = async ({ usuario, dependencia, accion, entidad
       id: auditId,
       tiporegistro: 'AUDITORIA',
       usuariodestino: null,
+      usuario: usuario || null,
       titulo: `${accion || 'ACCION'} - ${entidad || 'SISTEMA'}`,
       mensaje: typeof detalles === 'object' ? JSON.stringify(detalles) : String(detalles || ''),
       leido: 0,

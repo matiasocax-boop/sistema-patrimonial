@@ -307,6 +307,11 @@ export default function App() {
   const [filtroEstado, setFiltroEstado] = useState('ALL');
   // Filtro de bandeja de pendientes: '' | sinQR | sinFC10 | sinUbicacion | sinFuncionario | vidaVencida
   const [filtroPendiente, setFiltroPendiente] = useState('');
+  // Sugerencias para autocompletado (memoizado: evita refiltrar miles de bienes en cada render)
+  const sugerenciasBienesDep = useMemo(
+    () => bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual)),
+    [bienes, dependenciaActual]
+  );
   const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
   // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);
@@ -329,6 +334,14 @@ export default function App() {
   useEffect(() => {
     if (activeTab === 'auditoria' && isAdmin) fetchAuditoria();
   }, [activeTab]);
+  const actorAud = (row) => {
+    if (row.usuario) return row.usuario;
+    try {
+      const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
+      if (m && typeof m === 'object' && m.solicitante) return m.solicitante;
+    } catch (e) {}
+    return 'No registrado';
+  };
   const detalleAudCorto = (row) => {
     try {
       const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
@@ -390,14 +403,8 @@ export default function App() {
     return { total: base.length, hallados: hallados.size, faltantes: base.filter(b => !hallados.has(b.id)), noRegistrados: noReg };
   }, [conteoCodigos, bienes, dependenciaActual]);
   const agregarCodigoConteo = (raw) => {
-    let code = String(raw || '').trim();
+    const code = extraerCodigoQR(raw);
     if (!code) return;
-    if (code.startsWith('http')) {
-      try {
-        const u = new URL(code);
-        code = u.searchParams.get('id') || u.searchParams.get('bienId') || code;
-      } catch (e) {}
-    }
     setConteoCodigos(prev => (prev.includes(code) ? prev : [...prev, code]));
     setConteoInput('');
   };
@@ -2413,11 +2420,8 @@ const handleEditFuncionario = (funcionario) => {
       } 
   };
 
-  const handleScanSuccess = async (decodedText) => {
-    setIsScannerOpen(false);
+  const extraerCodigoQR = (decodedText) => {
     let targetId = String(decodedText || '').trim();
-
-    // Si el texto escaneado es una URL del sistema, extraer el parámetro ?id= o ?bienId=
     if (targetId.startsWith('http://') || targetId.startsWith('https://')) {
       try {
         const parsedUrl = new URL(targetId);
@@ -2427,6 +2431,20 @@ const handleEditFuncionario = (funcionario) => {
       const partes = targetId.split('CTA:')[0];
       targetId = partes.replace(/.*DIGO:/i, '').trim();
     }
+    return targetId;
+  };
+  // Modo conteo: el escáner alimenta la conciliación física en vez de abrir el bien
+  const [scanParaConteo, setScanParaConteo] = useState(false);
+  const handleScanSuccess = async (decodedText) => {
+    const targetId = extraerCodigoQR(decodedText);
+    if (scanParaConteo) {
+      setIsScannerOpen(false);
+      agregarCodigoConteo(targetId);
+      // Reabrir para el siguiente escaneo
+      setTimeout(() => setIsScannerOpen(true), 350);
+      return;
+    }
+    setIsScannerOpen(false);
 
     // 1. Buscar en la lista de bienes cargados en memoria
     let bienEncontrado = bienes.find(b => 
@@ -2790,7 +2808,7 @@ const mantBypass = typeof window !== 'undefined' && sessionStorage.getItem('mant
 const saveMantenimiento = async (data) => {
   setIsSavingMant(true);
   try {
-    const payload = { id: 'global', ...data, updated_at: new Date().toISOString() };
+    const payload = { id: 'global', ...data };
     const { error } = await supabase.from('app_config').upsert(payload, { onConflict: 'id' });
     if (error) throw error;
     setMantenimiento(payload);
@@ -3925,6 +3943,9 @@ if (publicBienId) {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2">
+                          <button onClick={() => { setScanParaConteo(true); setIsScannerOpen(true); }} title="Escanear etiquetas con la cámara" className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                            <i className="fa-solid fa-camera"></i> Escanear con cámara
+                          </button>
                           <button onClick={() => { setConteoCodigos([]); setConteoInput(''); }} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Limpiar</button>
                           <button onClick={exportarConteoCSV} disabled={conteoCodigos.length === 0} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Exportar CSV</button>
                           <button onClick={guardarActaConteo} disabled={conteoCodigos.length === 0} className="h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Guardar acta</button>
@@ -4005,6 +4026,7 @@ if (publicBienId) {
                           <thead className="bg-zinc-50/70 dark:bg-white/[0.02] border-b border-zinc-200/70 dark:border-white/10">
                             <tr className="text-[10px] sm:text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em]">
                               <th className="py-3.5 pl-6 pr-4">Fecha</th>
+                              <th className="px-4 py-3.5">Usuario</th>
                               <th className="px-4 py-3.5">Acción</th>
                               <th className="px-4 py-3.5">Evento</th>
                               <th className="py-3.5 pl-4 pr-6">Detalle</th>
@@ -4012,15 +4034,16 @@ if (publicBienId) {
                           </thead>
                           <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
                             {isLoadingAud ? (
-                              <tr><td colSpan="4" className="p-10 text-center text-xs font-semibold text-zinc-400">Cargando libro...</td></tr>
+                              <tr><td colSpan="5" className="p-10 text-center text-xs font-semibold text-zinc-400">Cargando libro...</td></tr>
                             ) : auditoriaFiltrada.length === 0 ? (
-                              <tr><td colSpan="4" className="p-10 text-center text-xs font-semibold text-zinc-400">Sin eventos para los filtros aplicados.</td></tr>
+                              <tr><td colSpan="5" className="p-10 text-center text-xs font-semibold text-zinc-400">Sin eventos para los filtros aplicados.</td></tr>
                             ) : (
                               auditoriaFiltrada.slice(0, 100).map(r => (
                                 <tr key={r.id} className="hover:bg-zinc-50/70 dark:hover:bg-white/[0.03] transition-colors">
                                   <td className="py-3 pl-6 pr-4 align-top text-xs tabular-nums text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                                     {r.fecha ? new Date(r.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                                   </td>
+                                  <td className="px-4 py-3 align-top text-xs font-bold text-zinc-700 dark:text-zinc-300 whitespace-nowrap">{actorAud(r)}</td>
                                   <td className="px-4 py-3 align-top">
                                     <span className={`inline-flex items-center rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${tonoAccionAud(r.accion)}`}>
                                       {r.accion || 'OTROS'}
@@ -4608,10 +4631,13 @@ if (publicBienId) {
     isOpen={isScannerOpen}
     onClose={() => {
         setIsScannerOpen(false);
+        setScanParaConteo(false);
         if (window.html5QrCode && window.html5QrCode.isScanning) {
             window.html5QrCode.stop().catch(() => {});
         }
     }}
+    modoConteo={scanParaConteo}
+    conteoActual={conteoCodigos.length}
     STYLES={STYLES}
 />
       <QRModal 
@@ -4851,7 +4877,7 @@ if (publicBienId) {
         ubicacionesUnicas={ubicacionesUnicas}
         STYLES={STYLES}
         funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
-        sugerenciasBienes={bienes.filter(b => b.dependencia === dependenciaActual)}
+        sugerenciasBienes={sugerenciasBienesDep}
     />
 )}
       <FichaBienModal
