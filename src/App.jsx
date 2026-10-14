@@ -25,6 +25,7 @@ import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from 
 import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
+import FichaBienModal from './components/FichaBienModal';
 import LogoutModal from './components/modals/LogoutModal';
 import ResolucionBajaModal from './components/modals/ResolucionBajaModal';
 import DeleteConfirmModal from './components/modals/DeleteConfirmModal';
@@ -164,6 +165,64 @@ export default function App() {
   const [isBulkQR, setIsBulkQR] = useState(false);
   const [qrTargetBien, setQrTargetBien] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  // Ficha 360 del bien: timeline de trazabilidad
+  const [fichaBien, setFichaBien] = useState(null);
+  const [eventosAuditFicha, setEventosAuditFicha] = useState([]);
+  const openFichaBien = async (bien) => {
+    if (!bien) return;
+    setFichaBien(bien);
+    setEventosAuditFicha([]);
+    try {
+      const { data, error } = await supabase.from('auditoria').select('*').eq('bienid', bien.id).order('fecha', { ascending: false }).limit(100);
+      if (!error && data) setEventosAuditFicha(data);
+    } catch (e) {}
+  };
+  const eventosFicha = useMemo(() => {
+    if (!fichaBien) return [];
+    const ev = [];
+    const fmt = (f) => { try { return formatDateText(f) || f; } catch (e) { return f; } };
+    if (fichaBien.fechaAdquisicion) {
+      ev.push({ fecha: fichaBien.fechaAdquisicion, fechaFmt: fmt(fichaBien.fechaAdquisicion), tipo: 'alta', titulo: 'Alta en inventario', detalle: `Adquirido el ${fmt(fichaBien.fechaAdquisicion)}` });
+    }
+    fc10List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
+      const f = fc.entregadoFecha || fc.fechaGeneracion;
+      ev.push({
+        fecha: f || '', fechaFmt: f ? fmt(f) : 'Sin fecha', tipo: 'asignacion',
+        titulo: `Acta FC-10 · ${fc.funcionarioNombre || 'Sin responsable'}`,
+        detalle: fc.devolucionFecha ? `Devuelto el ${fmt(fc.devolucionFecha)}` : `Entregado en ${fc.entregadoLugar || fc.dependencia || ''}`.trim()
+      });
+    });
+    fc11List.filter(fc => fc.bienId === fichaBien.id).forEach(fc => {
+      const rem = fc.dependenciaRemitente || fc.remitente || '';
+      const dest = fc.dependenciaDestinataria || fc.destinatario || '';
+      ev.push({
+        fecha: fc.fecha || '', fechaFmt: fc.fecha ? fmt(fc.fecha) : 'Sin fecha', tipo: 'traslado',
+        titulo: `Traslado ${rem} → ${dest}`,
+        detalle: fc.motivo || fc.tipoRegistro || ''
+      });
+    });
+    eventosAuditFicha.forEach(row => {
+      const a = String(row.accion || '').toUpperCase();
+      const tipo = a.includes('CREA') || a.includes('ALTA') ? 'alta' : a.includes('BAJA') || a.includes('ELIMINA') ? 'baja' : a.includes('MODIF') ? 'modificacion' : a.includes('FC10') || a.includes('ASIGNA') ? 'asignacion' : a.includes('FC11') || a.includes('TRASLADO') ? 'traslado' : 'otro';
+      let detalle = '';
+      try {
+        const m = typeof row.mensaje === 'string' ? JSON.parse(row.mensaje) : row.mensaje;
+        if (m && typeof m === 'object') {
+          if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
+            const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
+            detalle = keys.length ? `Campos: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? '…' : ''}` : 'Registro actualizado';
+          } else {
+            const bits = [];
+            if (m.solicitante) bits.push(`Por: ${m.solicitante}`);
+            if (m.motivo) bits.push(`Motivo: ${m.motivo}`);
+            detalle = bits.join(' · ');
+          }
+        } else if (m) detalle = String(m);
+      } catch (e) { detalle = String(row.mensaje || ''); }
+      ev.push({ fecha: row.fecha || '', fechaFmt: row.fecha ? fmt(String(row.fecha).split('T')[0]) : 'Sin fecha', tipo, titulo: row.titulo || row.accion || 'Evento', detalle });
+    });
+    return ev.sort((x, y) => String(y.fecha || '').localeCompare(String(x.fecha || '')));
+  }, [fichaBien, eventosAuditFicha, fc10List, fc11List]);
   
   const [isBienModalOpen, setIsBienModalOpen] = useState(false);
   const [bienEditing, setBienEditing] = useState(null);
@@ -2171,6 +2230,7 @@ const handleEditFuncionario = (funcionario) => {
           case 'openFC10': openFC10Modal(item); break; 
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
+          case 'fichaBien': openFichaBien(item); break;
           case 'duplicateBien': {
               const { id, rotulo, hasQR, hasFC10, funcionario, funcionarioDoc, funcionarioCargo, ...resto } = item;
               setBienEditing(null);
@@ -4441,6 +4501,15 @@ if (publicBienId) {
         funcionariosPadron={funcionariosPadron.filter(f => f.dependencia === dependenciaActual)}
     />
 )}
+      <FichaBienModal
+        isOpen={Boolean(fichaBien)}
+        onClose={() => { setFichaBien(null); setEventosAuditFicha([]); }}
+        bien={fichaBien}
+        eventos={eventosFicha}
+        formatCurrency={formatCurrency}
+        formatDateText={formatDateText}
+        STYLES={STYLES}
+      />
       <MantenimientoModal
         isOpen={isMantenimientoModalOpen}
         onClose={() => setIsMantenimientoModalOpen(false)}

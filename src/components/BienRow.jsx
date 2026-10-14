@@ -112,6 +112,14 @@ export default function BienRow({ b, fcRecord, onAction, isAdmin }) {
             >
                 <div className="flex flex-wrap items-center justify-start md:justify-end gap-1.5 opacity-100 md:opacity-90 group-hover:opacity-100 transition-opacity">
                     <button 
+                        onClick={() => onAction('fichaBien', b)} 
+                        className="flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-zinc-600 dark:text-zinc-300 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-400 transition-all cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none" 
+                        title="Ficha 360 y trazabilidad"
+                    >
+                        <i className="fa-solid fa-timeline text-xs"></i>
+                    </button>
+
+                    <button 
                         onClick={() => onAction('openQRDownload', b)} 
                         className="flex h-9 w-9 md:h-8 md:w-8 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-zinc-600 dark:text-zinc-300 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-950/50 dark:hover:text-purple-400 transition-all cursor-pointer shadow-2xs focus-visible:ring-2 focus-visible:ring-purple-500 outline-none" 
                         title="Imprimir Etiqueta / QR"
