@@ -1097,11 +1097,35 @@ export default function App() {
   }, [funcionariosPurosDependencia, currentPaginaFuncionarios]);
 
   const handleLogout = useCallback(() => {
+    try { supabase.auth.signOut(); } catch (e) {}
     localStorage.removeItem('is_logged_in');
     localStorage.removeItem('current_user');
     setIsAuthenticated(false);
     setCurrentUser(null);
     setShowLogoutConfirm(false);
+  }, []);
+  // Sesión real: al arrancar, solo vale si Supabase confirma sesión activa.
+  // Sin sesión no hay acceso aunque exista bandera local (cierra la puerta de DevTools).
+  useEffect(() => {
+    let vivo = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!vivo) return;
+      if (!data.session) {
+        localStorage.removeItem('is_logged_in');
+        localStorage.removeItem('current_user');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((evento) => {
+      if (evento === 'SIGNED_OUT') {
+        localStorage.removeItem('is_logged_in');
+        localStorage.removeItem('current_user');
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+      }
+    });
+    return () => { vivo = false; try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
 
   const fetchData = useCallback(async (isSilent = false) => {
@@ -1400,31 +1424,42 @@ useEffect(() => {
     setIsProcessing({ active: true, text: 'Verificando credenciales...' });
 
     try {
-        // Llamamos a la función segura en el servidor de Supabase
-        const { data, error } = await supabase.rpc('verificar_login', {
-            p_username: loginUser.trim(),
-            p_password: loginPass.trim()
+        // Sesión real con Supabase Auth (el email es usuario@unp.edu.py para todos)
+        const emailAcceso = `${loginUser.trim().toLowerCase()}@unp.edu.py`;
+        const { error: errorAuth } = await supabase.auth.signInWithPassword({
+            email: emailAcceso,
+            password: loginPass
         });
 
-        // Si hay error de red o no devuelve datos, el login falla
-        if (error || !data || data.length === 0) {
+        if (errorAuth) {
             setLoginError(true);
             addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
             setIsProcessing({ active: false, text: '' });
             return;
         }
 
-        const usuario = data[0];
+        // Perfil y rol desde la tabla usuarios (solo legible con sesión)
+        const { data: perfil, error: errorPerfil } = await supabase
+            .from('usuarios')
+            .select('username, nombre, cargo, dependencia')
+            .eq('username', loginUser.trim())
+            .maybeSingle();
+
+        if (errorPerfil || !perfil) {
+            await supabase.auth.signOut();
+            setLoginError(true);
+            addToast("Usuario sin perfil en el sistema. Contacte al administrador.", "error");
+            setIsProcessing({ active: false, text: '' });
+            return;
+        }
 
         const userSession = {
-            ...usuario,
-            role: usuario.cargo === 'admin' ? 'admin' : usuario.cargo === 'desarrollador' ? 'dev' : 'user',
-            dependencia: usuario.dependencia || 'Rectorado' 
+            username: perfil.username,
+            nombre: perfil.nombre,
+            cargo: perfil.cargo,
+            role: perfil.cargo === 'admin' ? 'admin' : perfil.cargo === 'desarrollador' ? 'dev' : 'user',
+            dependencia: perfil.dependencia || 'Rectorado'
         };
-
-        // EXTREMA SEGURIDAD: Eliminamos la contraseña de la memoria de React 
-        // antes de guardarla en localStorage para que nadie pueda verla.
-        delete userSession.password;
 
         localStorage.setItem('is_logged_in', 'true'); 
         localStorage.setItem('current_user', JSON.stringify(userSession)); 
@@ -1434,7 +1469,7 @@ useEffect(() => {
         setIsAuthenticated(true); 
         setDependenciaActual(userSession.dependencia); 
         
-        addToast(`Bienvenido, ${usuario.nombre} (${userSession.dependencia})`, "success"); 
+        addToast(`Bienvenido, ${perfil.nombre} (${userSession.dependencia})`, "success"); 
     } catch (error) {
         setLoginError(true);
         addToast("Error al conectar con la base de datos", "error");
