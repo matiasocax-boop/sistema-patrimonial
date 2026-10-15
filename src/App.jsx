@@ -1424,8 +1424,12 @@ useEffect(() => {
     setIsProcessing({ active: true, text: 'Verificando credenciales...' });
 
     try {
-        // Sesión real con Supabase Auth (el email es usuario@unp.edu.py para todos)
-        const emailAcceso = `${loginUser.trim().toLowerCase()}@unp.edu.py`;
+        // Acepta usuario o email completo (el email siempre es usuario@unp.edu.py)
+        const entrada = loginUser.trim();
+        const esEmail = entrada.includes('@');
+        const emailAcceso = esEmail ? entrada.toLowerCase() : `${entrada.toLowerCase()}@unp.edu.py`;
+        const nombreUsuario = esEmail ? entrada.split('@')[0] : entrada;
+        // Sesión real con Supabase Auth
         const { error: errorAuth } = await supabase.auth.signInWithPassword({
             email: emailAcceso,
             password: loginPass
@@ -1433,7 +1437,12 @@ useEffect(() => {
 
         if (errorAuth) {
             setLoginError(true);
-            addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
+            const msgAuth = String(errorAuth.message || '');
+            if (/confirm/i.test(msgAuth)) {
+                addToast("Cuenta sin confirmar. Pide al administrador que la confirme en Supabase.", "error");
+            } else {
+                addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
+            }
             setIsProcessing({ active: false, text: '' });
             return;
         }
@@ -1442,7 +1451,7 @@ useEffect(() => {
         const { data: perfil, error: errorPerfil } = await supabase
             .from('usuarios')
             .select('username, nombre, cargo, dependencia')
-            .eq('username', loginUser.trim())
+            .eq('username', nombreUsuario)
             .maybeSingle();
 
         if (errorPerfil || !perfil) {
