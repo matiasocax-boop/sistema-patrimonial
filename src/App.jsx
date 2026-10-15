@@ -45,6 +45,7 @@ import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
+import DependenciasModal from './components/modals/DependenciasModal';
 import FichaBienModal from './components/FichaBienModal';
 const LogoutModal = lazyConReintento(() => import('./components/modals/LogoutModal'));
 const ResolucionBajaModal = lazyConReintento(() => import('./components/modals/ResolucionBajaModal'));
@@ -200,7 +201,51 @@ export default function App() {
   const [isFuncionarioModalOpen, setIsFuncionarioModalOpen] = useState(false);
   const [funcionarioToEdit, setFuncionarioToEdit] = useState(null);
   const [isNewFuncionarioModalOpen, setIsNewFuncionarioModalOpen] = useState(false);
-  const [todasDependencias] = useState(DEPENDENCIAS_UNP);
+  // Catálogo de dependencias (tabla; respaldo: lista oficial fija)
+  const [dependenciasList, setDependenciasList] = useState([]);
+  const [isDependenciasModalOpen, setIsDependenciasModalOpen] = useState(false);
+  const [isSavingDep, setIsSavingDep] = useState(false);
+  const fetchDependencias = async () => {
+    try {
+      const { data, error } = await supabase.from('dependencias').select('*').order('nombre');
+      if (!error && data) setDependenciasList(data);
+    } catch (e) {}
+  };
+  useEffect(() => { if (isAuthenticated) fetchDependencias(); }, [isAuthenticated]);
+  const todasDependencias = useMemo(() => {
+    const deTabla = dependenciasList.filter(d => d.activa !== false).map(d => d.nombre);
+    return deTabla.length > 0 ? deTabla : DEPENDENCIAS_UNP;
+  }, [dependenciasList]);
+  // Dependencias detectadas en los datos que no están en el catálogo (errores de carga, nombres viejos)
+  const dependenciasDetectadas = useMemo(() => {
+    const oficiales = new Set(todasDependencias.map(d => normalizeStr(d)));
+    const mapa = new Map();
+    const contar = (dep, tipo) => {
+      const nombre = String(dep || '').trim();
+      if (!nombre || oficiales.has(normalizeStr(nombre))) return;
+      if (!mapa.has(nombre)) mapa.set(nombre, { nombre, bienes: 0, funcionarios: 0 });
+      mapa.get(nombre)[tipo]++;
+    };
+    bienes.forEach(b => contar(b.dependencia, 'bienes'));
+    funcionariosPadron.forEach(f => contar(f.dependencia, 'funcionarios'));
+    return [...mapa.values()].sort((a, b) => (b.bienes + b.funcionarios) - (a.bienes + a.funcionarios));
+  }, [bienes, funcionariosPadron, todasDependencias]);
+  const conteosDependencia = useMemo(() => {
+    const mapa = {};
+    todasDependencias.forEach(n => { mapa[n] = { bienes: 0, funcionarios: 0, ubicaciones: 0 }; });
+    bienes.forEach(b => {
+      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(b.dependencia || ''));
+      if (hit) mapa[hit].bienes++;
+    });
+    funcionariosPadron.forEach(f => {
+      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(f.dependencia || ''));
+      if (hit) mapa[hit].funcionarios++;
+    });
+    ubicacionesList.forEach(u => {
+      if (u.dependencia && mapa[u.dependencia]) mapa[u.dependencia].ubicaciones++;
+    });
+    return mapa;
+  }, [todasDependencias, bienes, funcionariosPadron, ubicacionesList]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isBulkQR, setIsBulkQR] = useState(false);
   const [qrTargetBien, setQrTargetBien] = useState(null);
@@ -467,6 +512,120 @@ export default function App() {
     } finally {
       setIsSavingUbicacion(false);
     }
+  };
+  const guardarDependencia = async (id, nombre, activa = true) => {
+    setIsSavingDep(true);
+    try {
+      if (!id) {
+        const row = { id: generateId(), nombre: nombre.trim(), activa: true };
+        const { error } = await supabase.from('dependencias').insert([row]);
+        if (error) throw error;
+        setDependenciasList(prev => [...prev, row].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
+        addToast(`Dependencia "${nombre}" agregada.`, 'success');
+      } else {
+        const anterior = dependenciasList.find(d => d.id === id);
+        if (!anterior) return;
+        const { error } = await supabase.from('dependencias').update({ nombre: nombre.trim(), activa }).eq('id', id);
+        if (error) throw error;
+        // Cascada de renombre en todos los registros que usaban el nombre anterior
+        if (normalizeStr(anterior.nombre) !== normalizeStr(nombre)) {
+          const nuevo = nombre.trim();
+          const renombrar = async (lista, tabla, campo, setLista, esJSON) => {
+            const afectados = lista.filter(r => normalizeStr(r[campo] || '') === normalizeStr(anterior.nombre));
+            for (let i = 0; i < afectados.length; i += 10) {
+              const chunk = afectados.slice(i, i + 10);
+              await Promise.all(chunk.map(r => {
+                const payload = esJSON ? { data: { ...r, [campo]: nuevo } } : { [campo]: nuevo };
+                const q = supabase.from(tabla).update(payload);
+                return (r.id ? q.eq('id', r.id) : q.eq('username', r.username));
+              }));
+            }
+            if (afectados.length > 0) {
+              const ids = new Set(afectados.map(r => r.id || r.username));
+              setLista(prev => prev.map(r => ((ids.has(r.id) || ids.has(r.username)) ? { ...r, [campo]: nuevo } : r)));
+            }
+            return afectados.length;
+          };
+          const n1 = await renombrar(bienes, 'bens', 'dependencia', setBienes, true);
+          const n2 = await renombrar(funcionariosPadron, 'funcionarios', 'dependencia', setFuncionariosPadron, false);
+          const n3 = await renombrar(ubicacionesList, 'ubicaciones', 'dependencia', setUbicacionesList, false);
+          const n4 = await renombrar(fc10List, 'fc10', 'dependencia', setFc10List, true);
+          const n5 = await renombrar(fc11List, 'fc11', 'dependenciaRemitente', setFc11List, true);
+          const n6 = await renombrar(fc04List, 'fc04', 'dependencia', setFc04List, true);
+          if (normalizeStr(dependenciaActual) === normalizeStr(anterior.nombre)) {
+            setDependenciaActual(nuevo);
+            clearAllFilters();
+          }
+          addToast(`Dependencia actualizada (${n1 + n2 + n3 + n4 + n5 + n6} registros migrados).`, 'success');
+        }
+        setDependenciasList(prev => prev.map(d => (d.id === id ? { ...d, nombre: nombre.trim(), activa } : d)).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
+      }
+    } catch (e) {
+      addToast('No se pudo guardar. Verifica la tabla dependencias en Supabase.', 'error');
+    } finally {
+      setIsSavingDep(false);
+    }
+  };
+  const fusionarDependencia = async (origenNombre, destinoNombre) => {
+    // Mueve todos los registros del nombre detectado al oficial (igual cascada que renombrar)
+    setIsSavingDep(true);
+    try {
+      const mover = async (lista, tabla, campo, setLista, esJSON) => {
+        const afectados = lista.filter(r => normalizeStr(r[campo] || '') === normalizeStr(origenNombre));
+        for (let i = 0; i < afectados.length; i += 10) {
+          const chunk = afectados.slice(i, i + 10);
+          await Promise.all(chunk.map(r => {
+            const payload = esJSON ? { data: { ...r, [campo]: destinoNombre } } : { [campo]: destinoNombre };
+            const q = supabase.from(tabla).update(payload);
+            return (r.id ? q.eq('id', r.id) : q.eq('username', r.username));
+          }));
+        }
+        if (afectados.length > 0) {
+          const ids = new Set(afectados.map(r => r.id || r.username));
+          setLista(prev => prev.map(r => ((ids.has(r.id) || ids.has(r.username)) ? { ...r, [campo]: destinoNombre } : r)));
+        }
+        return afectados.length;
+      };
+      const total = (await mover(bienes, 'bens', 'dependencia', setBienes, true))
+        + (await mover(funcionariosPadron, 'funcionarios', 'dependencia', setFuncionariosPadron, false))
+        + (await mover(ubicacionesList, 'ubicaciones', 'dependencia', setUbicacionesList, false))
+        + (await mover(fc10List, 'fc10', 'dependencia', setFc10List, true))
+        + (await mover(fc11List, 'fc11', 'dependenciaRemitente', setFc11List, true))
+        + (await mover(fc04List, 'fc04', 'dependencia', setFc04List, true));
+      if (normalizeStr(dependenciaActual) === normalizeStr(origenNombre)) {
+        setDependenciaActual(destinoNombre);
+        clearAllFilters();
+      }
+      addToast(`"${origenNombre}" fusionada en "${destinoNombre}" (${total} registros).`, 'success');
+    } catch (e) {
+      addToast('No se pudo fusionar.', 'error');
+    } finally {
+      setIsSavingDep(false);
+    }
+  };
+  const eliminarDependencia = async (id, nombre) => {
+    const hay = [bienes, funcionariosPadron, ubicacionesList, fc10List, fc11List, fc04List].some(lista =>
+      lista.some(r => normalizeStr(r.dependencia || r.dependenciaRemitente || '') === normalizeStr(nombre))
+    );
+    if (hay) {
+      addToast('Tiene registros asociados. Fusiona o reasigna antes de eliminar.', 'warning');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('dependencias').delete().eq('id', id);
+      if (error) throw error;
+      setDependenciasList(prev => prev.filter(d => d.id !== id));
+      addToast('Dependencia eliminada.', 'success');
+    } catch (e) {
+      addToast('No se pudo eliminar.', 'error');
+    }
+  };
+  const verPadronDependencia = (nombre) => {
+    setDependenciaActual(nombre);
+    clearAllFilters();
+    setIsDependenciasModalOpen(false);
+    setActiveTab('funcionarios');
+    addToast(`Entorno cambiado a ${nombre}`, 'success');
   };
   const eliminarUbicacion = async (id, nombre) => {
     const enBienes = bienes.filter(b => b.dependencia === dependenciaActual && normalizeStr(b.ubicacion || '') === normalizeStr(nombre)).length;
@@ -3610,7 +3769,7 @@ if (publicBienId) {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
@@ -5707,6 +5866,20 @@ if (publicBienId) {
         abrirEscaner={() => setIsScannerOpen(true)}
         abrirFC03={() => openFC03Modal()}
         irTab={irTabGlobal}
+      />
+      <DependenciasModal
+        isOpen={isDependenciasModalOpen}
+        onClose={() => setIsDependenciasModalOpen(false)}
+        dependencias={dependenciasList.length > 0 ? dependenciasList.filter(d => d.activa !== false) : DEPENDENCIAS_UNP.map(n => ({ id: n, nombre: n }))}
+        detectadas={dependenciasDetectadas}
+        conteos={conteosDependencia}
+        onSave={guardarDependencia}
+        onDelete={eliminarDependencia}
+        onFusionar={fusionarDependencia}
+        isSaving={isSavingDep}
+        dependenciaActual={dependenciaActual}
+        onVerPadron={verPadronDependencia}
+        STYLES={STYLES}
       />
       <UbicacionesModal
         isOpen={isUbicacionesModalOpen}
