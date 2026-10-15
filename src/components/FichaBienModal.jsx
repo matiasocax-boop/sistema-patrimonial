@@ -14,10 +14,10 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
   if (!isOpen || !bien) return null;
   const st = TIPO_STYLE.otro;
 
-  const Dato = ({ label, value, sensible }) => (
+  const Dato = ({ label, value }) => (
     <div className="rounded-xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10 px-3 py-2.5">
       <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</p>
-      <p className={`text-xs font-bold text-zinc-900 dark:text-white mt-0.5 truncate ${sensible ? 'dato-sensible' : ''}`} title={String(value ?? '')}>{value || '-'}</p>
+      <p className="text-xs font-bold text-zinc-900 dark:text-white mt-0.5 truncate" title={String(value ?? '')}>{value || '-'}</p>
     </div>
   );
 
@@ -48,7 +48,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
             </div>
             <div className="text-right shrink-0 hidden sm:block">
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Valor</p>
-              <p className="text-base font-black tabular-nums text-zinc-900 dark:text-white dato-sensible">Gs. {formatCurrency(bien.valorUnitario || '0')}</p>
+              <p className="text-base font-black tabular-nums text-zinc-900 dark:text-white">Gs. {formatCurrency(bien.valorUnitario || '0')}</p>
             </div>
           </div>
           <button onClick={onClose} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">

@@ -133,14 +133,6 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
-  // Modo ciego (conteo imparcial): difumina valores sensibles en toda la app
-  const [modoCiego, setModoCiego] = useState(() => { try { return localStorage.getItem('modo_ciego') === '1'; } catch (e) { return false; } });
-  useEffect(() => {
-    try {
-      localStorage.setItem('modo_ciego', modoCiego ? '1' : '0');
-      document.documentElement.classList.toggle('modo-ciego', modoCiego);
-    } catch (e) {}
-  }, [modoCiego]);
   // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
@@ -3711,7 +3703,7 @@ if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador) {
 }
 if (publicBienId) {
   return (
-    <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white overflow-y-auto custom-scrollbar">
+    <div className="h-dvh overflow-y-auto bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white custom-scrollbar">
       <div className="bg-white border border-slate-200/80 rounded-[28px] sm:rounded-[32px] p-4 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden m-auto">
 
         {/* Acento superior institucional */}
@@ -4962,13 +4954,6 @@ if (publicBienId) {
                       <button onClick={fetchAuditoria} title="Recargar libro de auditoría" className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                         <i className={`fa-solid fa-rotate ${isLoadingAud ? 'fa-spin' : ''}`}></i> Actualizar
                       </button>
-                      <button
-                        onClick={() => setModoCiego(v => !v)}
-                        title={modoCiego ? 'Mostrar valores (desactivar modo ciego)' : 'Ocultar valores para conteo imparcial'}
-                        className={`inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-bold transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none ${modoCiego ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10'}`}
-                      >
-                        <i className={`fa-solid ${modoCiego ? 'fa-eye-slash' : 'fa-eye'}`}></i> {modoCiego ? 'Modo ciego ON' : 'Modo ciego'}
-                      </button>
                       </div>
                     </div>
 
@@ -5300,7 +5285,7 @@ if (publicBienId) {
                         </div>
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Directorio de Usuarios</h2>
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Gestión de Usuarios</h2>
                             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
                               {usuariosList.length}
                             </span>

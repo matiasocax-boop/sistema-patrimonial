@@ -123,7 +123,7 @@ export default function Sidebar({
                     {isAdmin && (
                         <div className="pt-4 mt-4 border-t border-zinc-200/70 dark:border-white/10 px-0">
                             <p className="px-3 pb-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.18em]">
-                                Seguridad y Datos
+                                Administración
                             </p>
                             <button
                                 type="button"
