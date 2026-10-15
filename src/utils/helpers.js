@@ -39,38 +39,59 @@ export const normalizeStr = (str) =>
 // Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
 export const APP_VERSION = '2.9.0';
 
-// Comprime una imagen en el navegador (JPEG, máx. 1280px) para subirla liviana.
-export const comprimirImagen = (file, maxLado = 1280, calidad = 0.78) => {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
+// Comprime una imagen al mínimo peso razonable (objetivo ≤120KB):
+// 1024px/q0.70, y si sigue pesada reintenta más agresivo. Quita metadatos EXIF.
+export const comprimirImagen = (file, maxLado = 1024, calidad = 0.7, objetivoBytes = 120 * 1024) => {
+  const intentar = (lado, q) => {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          const escala = Math.min(1, lado / Math.max(width, height));
+          width = Math.max(1, Math.round(width * escala));
+          height = Math.max(1, Math.round(height * escala));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(url);
+          canvas.toBlob(
+            (blob) => (blob ? resolve(blob) : reject(new Error('No se pudo comprimir'))),
+            'image/jpeg',
+            q
+          );
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          reject(e);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Archivo de imagen inválido'));
+      };
+      img.src = url;
+    });
+  };
+  return (async () => {
+    const pasos = [
+      [maxLado, calidad],
+      [maxLado, 0.55],
+      [800, 0.5],
+    ];
+    let ultimoError = null;
+    for (const [lado, q] of pasos) {
       try {
-        let { width, height } = img;
-        const escala = Math.min(1, maxLado / Math.max(width, height));
-        width = Math.round(width * escala);
-        height = Math.round(height * escala);
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(url);
-        canvas.toBlob(
-          (blob) => (blob ? resolve(blob) : reject(new Error('No se pudo comprimir'))),
-          'image/jpeg',
-          calidad
-        );
+        const blob = await intentar(lado, q);
+        if (blob.size <= objetivoBytes) return blob;
+        if (lado === 800 && q === 0.5) return blob; // último nivel: aceptar aunque supere el objetivo
       } catch (e) {
-        URL.revokeObjectURL(url);
-        reject(e);
+        ultimoError = e;
       }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Archivo de imagen inválido'));
-    };
-    img.src = url;
-  });
+    }
+    throw ultimoError || new Error('No se pudo procesar la imagen');
+  })();
 };
 
 export const matchSearchWords = (text, query) => {

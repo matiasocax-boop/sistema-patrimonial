@@ -319,9 +319,19 @@ export default function App() {
       const actualizado = { ...fichaBien, fotos };
       const { error: dbErr } = await supabase.from('bens').update({ data: actualizado }).eq('id', fichaBien.id);
       if (dbErr) throw dbErr;
-      setBienes(prev => prev.map(b => (b.id === fichaBien.id ? actualizado : b)));
-      setFichaBien(actualizado);
-      addToast('Foto agregada al bien.', 'success');
+      // Releer del servidor como fuente de verdad (la galería muestra exactamente lo guardado)
+      let final = actualizado;
+      try {
+        const { data: releido, error: readErr } = await supabase.from('bens').select('*').eq('id', fichaBien.id).maybeSingle();
+        if (!readErr && releido) {
+          const d = typeof releido.data === 'string' ? JSON.parse(releido.data) : (releido.data || {});
+          final = { id: releido.id, ...d };
+        }
+      } catch (e) {}
+      setBienes(prev => prev.map(b => (b.id === fichaBien.id ? final : b)));
+      setFichaBien(final);
+      const kb = Math.round(blob.size / 1024);
+      addToast(`Foto agregada (${kb} KB).`, 'success');
     } catch (e) {
       addToast('No se pudo subir la foto. Verifica el bucket fotos-bienes en Supabase.', 'error');
     } finally {
