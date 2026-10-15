@@ -216,36 +216,6 @@ export default function App() {
     const deTabla = dependenciasList.filter(d => d.activa !== false).map(d => d.nombre);
     return deTabla.length > 0 ? deTabla : DEPENDENCIAS_UNP;
   }, [dependenciasList]);
-  // Dependencias detectadas en los datos que no están en el catálogo (errores de carga, nombres viejos)
-  const dependenciasDetectadas = useMemo(() => {
-    const oficiales = new Set(todasDependencias.map(d => normalizeStr(d)));
-    const mapa = new Map();
-    const contar = (dep, tipo) => {
-      const nombre = String(dep || '').trim();
-      if (!nombre || oficiales.has(normalizeStr(nombre))) return;
-      if (!mapa.has(nombre)) mapa.set(nombre, { nombre, bienes: 0, funcionarios: 0 });
-      mapa.get(nombre)[tipo]++;
-    };
-    bienes.forEach(b => contar(b.dependencia, 'bienes'));
-    funcionariosPadron.forEach(f => contar(f.dependencia, 'funcionarios'));
-    return [...mapa.values()].sort((a, b) => (b.bienes + b.funcionarios) - (a.bienes + a.funcionarios));
-  }, [bienes, funcionariosPadron, todasDependencias]);
-  const conteosDependencia = useMemo(() => {
-    const mapa = {};
-    todasDependencias.forEach(n => { mapa[n] = { bienes: 0, funcionarios: 0, ubicaciones: 0 }; });
-    bienes.forEach(b => {
-      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(b.dependencia || ''));
-      if (hit) mapa[hit].bienes++;
-    });
-    funcionariosPadron.forEach(f => {
-      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(f.dependencia || ''));
-      if (hit) mapa[hit].funcionarios++;
-    });
-    ubicacionesList.forEach(u => {
-      if (u.dependencia && mapa[u.dependencia]) mapa[u.dependencia].ubicaciones++;
-    });
-    return mapa;
-  }, [todasDependencias, bienes, funcionariosPadron, ubicacionesList]);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isBulkQR, setIsBulkQR] = useState(false);
   const [qrTargetBien, setQrTargetBien] = useState(null);
@@ -472,6 +442,36 @@ export default function App() {
     });
     return mapa;
   }, [ubicacionesDep, bienes, funcionariosPadron, dependenciaActual]);
+  // Dependencias detectadas en los datos que no están en el catálogo (errores de carga, nombres viejos)
+  const dependenciasDetectadas = useMemo(() => {
+    const oficiales = new Set(todasDependencias.map(d => normalizeStr(d)));
+    const mapa = new Map();
+    const contar = (dep, tipo) => {
+      const nombre = String(dep || '').trim();
+      if (!nombre || oficiales.has(normalizeStr(nombre))) return;
+      if (!mapa.has(nombre)) mapa.set(nombre, { nombre, bienes: 0, funcionarios: 0 });
+      mapa.get(nombre)[tipo]++;
+    };
+    bienes.forEach(b => contar(b.dependencia, 'bienes'));
+    funcionariosPadron.forEach(f => contar(f.dependencia, 'funcionarios'));
+    return [...mapa.values()].sort((a, b) => (b.bienes + b.funcionarios) - (a.bienes + a.funcionarios));
+  }, [bienes, funcionariosPadron, todasDependencias]);
+  const conteosDependencia = useMemo(() => {
+    const mapa = {};
+    todasDependencias.forEach(n => { mapa[n] = { bienes: 0, funcionarios: 0, ubicaciones: 0 }; });
+    bienes.forEach(b => {
+      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(b.dependencia || ''));
+      if (hit) mapa[hit].bienes++;
+    });
+    funcionariosPadron.forEach(f => {
+      const hit = todasDependencias.find(n => normalizeStr(n) === normalizeStr(f.dependencia || ''));
+      if (hit) mapa[hit].funcionarios++;
+    });
+    ubicacionesList.forEach(u => {
+      if (u.dependencia && mapa[u.dependencia]) mapa[u.dependencia].ubicaciones++;
+    });
+    return mapa;
+  }, [todasDependencias, bienes, funcionariosPadron, ubicacionesList]);
   const guardarUbicacion = async (id, nombre) => {
     setIsSavingUbicacion(true);
     try {
