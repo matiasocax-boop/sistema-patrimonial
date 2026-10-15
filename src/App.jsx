@@ -28,6 +28,10 @@ import {
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { conSello, debeResyncTotal, fusionarBienes, ahoraISO } from './services/syncBienes';
+import { useToasts } from './hooks/useToasts';
+import { numeroALetras } from './utils/numeroLetras';
+import { extraerCodigoQR } from './utils/qr';
+import { normalizarBien, tieneValor } from './utils/bienPublico';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
@@ -57,7 +61,7 @@ export default function App() {
   const [publicBienData, setPublicBienData] = useState(null);
   const [publicFotoAmpliada, setPublicFotoAmpliada] = useState(null);
   const [publicDescExpandida, setPublicDescExpandida] = useState(false);
-  const [toasts, setToasts] = useState([]);
+  const { toasts, addToast } = useToasts();
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
@@ -1227,29 +1231,10 @@ export default function App() {
 useEffect(() => {
   if (!publicBienId) return;
 
-  const normalizarBien = (raw) => {
-    if (!raw) return null;
-    const item = Array.isArray(raw) ? raw[0] : raw;
-    if (!item) return null;
-    let d = item;
-    if (item.data) {
-      d = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-    }
-    const merged = { ...item, ...d };
-    const valorRaw = merged.valorUnitario || merged.valor || merged.valorAdquisicion || merged.precio || merged.costo || '0';
-    merged.valorUnitario = valorRaw;
-    return merged;
-  };
-
   const cargarBienPublico = async () => {
     try {
       const idSanitizado = decodeURIComponent(publicBienId).trim();
       let bienEncontrado = null;
-      const tieneValor = (b) => {
-        if (!b) return false;
-        const v = b.valorUnitario ?? b.valor ?? b.valorAdquisicion ?? b.precio ?? b.costo;
-        return v !== undefined && v !== null && String(v).trim() !== '' && String(v).replace(/\D/g, '') !== '' && parseInt(String(v).replace(/\D/g, ''), 10) !== 0;
-      };
 
       // 1. Consulta directa a 'bens' (datos completos, incluye valorUnitario).
       //    El RPC público devuelve una proyección sin valor, por eso ya no va primero.
@@ -2136,20 +2121,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
             ];
         });
 
-        const numeroALetras = (num) => {
-            if (num === 0) return 'cero';
-            const unidades = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
-            const decenas = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciseis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte'];
-            const decenas2 = ['', '', 'veinti', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
-            const centenas = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
-            const getDecenas = (n) => { if (n < 10) return unidades[n]; if (n < 20) return decenas[n - 10]; if (n === 20) return 'veinte'; if (n < 30) return decenas2[2] + (n % 10 === 0 ? '' : unidades[n % 10]); const u = n % 10; return decenas2[Math.floor(n / 10)] + (u > 0 ? ' y ' + unidades[u] : ''); };
-            const getCentenas = (n) => { if (n === 100) return 'cien'; const d = n % 100; return centenas[Math.floor(n / 100)] + (d > 0 ? ' ' + getDecenas(d) : ''); };
-            const getMiles = (n) => { if (n < 1000) return getCentenas(n); if (n === 1000) return 'mil'; const m = Math.floor(n / 1000); const c = n % 1000; return (m === 1 ? '' : getCentenas(m) + ' ') + 'mil' + (c > 0 ? ' ' + getCentenas(c) : ''); };
-            const getMillones = (n) => { if (n < 1000000) return getMiles(n); if (n === 1000000) return 'un millon'; const m = Math.floor(n / 1000000); const rest = n % 1000000; return (m === 1 ? 'un millon' : getMiles(m) + ' millones') + (rest > 0 ? ' ' + getMiles(rest) : ''); };
-            const getMilMillones = (n) => { if (n < 1000000000) return getMillones(n); const m = Math.floor(n / 1000000000); const rest = n % 1000000000; return (m === 1 ? 'mil millones' : getMiles(m) + ' mil millones') + (rest > 0 ? ' ' + getMillones(rest) : ''); };
-            return getMilMillones(num).trim();
-        };
-
+        // Número a letras: helper puro en utils/numeroLetras (Fase 1).
         const strTotal = formatCurrency(totalValor);
         
         tableRows.push([
@@ -3187,19 +3159,7 @@ const handleEditFuncionario = (funcionario) => {
     setFc04Items(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  const extraerCodigoQR = (decodedText) => {
-    let targetId = String(decodedText || '').trim();
-    if (targetId.startsWith('http://') || targetId.startsWith('https://')) {
-      try {
-        const parsedUrl = new URL(targetId);
-        targetId = parsedUrl.searchParams.get('id') || parsedUrl.searchParams.get('bienId') || targetId;
-      } catch (e) {}
-    } else if (targetId.includes('CTA:') || targetId.includes('DIGO:')) {
-      const partes = targetId.split('CTA:')[0];
-      targetId = partes.replace(/.*DIGO:/i, '').trim();
-    }
-    return targetId;
-  };
+  // Extracción de código QR: helper puro en utils/qr (Fase 1).
   // Modo conteo: el escáner alimenta la conciliación física en vez de abrir el bien
   const [scanParaConteo, setScanParaConteo] = useState(false);
   const handleScanSuccess = async (decodedText) => {
@@ -3634,11 +3594,7 @@ const handleEditFuncionario = (funcionario) => {
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
   // --- FIN DE CÓDIGO RESTAURADO ---
-  const addToast = (message, type = 'success') => { 
-      const id = Date.now() + Math.random().toString(36).substr(2, 9);
-      setToasts(prev => [...prev, { id, message, type }]); 
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500); 
-  };
+  // Toasts: hook extraído (Fase 1). Misma API que el código inline original.
 
 
 // --- VISTA PaBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
