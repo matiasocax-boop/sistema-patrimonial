@@ -141,7 +141,9 @@ export default function App() {
   useEffect(() => {
     try { sessionStorage.removeItem('chunk_reintentado'); } catch (e) {}
   }, []);
-  const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
+  // Formato único de papel para todos los PDF del sistema: oficio (216 x 330 mm).
+  // Se eliminó el selector A4/Oficio de la interfaz: un solo formato oficial.
+  const FORMATO_PDF = [216, 330];
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
@@ -1912,7 +1914,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setIsProcessing({ active: true, text: 'Generando PDF FC-04...' });
     setTimeout(async () => {
       try {
-        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
+        const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', FORMATO_PDF); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
         const logoImg = await resolveLogoImg(fc.dependencia); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
         let finalY = 62;
@@ -1937,7 +1939,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     const todayStr = new Date().toISOString().split('T')[0];
     setTimeout(async () => {
       try {
-        const fc = fcs[0]; const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', pdfPaperSize); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
+        const fc = fcs[0]; const { jsPDF } = window.jspdf; const doc = new jsPDF('p', 'mm', FORMATO_PDF); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
         const logoImg = await resolveLogoImg(fc.dependencia); const dateParts = (fc.fecha || '').split('-'); let formattedDate = ''; if(dateParts.length === 3) { const months = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]; formattedDate = `Pilar, ${dateParts[2]} de ${months[parseInt(dateParts[1])-1]} de ${dateParts[0]}`; }
         const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
         for(let i = 0; i < 3; i++) {
@@ -2127,7 +2129,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setTimeout(async () => {
       try {
         const { jsPDF } = window.jspdf; 
-        const doc = new jsPDF('l', 'mm', pdfPaperSize); 
+        const doc = new jsPDF('l', 'mm', FORMATO_PDF); 
         const pageWidth = doc.internal.pageSize.width; 
         const pageHeight = doc.internal.pageSize.height;
         const logoImg = await resolveLogoImg(dependenciaActual); 
@@ -3964,7 +3966,7 @@ if (publicBienId) {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">

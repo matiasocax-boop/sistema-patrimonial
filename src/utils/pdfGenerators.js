@@ -19,10 +19,12 @@ const sanearTextoPDF = (val) => {
     return out;
 };
 export const buildFC10PDFDoc = (fcs, bienesAListar) => {
+    // FC-10 en UNA sola hoja, tamaño oficio, solo ORIGINAL.
+    // El formato oficio es el único del sistema (ver FORMATO_PDF en App.jsx);
+    // no hay selector de tamaño en la interfaz.
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
+    const doc = new jsPDF('p', 'mm', [216, 330]);
     const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
 
     const fc = fcs[0];
     
@@ -40,12 +42,12 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         return date;
     };
 
-    const pages = ['ORIGINAL - DPTO. BIENES PATRIMONIALES', 'COPIA - FUNCIONARIO RESPONSABLE'];
+    const pages = ['ORIGINAL - DPTO. BIENES PATRIMONIALES'];
 
     pages.forEach((pageTitle, index) => {
         if (index > 0) doc.addPage();
-        
-        let finalY = 12;
+
+        let finalY = 10;
 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
@@ -67,13 +69,13 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, finalY, { align: 'center' });
         finalY += 5;
         doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, finalY, { align: 'center' });
-        finalY += 8;
+        finalY += 7;
         doc.setFontSize(11);
         doc.text("FORMULARIO DE RESPONSABILIDAD INDIVIDUAL FC-10", pageWidth / 2, finalY, { align: 'center' });
         finalY += 6;
         doc.setFontSize(10);
         doc.text(`PERIODO DE ELABORACIÓN: ${monthName} ${year}`, pageWidth / 2, finalY, { align: 'center' });
-        finalY += 8;
+        finalY += 6;
 
         doc.autoTable({
             startY: finalY,
@@ -90,11 +92,11 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             ],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2 },
-            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2.5 },
+            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2 },
             columnStyles: { 1: { halign: 'center', fontStyle: 'bold' } },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 4;
+        finalY = doc.lastAutoTable.finalY + 3;
 
         doc.autoTable({
             startY: finalY,
@@ -106,11 +108,11 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             ],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2 },
-            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2.5 },
+            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2 },
             columnStyles: { 0: { fontStyle: 'bold', cellWidth: 50 } },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 4;
+        finalY = doc.lastAutoTable.finalY + 3;
 
         const tableRows = bienesAListar.map((b) => {
             const valorNum = parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0;
@@ -157,7 +159,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 4;
+        finalY = doc.lastAutoTable.finalY + 3;
 
         const bienRef = bienesAListar[0] || {};
         doc.autoTable({
@@ -170,10 +172,10 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             ]],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2.5 },
+            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2 },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 4;
+        finalY = doc.lastAutoTable.finalY + 3;
 
         doc.autoTable({
             startY: finalY,
@@ -181,10 +183,10 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             body: [[sanearTextoPDF(fc.observaciones) || 'Ninguna.']],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'left' },
-            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, minCellHeight: 18, valign: 'top' },
+            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, minCellHeight: 14, valign: 'top' },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 4;
+        finalY = doc.lastAutoTable.finalY + 3;
 
         doc.autoTable({
             startY: finalY,
@@ -195,32 +197,22 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
             ],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
-            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2.5 },
+            bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center', cellPadding: 2 },
             columnStyles: { 0: { fontStyle: 'bold' } },
             margin: { left: 14, right: 14, bottom: 25 }
         });
-        finalY = doc.lastAutoTable.finalY + 6;
+        finalY = doc.lastAutoTable.finalY + 5;
 
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "normal");
         const disclaimer = "Con la firma del presente documento, el funcionario asume la total responsabilidad por la tenencia, uso y debida conservación del bien patrimonial detallado. Asimismo, se obliga a informar al Departamento de Bienes Patrimoniales sobre su renuncia, traslado o desvinculación del cargo, así como reportar inmediatamente cualquier daño, pérdida o hurto del bien asignado para su gestión, en estricto cumplimiento del Manual de Normas y Procedimientos para la Administración, Uso, Custodia, Clasificación y Contabilización de los Bienes del Estado del Ministerio de Economía y Finanzas.";
         const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 28);
-        // Bloque final inseparable: si el texto legal + firmas no caben, pasan juntos a una nueva página
-        const bloqueFinalAltura = (disclaimerLines.length * 3.5) + 16 + 22;
-        if (finalY + bloqueFinalAltura > pageHeight - 20) {
-            doc.addPage();
-            finalY = 20;
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-            doc.setTextColor(130, 130, 130);
-            doc.text(pageTitle + " (continuación)", pageWidth - 14, 14, { align: 'right' });
-            doc.setTextColor(0, 0, 0);
-            finalY = 24;
-        }
+        // Todo el FC-10 vive en una sola hoja oficio: el texto legal y las
+        // firmas van directo, sin salto a otra página.
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "normal");
         doc.text(disclaimerLines, 14, finalY);
-        finalY += (disclaimerLines.length * 3.5) + 16;
+        finalY += (disclaimerLines.length * 3.5) + 12;
 
         const leftX = 25;
         doc.setLineWidth(0.3);
@@ -241,20 +233,6 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
 
     });
 
-    // Pie de página ÚNICO: se sella una sola vez al final, cuando ya existen
-    // todas las páginas (original + copia + continuaciones). Antes estaba
-    // dentro del forEach y cada copia re-sellaba encima del sello anterior
-    // ("Página 1 de 2" + "Página 1 de 4" solapados y cortados).
-    const totalPaginasFC10 = doc.internal.getNumberOfPages();
-    for (let p = 1; p <= totalPaginasFC10; p++) {
-        doc.setPage(p);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7);
-        doc.setTextColor(130, 130, 130);
-        doc.text(`Página ${p} de ${totalPaginasFC10}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-        doc.setTextColor(0, 0, 0);
-    }
-
     return { doc, fechaDocumento: dateStr, fc };
 };
 
@@ -262,7 +240,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
 // filas: [{ rotulo, descripcion, ubicacion, resultado }]
 export const buildActaAuditoriaPDF = async ({ tipo, fecha, dependencia, alcance, auditor, resumen, filas, logoDataUrl }) => {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('p', 'mm', 'a4');
+    const doc = new jsPDF('p', 'mm', [216, 330]);
     const pageWidth = doc.internal.pageSize.width;
     const pageHeight = doc.internal.pageSize.height;
 

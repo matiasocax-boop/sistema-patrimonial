@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { normalizeStr } from '../../utils/helpers';
 
-// Gestor de dependencias v2: maestro-detalle con búsqueda unificada y rápida.
+// Gestor de dependencias v3: maestro-detalle con búsqueda unificada.
+// Mejoras v3:
+// - Los selects nativos se reemplazan por un combo con buscador (el nativo
+//   con 215 opciones era lento, se recorría a ojo y encima ocultaba gente
+//   con un slice(0, 100) silencioso).
+// - La lista izquierda muestra el nombre completo (antes se truncaba con
+//   ellipsis: "Facultad de Ciencias Agropecua...").
+// - Los filtros pesados se memoizan para no recalcular en cada tecla.
 export default function DependenciasModal({
   isOpen, onClose, dependencias, detectadas, conteos,
   onSave, onDelete, onFusionar, isSaving,
@@ -35,33 +42,70 @@ export default function DependenciasModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const q = useMemo(() => normalizeStr(busqueda), [busqueda]);
+  const qfBusca = useMemo(() => normalizeStr(buscaFunc), [buscaFunc]);
 
-  const q = normalizeStr(busqueda);
-  const depsFiltradas = dependencias.filter(d => !q || normalizeStr(d.nombre).includes(q));
-  const detFiltradas = detectadas.filter(d => !q || normalizeStr(d.nombre).includes(q));
-  const depSel = dependencias.find(d => d.id === selId) || null;
-  const detSel = selDetectada ? detectadas.find(d => d.nombre === selDetectada) : null;
-
-  const ubicsDeSel = depSel
-    ? ubicacionesList.filter(u => normalizeStr(u.dependencia || '') === normalizeStr(depSel.nombre))
-    : [];
-  const ubicsFiltradas = ubicsDeSel.filter(u => {
-    if (!q) return true;
-    if (normalizeStr(u.nombre).includes(q)) return true;
-    return funcionarios.some(f =>
-      normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre) &&
-      normalizeStr(f.ubicacion || '') === normalizeStr(u.nombre) &&
-      normalizeStr(`${f.nombre || ''} ${f.cedula || ''}`).includes(q)
-    );
-  });
-  const funcsDeSel = depSel
-    ? funcionarios.filter(f => normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre))
-    : [];
-  const qf = normalizeStr(buscaFunc);
-  const funcsFiltrados = funcsDeSel.filter(f =>
-    !qf || normalizeStr(`${f.nombre || ''} ${f.cedula || ''} ${f.ubicacion || ''}`).includes(qf)
+  const depsFiltradas = useMemo(
+    () => dependencias.filter(d => !q || normalizeStr(d.nombre).includes(q)),
+    [dependencias, q]
   );
+  const detFiltradas = useMemo(
+    () => detectadas.filter(d => !q || normalizeStr(d.nombre).includes(q)),
+    [detectadas, q]
+  );
+  const depSel = useMemo(
+    () => dependencias.find(d => d.id === selId) || null,
+    [dependencias, selId]
+  );
+  const detSel = useMemo(
+    () => (selDetectada ? detectadas.find(d => d.nombre === selDetectada) : null),
+    [detectadas, selDetectada]
+  );
+
+  const normDepSel = depSel ? normalizeStr(depSel.nombre) : '';
+
+  // Mapa ubicacion -> funcionarios de la dependencia seleccionada (un solo
+  // recorrido en vez de un filter por cada tarjeta de departamento).
+  const funcsPorUbic = useMemo(() => {
+    const mapa = new Map();
+    if (!depSel) return mapa;
+    for (const f of funcionarios) {
+      if (normalizeStr(f.dependencia || '') !== normDepSel) continue;
+      const key = normalizeStr(f.ubicacion || '');
+      if (!mapa.has(key)) mapa.set(key, []);
+      mapa.get(key).push(f);
+    }
+    return mapa;
+  }, [funcionarios, depSel, normDepSel]);
+
+  const funcsDeSel = useMemo(() => {
+    if (!depSel) return [];
+    return funcionarios.filter(f => normalizeStr(f.dependencia || '') === normDepSel);
+  }, [funcionarios, depSel, normDepSel]);
+
+  const ubicsDeSel = useMemo(() => {
+    if (!depSel) return [];
+    return ubicacionesList.filter(u => normalizeStr(u.dependencia || '') === normDepSel);
+  }, [ubicacionesList, depSel, normDepSel]);
+
+  const ubicsFiltradas = useMemo(() => {
+    if (!depSel) return [];
+    return ubicsDeSel.filter(u => {
+      if (!q) return true;
+      if (normalizeStr(u.nombre).includes(q)) return true;
+      const enUbic = funcsPorUbic.get(normalizeStr(u.nombre)) || [];
+      return enUbic.some(f => normalizeStr(`${f.nombre || ''} ${f.cedula || ''}`).includes(q));
+    });
+  }, [ubicsDeSel, funcsPorUbic, depSel, q]);
+
+  const funcsFiltrados = useMemo(
+    () => funcsDeSel.filter(f =>
+      !qfBusca || normalizeStr(`${f.nombre || ''} ${f.cedula || ''} ${f.ubicacion || ''}`).includes(qfBusca)
+    ),
+    [funcsDeSel, qfBusca]
+  );
+
+  if (!isOpen) return null;
 
   const ItemDep = ({ d, detectada }) => {
     const activo = !detectada && selId === d.id && !selDetectada;
@@ -72,6 +116,7 @@ export default function DependenciasModal({
           if (detectada) { setSelDetectada(d.nombre); setSelId(null); }
           else { setSelId(d.id); setSelDetectada(null); }
         }}
+        title={d.nombre}
         className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
           activo || activoDet
             ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
@@ -80,8 +125,8 @@ export default function DependenciasModal({
       >
         <span className={`flex h-2 w-2 shrink-0 rounded-full ${detectada ? 'bg-amber-500' : (activo || activoDet ? 'bg-emerald-400' : 'bg-zinc-300 dark:bg-zinc-600')}`}></span>
         <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-bold truncate">{d.nombre}</span>
-          <span className={`block text-[10px] tabular-nums ${(activo || activoDet) ? 'opacity-80' : 'text-zinc-400'}`}>
+          <span className="block text-[13px] font-bold leading-snug text-balance">{d.nombre}</span>
+          <span className={`block text-[10px] tabular-nums mt-0.5 ${(activo || activoDet) ? 'opacity-80' : 'text-zinc-400'}`}>
             {detectada ? `${d.bienes + d.funcionarios} registros por fusionar` : `${(conteos[d.nombre]?.bienes || 0)} bienes · ${(conteos[d.nombre]?.funcionarios || 0)} func.`}
           </span>
         </span>
@@ -170,7 +215,7 @@ export default function DependenciasModal({
                   <select
                     defaultValue=""
                     onChange={(e) => { if (e.target.value) onFusionar(detSel.nombre, e.target.value); }}
-                    className="h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer"
+                    className="h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer max-w-full"
                   >
                     <option value="">Fusionar en...</option>
                     {dependencias.map(o => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
@@ -204,7 +249,7 @@ export default function DependenciasModal({
                         </button>
                       </span>
                     ) : (
-                      <h3 className="text-base font-bold text-zinc-900 dark:text-white tracking-tight truncate" title={depSel.nombre}>{depSel.nombre}</h3>
+                      <h3 className="text-base font-bold text-zinc-900 dark:text-white tracking-tight text-balance" title={depSel.nombre}>{depSel.nombre}</h3>
                     )}
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 tabular-nums">
                       {(conteos[depSel.nombre]?.bienes || 0)} bienes · {(conteos[depSel.nombre]?.funcionarios || 0)} funcionarios · {ubicsDeSel.length} departamentos
@@ -244,72 +289,23 @@ export default function DependenciasModal({
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {ubicsFiltradas.map(u => {
-                      const flist = funcionarios.filter(f =>
-                        normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre) &&
-                        normalizeStr(f.ubicacion || '') === normalizeStr(u.nombre)
-                      );
-                      const candidatos = funcionarios.filter(f =>
-                        normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre) &&
-                        normalizeStr(f.ubicacion || '') !== normalizeStr(u.nombre)
-                      );
-                      return (
-                        <div key={u.id} className="rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200/70 dark:border-white/10 px-3.5 py-2.5">
-                          <div className="flex items-center gap-2">
-                            {editUbicId === u.id ? (
-                              <>
-                                <input
-                                  type="text" value={editUbicNombre} autoFocus
-                                  onChange={(e) => setEditUbicNombre(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && editUbicNombre.trim()) { onGuardarUbicacion(u.id, editUbicNombre.trim(), depSel.nombre); setEditUbicId(null); }
-                                    if (e.key === 'Escape') setEditUbicId(null);
-                                  }}
-                                  className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 h-8 text-xs font-medium outline-none focus:border-brand-primary"
-                                />
-                                <button onClick={() => { if (editUbicNombre.trim()) { onGuardarUbicacion(u.id, editUbicNombre.trim(), depSel.nombre); setEditUbicId(null); } }} title="Guardar" className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
-                                  <i className="fa-solid fa-check text-[10px]"></i>
-                                </button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="flex-1 min-w-0 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate" title={u.nombre}>{u.nombre}</span>
-                                <span className="text-[10px] tabular-nums text-zinc-400 shrink-0">{flist.length} func.</span>
-                                <button onClick={() => { setEditUbicId(u.id); setEditUbicNombre(u.nombre); }} title="Renombrar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/70 dark:hover:text-white dark:hover:bg-white/10 cursor-pointer shrink-0">
-                                  <i className="fa-solid fa-pen text-[10px]"></i>
-                                </button>
-                                <button onClick={() => onEliminarUbicacion(u.id, u.nombre)} title="Eliminar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 cursor-pointer shrink-0">
-                                  <i className="fa-solid fa-trash-can text-[10px]"></i>
-                                </button>
-                              </>
-                            )}
-                          </div>
-                          {flist.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1.5">
-                              {flist.map(f => (
-                                <span key={f.id} className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-white/10 border border-zinc-200/70 dark:border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
-                                  {f.nombre}
-                                  <button onClick={() => onAsignarFuncionario(f.id, '')} title={`Quitar a ${f.nombre} de ${u.nombre}`} className="text-zinc-400 hover:text-rose-500 cursor-pointer">
-                                    <i className="fa-solid fa-xmark text-[9px]"></i>
-                                  </button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          <select
-                            value=""
-                            onChange={(e) => { if (e.target.value) onAsignarFuncionario(e.target.value, u.nombre); e.target.value = ''; }}
-                            title={`Asignar funcionario a ${u.nombre}`}
-                            className="mt-1.5 w-full h-8 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-[11px] font-semibold text-zinc-400 outline-none cursor-pointer"
-                          >
-                            <option value="">+ Asignar funcionario ({candidatos.length} disponibles)...</option>
-                            {candidatos.slice(0, 100).map(f => (
-                              <option key={f.id} value={f.id}>{f.nombre}{f.ubicacion ? ` (${f.ubicacion})` : ''}</option>
-                            ))}
-                          </select>
-                        </div>
-                      );
-                    })}
+                    {ubicsFiltradas.map(u => (
+                      <TarjetaDepartamento
+                        key={u.id}
+                        u={u}
+                        asignados={funcsPorUbic.get(normalizeStr(u.nombre)) || []}
+                        candidatos={funcsDeSel}
+                        onAsignarFuncionario={onAsignarFuncionario}
+                        onGuardarUbicacion={onGuardarUbicacion}
+                        onEliminarUbicacion={onEliminarUbicacion}
+                        depNombre={depSel.nombre}
+                        editando={editUbicId === u.id}
+                        editNombre={editUbicNombre}
+                        onEditNombre={setEditUbicNombre}
+                        onEmpezarEditar={() => { setEditUbicId(u.id); setEditUbicNombre(u.nombre); }}
+                        onTerminarEditar={() => setEditUbicId(null)}
+                      />
+                    ))}
                     {ubicsFiltradas.length === 0 && (
                       <p className="text-xs text-zinc-400 font-medium text-center py-3">Sin departamentos aquí. Agrega el primero arriba.</p>
                     )}
@@ -318,7 +314,7 @@ export default function DependenciasModal({
 
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500 mb-2.5">
-                    Funcionarios ({funcionarios.filter(f => normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre)).length})
+                    Funcionarios ({funcsDeSel.length})
                   </p>
                   <div className="relative mb-2.5">
                     <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
@@ -329,34 +325,32 @@ export default function DependenciasModal({
                     />
                   </div>
                   <div className="max-h-56 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200/60 dark:border-white/10 divide-y divide-zinc-100 dark:divide-white/5">
-                    {funcionarios
-                      .filter(f => normalizeStr(f.dependencia || '') === normalizeStr(depSel.nombre))
-                      .filter(f => {
-                        const qf2 = normalizeStr(buscaFunc);
-                        if (!qf2) return true;
-                        return normalizeStr(`${f.nombre || ''} ${f.cedula || ''} ${f.ubicacion || ''}`).split(' ').filter(Boolean).every(t => normalizeStr(`${f.nombre || ''} ${f.cedula || ''} ${f.ubicacion || ''}`).includes(t));
-                      })
-                      .slice(0, 60)
-                      .map(f => (
-                        <div key={f.id} className="flex items-center gap-2.5 px-3.5 py-2">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 font-bold text-xs">
-                            {(f.nombre || '?').charAt(0).toUpperCase()}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate">{f.nombre}</span>
-                            <span className="block text-[11px] text-zinc-400 truncate tabular-nums">CI {f.cedula || 'S/C'}{f.ubicacion ? ` · ${f.ubicacion}` : ' · Sin ubicación'}</span>
-                          </span>
-                          <select
-                            value={f.ubicacion || ''}
-                            onChange={(e) => onAsignarFuncionario(f.id, e.target.value)}
-                            title="Cambiar departamento"
-                            className="h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer max-w-[170px]"
-                          >
-                            <option value="">Sin ubicación</option>
-                            {ubicsDeSel.map(u => <option key={u.id} value={u.nombre}>{u.nombre}</option>)}
-                          </select>
-                        </div>
-                      ))}
+                    {funcsFiltrados.slice(0, 60).map(f => (
+                      <div key={f.id} className="flex items-center gap-2.5 px-3.5 py-2">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 font-bold text-xs">
+                          {(f.nombre || '?').charAt(0).toUpperCase()}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate" title={f.nombre}>{f.nombre}</span>
+                          <span className="block text-[11px] text-zinc-400 truncate tabular-nums">CI {f.cedula || 'S/C'}{f.ubicacion ? ` · ${f.ubicacion}` : ' · Sin ubicación'}</span>
+                        </span>
+                        <ComboUbicacion
+                          valor={f.ubicacion || ''}
+                          ubicaciones={ubicsDeSel}
+                          onElegir={(nombreUbic) => onAsignarFuncionario(f.id, nombreUbic)}
+                          titulo="Cambiar departamento"
+                          compacto
+                        />
+                      </div>
+                    ))}
+                    {funcsFiltrados.length > 60 && (
+                      <p className="px-3.5 py-2 text-[11px] font-semibold text-zinc-400 text-center">
+                        Mostrando 60 de {funcsFiltrados.length}. Afina la búsqueda para ver más.
+                      </p>
+                    )}
+                    {funcsFiltrados.length === 0 && (
+                      <p className="px-3.5 py-4 text-xs font-semibold text-zinc-400 text-center">Sin coincidencias.</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -376,6 +370,207 @@ export default function DependenciasModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Tarjeta de departamento memoizada: solo se re-renderiza si cambian sus
+// propios datos, no cuando se escribe en otro buscador.
+const TarjetaDepartamento = React.memo(function TarjetaDepartamento({
+  u, asignados, candidatos, onAsignarFuncionario,
+  onGuardarUbicacion, onEliminarUbicacion, depNombre,
+  editando, editNombre, onEditNombre, onEmpezarEditar, onTerminarEditar
+}) {
+  return (
+    <div className="rounded-2xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200/70 dark:border-white/10 px-3.5 py-2.5">
+      <div className="flex items-center gap-2">
+        {editando ? (
+          <>
+            <input
+              type="text" value={editNombre} autoFocus
+              onChange={(e) => onEditNombre(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && editNombre.trim()) { onGuardarUbicacion(u.id, editNombre.trim(), depNombre); onTerminarEditar(); }
+                if (e.key === 'Escape') onTerminarEditar();
+              }}
+              className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 h-8 text-xs font-medium outline-none focus:border-brand-primary"
+            />
+            <button onClick={() => { if (editNombre.trim()) { onGuardarUbicacion(u.id, editNombre.trim(), depNombre); onTerminarEditar(); } }} title="Guardar" className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
+              <i className="fa-solid fa-check text-[10px]"></i>
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 min-w-0 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-balance" title={u.nombre}>{u.nombre}</span>
+            <span className="text-[10px] tabular-nums text-zinc-400 shrink-0">{asignados.length} func.</span>
+            <button onClick={onEmpezarEditar} title="Renombrar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/70 dark:hover:text-white dark:hover:bg-white/10 cursor-pointer shrink-0">
+              <i className="fa-solid fa-pen text-[10px]"></i>
+            </button>
+            <button onClick={() => onEliminarUbicacion(u.id, u.nombre)} title="Eliminar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 cursor-pointer shrink-0">
+              <i className="fa-solid fa-trash-can text-[10px]"></i>
+            </button>
+          </>
+        )}
+      </div>
+      {asignados.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-1.5">
+          {asignados.map(f => (
+            <span key={f.id} className="inline-flex items-center gap-1 rounded-lg bg-white dark:bg-white/10 border border-zinc-200/70 dark:border-white/10 px-2 py-0.5 text-[10px] font-bold text-zinc-600 dark:text-zinc-300" title={`${f.nombre} · CI ${f.cedula || 'S/C'}`}>
+              <span className="max-w-[180px] truncate">{f.nombre}</span>
+              <button onClick={() => onAsignarFuncionario(f.id, '')} title={`Quitar a ${f.nombre} de ${u.nombre}`} className="text-zinc-400 hover:text-rose-500 cursor-pointer shrink-0">
+                <i className="fa-solid fa-xmark text-[9px]"></i>
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <ComboFuncionarios
+        candidatos={candidatos}
+        excluirUbicacion={u.nombre}
+        onElegir={(id) => onAsignarFuncionario(id, u.nombre)}
+        titulo={`Asignar funcionario a ${u.nombre}`}
+      />
+    </div>
+  );
+});
+
+// Combo con buscador para asignar funcionarios: reemplaza al select nativo.
+// Filtra por nombre o cédula (sin tildes) y muestra ubicación actual.
+function ComboFuncionarios({ candidatos, excluirUbicacion, onElegir, titulo }) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState('');
+  const cajaRef = useRef(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const cerrar = (e) => { if (cajaRef.current && !cajaRef.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener('mousedown', cerrar);
+    return () => document.removeEventListener('mousedown', cerrar);
+  }, [abierto]);
+
+  const normExcluir = normalizeStr(excluirUbicacion || '');
+  const q = normalizeStr(texto);
+  const lista = useMemo(() => {
+    const base = candidatos.filter(f => normalizeStr(f.ubicacion || '') !== normExcluir);
+    if (!q) return base;
+    return base.filter(f => normalizeStr(`${f.nombre || ''} ${f.cedula || ''}`).includes(q));
+  }, [candidatos, normExcluir, q]);
+
+  return (
+    <div ref={cajaRef} className="mt-1.5">
+      {!abierto ? (
+        <button
+          onClick={() => { setTexto(''); setAbierto(true); }}
+          title={titulo}
+          className="w-full h-8 rounded-lg border border-dashed border-zinc-300 dark:border-zinc-700 bg-transparent px-2 text-[11px] font-semibold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:border-zinc-400 text-left outline-none cursor-pointer transition-colors focus-visible:ring-2 focus-visible:ring-brand-primary"
+        >
+          <i className="fa-solid fa-plus mr-1.5 text-[9px]"></i>
+          Asignar funcionario ({candidatos.filter(f => normalizeStr(f.ubicacion || '') !== normExcluir).length} disponibles)...
+        </button>
+      ) : (
+        <div className="rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-950 overflow-hidden">
+          <div className="relative">
+            <i className="fa-solid fa-magnifying-glass absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 text-[10px] pointer-events-none"></i>
+            <input
+              autoFocus
+              type="text" value={texto} onChange={(e) => setTexto(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setAbierto(false);
+                if (e.key === 'Enter' && lista.length > 0) { onElegir(lista[0].id); setAbierto(false); }
+              }}
+              placeholder="Escribe para buscar por nombre o cédula..."
+              className="w-full h-8 pl-8 pr-2 text-[11px] font-semibold outline-none bg-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 placeholder:font-normal"
+            />
+          </div>
+          <div className="max-h-44 overflow-y-auto custom-scrollbar border-t border-zinc-100 dark:border-white/10">
+            {lista.slice(0, 50).map(f => (
+              <button
+                key={f.id}
+                onClick={() => { onElegir(f.id); setAbierto(false); }}
+                title={`${f.nombre} · CI ${f.cedula || 'S/C'}`}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
+              >
+                <span className="min-w-0 flex-1 truncate text-[11px] font-bold text-zinc-700 dark:text-zinc-200">{f.nombre}</span>
+                <span className="shrink-0 text-[10px] tabular-nums text-zinc-400">CI {f.cedula || 'S/C'}</span>
+              </button>
+            ))}
+            {lista.length === 0 && (
+              <p className="px-2.5 py-2 text-[11px] font-semibold text-zinc-400">Sin coincidencias.</p>
+            )}
+            {lista.length > 50 && (
+              <p className="px-2.5 py-1.5 text-[10px] font-semibold text-zinc-400 border-t border-zinc-100 dark:border-white/10">
+                {lista.length - 50} más… afina la búsqueda.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Combo con buscador para cambiar el departamento de un funcionario.
+function ComboUbicacion({ valor, ubicaciones, onElegir, titulo, compacto }) {
+  const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState('');
+  const cajaRef = useRef(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const cerrar = (e) => { if (cajaRef.current && !cajaRef.current.contains(e.target)) setAbierto(false); };
+    document.addEventListener('mousedown', cerrar);
+    return () => document.removeEventListener('mousedown', cerrar);
+  }, [abierto]);
+
+  const q = normalizeStr(texto);
+  const lista = useMemo(() => {
+    if (!q) return ubicaciones;
+    return ubicaciones.filter(u => normalizeStr(u.nombre).includes(q));
+  }, [ubicaciones, q]);
+  const actual = ubicaciones.find(u => u.nombre === valor);
+
+  return (
+    <div ref={cajaRef} className={`relative shrink-0 ${compacto ? 'w-[170px]' : 'w-full'}`}>
+      <button
+        onClick={() => { setTexto(''); setAbierto(v => !v); }}
+        title={titulo}
+        className="w-full h-8 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer flex items-center gap-1.5 hover:border-zinc-300 focus-visible:ring-2 focus-visible:ring-brand-primary"
+      >
+        <span className="flex-1 min-w-0 truncate text-left">{actual ? actual.nombre : 'Sin ubicación'}</span>
+        <i className="fa-solid fa-chevron-down text-[9px] text-zinc-400 shrink-0"></i>
+      </button>
+      {abierto && (
+        <div className="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 shadow-xl overflow-hidden">
+          <input
+            autoFocus
+            type="text" value={texto} onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setAbierto(false); }}
+            placeholder="Buscar departamento..."
+            className="w-full h-8 px-2.5 text-[11px] font-semibold outline-none bg-transparent text-zinc-800 dark:text-zinc-200 placeholder:text-zinc-400 placeholder:font-normal"
+          />
+          <div className="max-h-44 overflow-y-auto custom-scrollbar border-t border-zinc-100 dark:border-white/10">
+            <button
+              onClick={() => { onElegir(''); setAbierto(false); }}
+              className="w-full px-2.5 py-1.5 text-left text-[11px] font-bold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10 cursor-pointer"
+            >
+              Sin ubicación
+            </button>
+            {lista.map(u => (
+              <button
+                key={u.id}
+                onClick={() => { onElegir(u.nombre); setAbierto(false); }}
+                title={u.nombre}
+                className={`w-full px-2.5 py-1.5 text-left text-[11px] font-bold truncate cursor-pointer hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 ${u.nombre === valor ? 'text-brand-primary dark:text-brand-accent' : 'text-zinc-700 dark:text-zinc-200'}`}
+              >
+                {u.nombre}
+              </button>
+            ))}
+            {lista.length === 0 && (
+              <p className="px-2.5 py-2 text-[11px] font-semibold text-zinc-400">Sin coincidencias.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

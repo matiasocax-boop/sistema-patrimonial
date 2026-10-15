@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 export default function Header({
-    setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen, pdfPaperSize, setPdfPaperSize,
+    setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen,
     dependenciaActual, setDependenciaActual, todasDependencias, clearAllFilters,
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
     misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout
@@ -57,15 +57,6 @@ export default function Header({
                 </button>
 
                 <div className="hidden lg:flex items-center gap-2">
-                    <div className="relative flex items-center">
-                      <i className="fa-regular fa-file-pdf text-zinc-400 absolute left-3.5 text-xs pointer-events-none"></i>
-                      <select title="Tamaño de papel para PDFs" className="appearance-none bg-zinc-100 dark:bg-white/5 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 text-[13px] font-semibold rounded-xl pl-9 pr-8 h-10 outline-none cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-brand-primary" value={pdfPaperSize} onChange={(e) => setPdfPaperSize(e.target.value)}>
-                        <option value="a4">Formato A4</option>
-                        <option value="legal">Oficio</option>
-                      </select>
-                      <i className="fa-solid fa-chevron-down absolute right-3 text-[10px] text-zinc-400 pointer-events-none"></i>
-                    </div>
-
                     <div className="relative flex items-center">
                       <i className={`fa-solid ${isAdmin ? 'fa-building-columns' : 'fa-lock'} text-zinc-400 absolute left-3.5 text-xs pointer-events-none`}></i>
                       <select 
