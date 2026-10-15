@@ -63,22 +63,6 @@ export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsua
                   </div>
                 </div>
 
-                <div>
-                  <label className={LABEL}>
-                    Contraseña {usuarioEditing && <span className="text-zinc-400 font-normal lowercase">(en blanco para conservar)</span>}
-                  </label>
-                  <div className="relative">
-                    <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-                    <input
-                      type="password"
-                      name="password"
-                      required={!usuarioEditing}
-                      className={`${STYLES.input} pl-10 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
-                      placeholder="••••••••"
-                      minLength="6"
-                    />
-                  </div>
-                </div>
 
                 <div>
                   <label className={LABEL}>Rol de Sistema</label>

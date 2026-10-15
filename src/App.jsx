@@ -14,12 +14,10 @@ const lazyConReintento = (importador) => lazy(async () => {
     throw e;
   }
 });
-import StatCard from './components/StatCard';
 import FaqItem from './components/FaqItem';
 import WorkflowStep from './components/WorkflowStep';
-import DonutChart from './components/DonutChart';
 import SimpleBar from './components/SimpleBar';
-import { SelectFilter, PeriodSelector } from './components/FilterComponents';
+import { PeriodSelector } from './components/FilterComponents';
 import AnimatedNumber from './components/AnimatedNumber';
 import CommandPalette from './components/CommandPalette';
 import TourGuiado from './components/TourGuiado';
@@ -37,11 +35,10 @@ import { supabase } from './supabaseClient';
 const CSVPreviewModal = lazyConReintento(() => import('./components/CSVPreviewModal'));
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
-    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
+    formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, getPlaceholderLogo,
     convertirImagenABase64, getLogoPorDependencia, comprimirImagen 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
-import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
@@ -49,7 +46,6 @@ import DependenciasModal from './components/modals/DependenciasModal';
 import FichaBienModal from './components/FichaBienModal';
 const LogoutModal = lazyConReintento(() => import('./components/modals/LogoutModal'));
 const ResolucionBajaModal = lazyConReintento(() => import('./components/modals/ResolucionBajaModal'));
-const DeleteConfirmModal = lazyConReintento(() => import('./components/modals/DeleteConfirmModal'));
 const DependenciaConfirmModal = lazyConReintento(() => import('./components/modals/DependenciaConfirmModal'));
 const QRModal = lazyConReintento(() => import('./components/modals/QRModal'));
 const ConsolidadoFC10Modal = lazyConReintento(() => import('./components/modals/ConsolidadoFC10Modal'));
@@ -156,9 +152,6 @@ export default function App() {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
-  const [isCheckingMaintenance, setIsCheckingMaintenance] = useState(false);
-  const [systemConfig, setSystemConfig] = useState({ version: 'v1.0.0', notes: '' });
   const [showChangelog, setShowChangelog] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isLoading, setIsLoading] = useState(true);
@@ -1207,7 +1200,7 @@ export default function App() {
             supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
             supabase.from('estructuras').select('id, data'), 
             supabase.from('notificaciones').select('*'),
-            supabase.from('usuarios').select('*'),
+            supabase.from('usuarios').select('username, nombre, cargo, dependencia'),
             supabase.from('funcionarios').select('*')
         ]);
 
@@ -1387,8 +1380,8 @@ useEffect(() => {
       if (isAuthenticated) {
           fetchData(false); 
           cargarNotificaciones();
-          const notifInterval = setInterval(() => { cargarNotificaciones(); }, 12000);
-          const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, () => { cargarNotificaciones(); }).subscribe();
+          const notifInterval = setInterval(() => { sondearNotificaciones(); }, 30000);
+          const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, (payload) => { fusionarNotificacion(payload); }).subscribe();
           // Tiempo real en bienes: lo que cambia en un equipo (ej: foto desde el celular)
           // se refleja solo en los demás, sin refrescar
           const bensChannel = supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
@@ -2459,7 +2452,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         supabase.from("fc11").select("*"),
         supabase.from("fc04").select("*"),
         supabase.from("estructuras").select("*"),
-        supabase.from("usuarios").select("*"),
+        supabase.from("usuarios").select("username, nombre, cargo, dependencia"),
         supabase.from("funcionarios").select("*"),
         supabase.from("notificaciones").select("*"),
         supabase.from("auditoria").select("*")
@@ -2849,6 +2842,8 @@ const handleEditFuncionario = (funcionario) => {
     e.preventDefault();
     const f = new FormData(e.target);
     const userData = Object.fromEntries(f.entries());
+    // La clave vive en Supabase Auth: nunca guardar texto plano en la tabla
+    delete userData.password;
     // Solo el desarrollador puede otorgar rol de desarrollador
     if (userData.cargo === 'desarrollador' && !esDesarrollador) {
       return addToast('Solo el Desarrollador del Sistema puede otorgar ese rol.', 'error');
@@ -2862,7 +2857,6 @@ const handleEditFuncionario = (funcionario) => {
         let res;
         if (usuarioEditing) {
             const updateData = { nombre: userData.nombre, cargo: userData.cargo, dependencia: userData.dependencia };
-            if (userData.password) updateData.password = userData.password;
             res = await supabase.from('usuarios').update(updateData).eq('username', usuarioEditing.username);
         } else {
             res = await supabase.from('usuarios').insert([userData]);
@@ -3457,15 +3451,46 @@ const handleEditFuncionario = (funcionario) => {
   };
 
   // --- INICIO DE CÓDIGO RESTAURADO ---
+  const parseNotifRow = (item) => {
+      const d = item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item;
+      return { id: item.id, ...d };
+  };
   const cargarNotificaciones = async () => {
       const { data, error } = await supabase.from('notificaciones').select('*');
       if (!error && data) {
-          const parsed = data.map(item => {
-              const d = item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item;
-              return { id: item.id, ...d };
-          });
-          setNotificaciones(parsed);
+          setNotificaciones(data.map(parseNotifRow));
       }
+  };
+  // Sondeo liviano: últimas 100 por actualización, fusionadas sin recargar todo
+  const sondearNotificaciones = async () => {
+      try {
+          const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').order('updated_at', { ascending: false }).limit(100);
+          if (error || !data) return;
+          const frescas = data.map(parseNotifRow);
+          setNotificaciones(prev => {
+              const mapa = new Map(prev.map(n => [n.id, n]));
+              frescas.forEach(n => mapa.set(n.id, n));
+              return [...mapa.values()];
+          });
+      } catch (e) {}
+  };
+  const fusionarNotificacion = (payload) => {
+      try {
+          if (payload.eventType === 'DELETE') {
+              if (payload.old?.id) setNotificaciones(prev => prev.filter(n => n.id !== payload.old.id));
+              return;
+          }
+          const row = payload.new;
+          if (!row) return;
+          const parsed = parseNotifRow(row);
+          setNotificaciones(prev => {
+              const i = prev.findIndex(n => n.id === parsed.id);
+              if (i === -1) return [parsed, ...prev];
+              const copia = [...prev];
+              copia[i] = parsed;
+              return copia;
+          });
+      } catch (e) {}
   };
 
   const solicitarBajaBien = async (bien) => {
@@ -3655,6 +3680,28 @@ if (typeof window !== 'undefined') {
   } catch (e) {}
 }
 const mantBypass = typeof window !== 'undefined' && sessionStorage.getItem('mant_bypass') === '1';
+// Auto-reparación de rol: si el mantenimiento está activo y la sesión local no
+// refleja el rol desarrollador, se verifica en vivo contra la base (cubre
+// cambios de rol posteriores al login y sesiones locales viejas).
+useEffect(() => {
+  if (!mantenimiento?.en_mantenimiento || esDesarrollador || !currentUser?.username) return;
+  let vivo = true;
+  (async () => {
+    try {
+      const { data, error } = await supabase.from('usuarios').select('cargo').eq('username', currentUser.username).maybeSingle();
+      if (!vivo || error || !data) return;
+      if (data.cargo === 'desarrollador') {
+        const actualizado = { ...currentUser, cargo: 'desarrollador', role: 'dev' };
+        setCurrentUser(actualizado);
+        try {
+          localStorage.setItem('is_logged_in', 'true');
+          localStorage.setItem('current_user', JSON.stringify(actualizado));
+        } catch (e) {}
+      }
+    } catch (e) {}
+  })();
+  return () => { vivo = false; };
+}, [mantenimiento?.en_mantenimiento]);
 const saveMantenimiento = async (data) => {
   setIsSavingMant(true);
   try {
@@ -3861,29 +3908,7 @@ if (publicBienId) {
   );
 }
 
-  // 2. LUEGO EL RESTO DE VALIDACIONES (Mantenimiento, Login, etc.)
-  
-  if (isCheckingMaintenance) {
-      return (
-          <div className="min-h-dvh bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
-              <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary"></i>
-          </div>
-      );
-  }
-
-  if (isMaintenanceMode) {
-      return (
-          <div className="min-h-dvh bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
-              <div className="w-24 h-24 bg-brand-light dark:bg-brand-primary/20 text-brand-primary rounded-3xl flex items-center justify-center mb-8 animate-pulse shadow-sm">
-                  <i className="fa-solid fa-screwdriver-wrench text-5xl"></i>
-              </div>
-              <h1 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight mb-4">Sistema en Mantenimiento</h1>
-              <p className="text-base text-zinc-600 dark:text-zinc-400 max-w-md mx-auto font-medium leading-relaxed">
-                  {systemConfig.notes || "Estamos aplicando actualizaciones y mejoras en la plataforma para garantizar su seguridad y rendimiento. Por favor, intente acceder nuevamente en unos minutos."}
-              </p>
-          </div>
-      );
-  }
+  // 2. LUEGO EL RESTO DE VALIDACIONES (Mantenimiento global, Login, etc.)
 
   if (!isAuthenticated) {
       return (
@@ -5596,11 +5621,14 @@ if (publicBienId) {
                       </div>
 
                       {/* CONTENEDOR DE CONTROLES SUPERIOR */}
-                      <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex flex-wrap gap-2 items-center">
                         <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
                         {/* NUEVO BOTÓN CONSOLIDADO */}
                         <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " flex items-center gap-2"}>
                             <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
+                        </button>
+                        <button onClick={handleExportFC10CSV} title={`Exportar actas del año ${fc10Year} a CSV`} className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                            <i className="fa-solid fa-file-csv text-emerald-600 dark:text-emerald-400"></i> Exportar año
                         </button>
                       </div>
                     </div>                    
