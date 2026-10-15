@@ -3255,7 +3255,20 @@ if (publicBienId) {
         {/* Contenido principal o Spinner */}
         {publicBienData ? (
           <div className="py-5 space-y-3.5">
-            
+
+            {publicBienData.fotos?.[0]?.url && (
+              <div className="rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-50">
+                <img
+                  src={publicBienData.fotos[0].url}
+                  alt="Foto del activo"
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full max-h-60 object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                />
+              </div>
+            )}
+
             {/* Tarjeta de Rótulo y Estado */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <div className="flex justify-between items-center gap-2">
