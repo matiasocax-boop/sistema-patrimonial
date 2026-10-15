@@ -7,7 +7,7 @@ export default function MaintenanceScreen({ config }) {
     : String(config?.mejoras || '').split('\n').map(s => s.trim()).filter(Boolean);
 
   return (
-    <div className="min-h-screen flex flex-col w-full bg-[#0a1c38] font-sans relative overflow-hidden">
+    <div className="min-h-dvh flex flex-col w-full bg-[#0a1c38] font-sans relative overflow-hidden">
       <span className="absolute bottom-4 right-5 z-10 text-[10px] font-semibold text-slate-500">v{APP_VERSION}</span>
       {/* Fondo tenue */}
       <div className="absolute inset-0 pointer-events-none">

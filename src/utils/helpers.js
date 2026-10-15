@@ -39,6 +39,40 @@ export const normalizeStr = (str) =>
 // Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
 export const APP_VERSION = '2.8.1';
 
+// Comprime una imagen en el navegador (JPEG, máx. 1280px) para subirla liviana.
+export const comprimirImagen = (file, maxLado = 1280, calidad = 0.78) => {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        let { width, height } = img;
+        const escala = Math.min(1, maxLado / Math.max(width, height));
+        width = Math.round(width * escala);
+        height = Math.round(height * escala);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error('No se pudo comprimir'))),
+          'image/jpeg',
+          calidad
+        );
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Archivo de imagen inválido'));
+    };
+    img.src = url;
+  });
+};
+
 export const matchSearchWords = (text, query) => {
   if (!query || !String(query).trim()) return true;
   const target = normalizeStr(text);

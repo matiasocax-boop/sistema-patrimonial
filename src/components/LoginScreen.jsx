@@ -19,7 +19,7 @@ export default function LoginScreen({
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   return (
-    <div className={`${darkMode ? 'dark' : ''} min-h-screen flex flex-col w-full bg-[#0a1c38] dark:bg-[#070f22] font-sans transition-colors duration-300 relative overflow-hidden`}>
+    <div className={`${darkMode ? 'dark' : ''} min-h-dvh flex flex-col w-full bg-[#0a1c38] dark:bg-[#070f22] font-sans transition-colors duration-300 relative overflow-hidden`}>
       
       {/* Fondo institucional tenue */}
       <div className="absolute inset-0 pointer-events-none">

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const TIPO_STYLE = {
   alta: { box: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', icon: 'fa-plus', dot: 'bg-emerald-500' },
@@ -9,7 +9,8 @@ const TIPO_STYLE = {
   otro: { box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20', icon: 'fa-circle-info', dot: 'bg-violet-500' },
 };
 
-export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatCurrency, formatDateText, STYLES }) {
+export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatCurrency, formatDateText, onAgregarFoto, onEliminarFoto, subiendoFoto, esAdmin, STYLES }) {
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
   if (!isOpen || !bien) return null;
   const st = TIPO_STYLE.otro;
 
@@ -51,6 +52,50 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
           </div>
 
           <div>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                Evidencia fotográfica · {(bien.fotos || []).length}/5
+              </p>
+              <label
+                className={`inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${subiendoFoto ? 'opacity-50 pointer-events-none bg-zinc-100 dark:bg-white/10 text-zinc-400' : 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200'}`}
+                title="Tomar o subir foto del estado físico"
+              >
+                <i className={`fa-solid ${subiendoFoto ? 'fa-circle-notch fa-spin' : 'fa-camera'}`}></i>
+                {subiendoFoto ? 'Subiendo...' : 'Agregar foto'}
+                <input
+                  type="file" accept="image/*" capture="environment" className="hidden"
+                  disabled={subiendoFoto}
+                  onChange={(e) => { if (e.target.files?.[0]) onAgregarFoto(e.target.files[0]); e.target.value = ''; }}
+                />
+              </label>
+            </div>
+            {(bien.fotos || []).length === 0 ? (
+              <p className="text-xs text-zinc-400 font-medium rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-5 text-center">
+                Sin fotos. Agrega la primera como evidencia del estado físico.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {(bien.fotos || []).map((f, i) => (
+                  <div key={f.url || i} className="relative group/foto rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-white/5 aspect-square">
+                    <button onClick={() => setFotoAmpliada(f.url)} className="w-full h-full cursor-pointer" title="Ampliar foto">
+                      <img src={f.url} alt={`Foto ${i + 1} del bien`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                    </button>
+                    {esAdmin && (
+                      <button
+                        onClick={() => onEliminarFoto(f)}
+                        title="Eliminar foto"
+                        className="absolute top-1 right-1 h-6 w-6 items-center justify-center rounded-lg bg-zinc-950/70 text-white hidden group-hover/foto:flex hover:bg-rose-600 transition-colors cursor-pointer"
+                      >
+                        <i className="fa-solid fa-xmark text-[10px]"></i>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500 mb-3">
               Trazabilidad · {eventos.length} evento{eventos.length === 1 ? '' : 's'}
             </p>
@@ -89,6 +134,18 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
           </button>
         </div>
       </div>
+      {fotoAmpliada && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-sm animate-fade-in" onClick={() => setFotoAmpliada(null)}>
+          <img src={fotoAmpliada} alt="Foto ampliada del bien" className="max-h-[90dvh] max-w-full rounded-2xl shadow-2xl object-contain" />
+          <button
+            onClick={() => setFotoAmpliada(null)}
+            title="Cerrar"
+            className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer"
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

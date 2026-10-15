@@ -67,7 +67,7 @@ export default function CommandPalette({
   };
 
   return (
-    <div className="fixed inset-0 z-[400] flex items-start justify-center p-4 pt-[12vh] bg-zinc-950/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+    <div className="fixed inset-0 z-[400] flex items-start justify-center p-4 pt-[12dvh] bg-zinc-950/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
         className="w-full max-w-xl rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-2xl overflow-hidden animate-slide-up"
         onClick={(e) => e.stopPropagation()}
@@ -91,7 +91,7 @@ export default function CommandPalette({
           />
           <kbd className="hidden sm:inline-flex items-center rounded-md border border-zinc-200 dark:border-zinc-700 px-1.5 py-0.5 text-[10px] font-bold text-zinc-400">Ctrl K</kbd>
         </div>
-        <div className="max-h-[50vh] overflow-y-auto custom-scrollbar py-2">
+        <div className="max-h-[50dvh] overflow-y-auto custom-scrollbar py-2">
           {resultados.length === 0 ? (
             <p className="px-5 py-8 text-center text-xs font-semibold text-zinc-400">Sin coincidencias. Prueba con rótulo, nombre o apellido.</p>
           ) : (

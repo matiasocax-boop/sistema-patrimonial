@@ -24,7 +24,7 @@ const CSVPreviewModal = lazy(() => import('./components/CSVPreviewModal'));
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
-    convertirImagenABase64, getLogoPorDependencia 
+    convertirImagenABase64, getLogoPorDependencia, comprimirImagen 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
@@ -53,7 +53,7 @@ const STYLES = {
     btnSecondary: "inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 focus-visible:ring-2 focus-visible:ring-brand-primary focus:outline-none transition-all active:scale-95 cursor-pointer",
     card: "bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm transition-all duration-300",
     modalOverlay: "fixed inset-0 bg-zinc-900/60 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[300] transition-opacity animate-fade-in",
-    modalContent: "bg-white dark:bg-darkbg-card rounded-[24px] shadow-2xl w-full max-h-[90vh] flex flex-col border border-zinc-100 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
+    modalContent: "bg-white dark:bg-darkbg-card rounded-[24px] shadow-2xl w-full max-h-[90dvh] flex flex-col border border-zinc-100 dark:border-darkbg-border overflow-hidden relative animate-slide-up",
     modalHeader: "flex justify-between items-center px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10",
     modalBody: "p-8 overflow-y-auto space-y-8 bg-zinc-50/30 dark:bg-darkbg-card custom-scrollbar",
     modalFooter: "flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-main shrink-0 z-10",
@@ -299,6 +299,52 @@ export default function App() {
     });
     return ev.sort((x, y) => String(y.fecha || '').localeCompare(String(x.fecha || '')));
   }, [fichaBien, eventosAuditFicha, fc10List, fc11List]);
+  // Fotos del bien: galería en ficha (máx. 5, Storage + URLs en el registro)
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const subirFotoBien = async (file) => {
+    if (!fichaBien || !file) return;
+    if (!file.type.startsWith('image/')) return addToast('El archivo debe ser una imagen.', 'warning');
+    setSubiendoFoto(true);
+    try {
+      const blob = await comprimirImagen(file);
+      const nombre = `${fichaBien.id}/${generateId()}.jpg`;
+      const { error: upErr } = await supabase.storage.from('fotos-bienes').upload(nombre, blob, { contentType: 'image/jpeg', upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from('fotos-bienes').getPublicUrl(nombre);
+      const fotos = [...(fichaBien.fotos || []), { url: pub.publicUrl, ruta: nombre, fecha: new Date().toISOString(), usuario: currentUser?.username || 'Usuario' }].slice(-5);
+      // Si se supera el tope, borrar la más vieja del storage
+      const sobrantes = (fichaBien.fotos || []).filter(f => !fotos.includes(f));
+      if (sobrantes.length > 0) {
+        try { await supabase.storage.from('fotos-bienes').remove(sobrantes.map(f => f.ruta).filter(Boolean)); } catch (e) {}
+      }
+      const actualizado = { ...fichaBien, fotos };
+      const { error: dbErr } = await supabase.from('bens').update({ data: actualizado }).eq('id', fichaBien.id);
+      if (dbErr) throw dbErr;
+      setBienes(prev => prev.map(b => (b.id === fichaBien.id ? actualizado : b)));
+      setFichaBien(actualizado);
+      addToast('Foto agregada al bien.', 'success');
+    } catch (e) {
+      addToast('No se pudo subir la foto. Verifica el bucket fotos-bienes en Supabase.', 'error');
+    } finally {
+      setSubiendoFoto(false);
+    }
+  };
+  const eliminarFotoBien = async (foto) => {
+    if (!fichaBien || !foto) return;
+    try {
+      if (foto.ruta) {
+        try { await supabase.storage.from('fotos-bienes').remove([foto.ruta]); } catch (e) {}
+      }
+      const actualizado = { ...fichaBien, fotos: (fichaBien.fotos || []).filter(f => f.url !== foto.url) };
+      const { error } = await supabase.from('bens').update({ data: actualizado }).eq('id', fichaBien.id);
+      if (error) throw error;
+      setBienes(prev => prev.map(b => (b.id === fichaBien.id ? actualizado : b)));
+      setFichaBien(actualizado);
+      addToast('Foto eliminada.', 'success');
+    } catch (e) {
+      addToast('No se pudo eliminar la foto.', 'error');
+    }
+  };
 
   const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
   const [searchInput, setSearchInput] = useState(''); 
@@ -3182,7 +3228,7 @@ if (mantenimiento?.en_mantenimiento && !mantBypass) {
 }
 if (publicBienId) {
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-dvh bg-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
       <div className="bg-white border border-slate-200/80 rounded-[32px] p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden my-auto">
         
         {/* Acento superior institucional */}
@@ -3356,7 +3402,7 @@ if (publicBienId) {
   
   if (isCheckingMaintenance) {
       return (
-          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
+          <div className="min-h-dvh bg-zinc-50 dark:bg-darkbg-main flex items-center justify-center">
               <i className="fa-solid fa-circle-notch fa-spin text-3xl text-brand-primary"></i>
           </div>
       );
@@ -3364,7 +3410,7 @@ if (publicBienId) {
 
   if (isMaintenanceMode) {
       return (
-          <div className="min-h-screen bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+          <div className="min-h-dvh bg-zinc-50 dark:bg-darkbg-main flex flex-col items-center justify-center p-6 text-center animate-fade-in">
               <div className="w-24 h-24 bg-brand-light dark:bg-brand-primary/20 text-brand-primary rounded-3xl flex items-center justify-center mb-8 animate-pulse shadow-sm">
                   <i className="fa-solid fa-screwdriver-wrench text-5xl"></i>
               </div>
@@ -3383,7 +3429,7 @@ if (publicBienId) {
   }
 
   return (
-    <div className={`${darkMode ? 'dark' : ''} flex h-screen overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`}>
+    <div className={`${darkMode ? 'dark' : ''} flex h-dvh overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`}>
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
       
@@ -5473,6 +5519,10 @@ if (publicBienId) {
         eventos={eventosFicha}
         formatCurrency={formatCurrency}
         formatDateText={formatDateText}
+        onAgregarFoto={subirFotoBien}
+        onEliminarFoto={eliminarFotoBien}
+        subiendoFoto={subiendoFoto}
+        esAdmin={isAdmin}
         STYLES={STYLES}
       />
       {tourPaso >= 0 && (
