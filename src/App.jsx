@@ -472,11 +472,11 @@ export default function App() {
     });
     return mapa;
   }, [todasDependencias, bienes, funcionariosPadron, ubicacionesList]);
-  const guardarUbicacion = async (id, nombre) => {
+  const guardarUbicacion = async (id, nombre, dependencia = dependenciaActual) => {
     setIsSavingUbicacion(true);
     try {
       if (!id) {
-        const row = { id: generateId(), nombre, dependencia: dependenciaActual };
+        const row = { id: generateId(), nombre, dependencia };
         const { error } = await supabase.from('ubicaciones').insert([row]);
         if (error) throw error;
         setUbicacionesList(prev => [...prev, row].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
@@ -626,6 +626,17 @@ export default function App() {
     setIsDependenciasModalOpen(false);
     setActiveTab('funcionarios');
     addToast(`Entorno cambiado a ${nombre}`, 'success');
+  };
+  const asignarFuncionarioAUbicacion = async (funcId, ubicacionNombre) => {
+    if (!funcId) return;
+    try {
+      const { error } = await supabase.from('funcionarios').update({ ubicacion: ubicacionNombre || '' }).eq('id', funcId);
+      if (error) throw error;
+      setFuncionariosPadron(prev => prev.map(f => (f.id === funcId ? { ...f, ubicacion: ubicacionNombre || '' } : f)));
+      addToast(ubicacionNombre ? 'Funcionario asignado a la ubicación.' : 'Funcionario sin ubicación.', 'success');
+    } catch (e) {
+      addToast('No se pudo asignar.', 'error');
+    }
   };
   const eliminarUbicacion = async (id, nombre) => {
     const enBienes = bienes.filter(b => b.dependencia === dependenciaActual && normalizeStr(b.ubicacion || '') === normalizeStr(nombre)).length;
@@ -5879,6 +5890,12 @@ if (publicBienId) {
         isSaving={isSavingDep}
         dependenciaActual={dependenciaActual}
         onVerPadron={verPadronDependencia}
+        ubicacionesList={ubicacionesList}
+        conteosUbicacion={conteosUbicacion}
+        funcionarios={funcionariosPadron}
+        onGuardarUbicacion={guardarUbicacion}
+        onEliminarUbicacion={eliminarUbicacion}
+        onAsignarFuncionario={asignarFuncionarioAUbicacion}
         STYLES={STYLES}
       />
       <UbicacionesModal
