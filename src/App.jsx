@@ -723,6 +723,7 @@ export default function App() {
   const [accionesUnicasAud, setAccionesUnicasAud] = useState([]);
   const limpiarBusquedaAud = (texto) => String(texto || '').replace(/[%(),.]/g, ' ').replace(/\s+/g, ' ').trim();
   const fetchAuditoria = async (pagina = 1) => {
+    const pag = Number.isInteger(pagina) && pagina > 0 ? pagina : 1;
     setIsLoadingAud(true);
     try {
       let q = supabase.from('auditoria').select('*', { count: 'exact' }).order('fecha', { ascending: false });
@@ -732,12 +733,12 @@ export default function App() {
         const t = `%${limpiarBusquedaAud(searchAud).split(' ').filter(Boolean).join('%')}%`;
         q = q.or(`titulo.ilike.${t},mensaje.ilike.${t}`);
       }
-      const from = (pagina - 1) * PAGE_AUD;
+      const from = (pag - 1) * PAGE_AUD;
       const { data, error, count } = await q.range(from, from + PAGE_AUD - 1);
       if (!error && data) {
         setAuditoriaList(data);
         setTotalAud(count || 0);
-        setPaginaAud(pagina);
+        setPaginaAud(pag);
       }
       // KPIs livianos del período (solo 2 columnas)
       try {
@@ -4951,7 +4952,7 @@ if (publicBienId) {
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={fetchAuditoria} title="Recargar libro de auditoría" className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                      <button onClick={() => fetchAuditoria(1)} title="Recargar libro de auditoría" className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                         <i className={`fa-solid fa-rotate ${isLoadingAud ? 'fa-spin' : ''}`}></i> Actualizar
                       </button>
                       </div>
