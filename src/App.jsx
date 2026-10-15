@@ -2,8 +2,6 @@ import React, { useState, useEffect, useMemo, useRef, useCallback, Suspense } fr
 import { lazyConReintento } from './utils/lazyConReintento';
 import SkeletonLoader from './components/SkeletonLoader';
 import { STYLES, DEPENDENCIAS_UNP, ESTADOS_CONSERVACION, ORIGENES_FC04, INACTIVITY_LIMIT_MS } from './constants/appConstants';
-import FaqItem from './components/FaqItem';
-import WorkflowStep from './components/WorkflowStep';
 import SimpleBar from './components/SimpleBar';
 import { PeriodSelector } from './components/FilterComponents';
 import AnimatedNumber from './components/AnimatedNumber';
@@ -37,6 +35,12 @@ import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
 import DependenciasModal from './components/modals/DependenciasModal';
+import AyudaView from './views/AyudaView';
+import ResumenView from './views/ResumenView';
+import UsuariosView from './views/UsuariosView';
+import Fc04View from './views/Fc04View';
+import Fc10View from './views/Fc10View';
+import Fc11View from './views/Fc11View';
 import FichaBienModal from './components/FichaBienModal';
 const LogoutModal = lazyConReintento(() => import('./components/modals/LogoutModal'));
 const ResolucionBajaModal = lazyConReintento(() => import('./components/modals/ResolucionBajaModal'));
@@ -50,7 +54,7 @@ const ScannerModal = lazyConReintento(() => import('./components/modals/ScannerM
 const UnsavedChangesModal = lazyConReintento(() => import('./components/modals/UnsavedChangesModal'));
 import { processOfflineQueue, enqueueOfflineAction } from './services/offlineSyncService';
 import { registrarAuditoria } from './services/auditService';
-// Nota: papaparse y qrcode se importan dinÃ¡micamente donde se usan para no
+// Nota: papaparse y qrcode se importan dinámicamente donde se usan para no
 // inflar el bundle inicial (ver executeProcessBienesCSV y pdfGenerators).
 // Nota: STYLES y constantes globales viven en constants/appConstants
 // (Fase 0 del split de este monolito).
@@ -68,7 +72,7 @@ export default function App() {
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
   const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.role === 'dev' || currentUser?.cargo === 'cargo', [currentUser]);
   // Desarrollador: mismas capacidades que admin, pero nunca bloqueado por mantenimiento
-  // y Ãºnico con acceso al mÃ³dulo de mantenimiento.
+  // y único con acceso al módulo de mantenimiento.
   const esDesarrollador = useMemo(() => currentUser?.role === 'dev', [currentUser]);
   
   const [loginUser, setLoginUser] = useState(''); 
@@ -77,7 +81,7 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
-  // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdÃ­a al refrescar)
+  // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
@@ -85,8 +89,8 @@ export default function App() {
   useEffect(() => {
     try { sessionStorage.removeItem('chunk_reintentado'); } catch (e) {}
   }, []);
-  // Formato Ãºnico de papel para todos los PDF del sistema: oficio (216 x 330 mm).
-  // Se eliminÃ³ el selector A4/Oficio de la interfaz: un solo formato oficial.
+  // Formato único de papel para todos los PDF del sistema: oficio (216 x 330 mm).
+  // Se eliminó el selector A4/Oficio de la interfaz: un solo formato oficial.
   const FORMATO_PDF = [216, 330];
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -101,9 +105,9 @@ export default function App() {
   const [mantenimiento, setMantenimiento] = useState(null);
   const [isMantenimientoModalOpen, setIsMantenimientoModalOpen] = useState(false);
   const [isSavingMant, setIsSavingMant] = useState(false);
-  // Puerta de acceso dev: si el muro te agarra sin sesiÃ³n, este flag muestra
-  // el login en vez del muro. Solo una sesiÃ³n con cargo 'desarrollador'
-  // levanta el bloqueo (misma validaciÃ³n de siempre, sin atajos nuevos).
+  // Puerta de acceso dev: si el muro te agarra sin sesión, este flag muestra
+  // el login en vez del muro. Solo una sesión con cargo 'desarrollador'
+  // levanta el bloqueo (misma validación de siempre, sin atajos nuevos).
   const [mostrarLoginDev, setMostrarLoginDev] = useState(false);
   useEffect(() => {
     let alive = true;
@@ -118,7 +122,7 @@ export default function App() {
     const t = setInterval(cargar, 60000);
     return () => { alive = false; clearInterval(t); };
   }, []);
-  // Aviso "Sistema Actualizado": una vez por versiÃ³n, para todo usuario autenticado
+  // Aviso "Sistema Actualizado": una vez por versión, para todo usuario autenticado
   useEffect(() => {
     try {
       const vista = localStorage.getItem('unp_last_version');
@@ -141,7 +145,7 @@ export default function App() {
   const [isFuncionarioModalOpen, setIsFuncionarioModalOpen] = useState(false);
   const [funcionarioToEdit, setFuncionarioToEdit] = useState(null);
   const [isNewFuncionarioModalOpen, setIsNewFuncionarioModalOpen] = useState(false);
-  // CatÃ¡logo de dependencias (tabla; respaldo: lista oficial fija)
+  // Catálogo de dependencias (tabla; respaldo: lista oficial fija)
   const [dependenciasList, setDependenciasList] = useState([]);
   const [isDependenciasModalOpen, setIsDependenciasModalOpen] = useState(false);
   const [isSavingDep, setIsSavingDep] = useState(false);
@@ -233,7 +237,7 @@ export default function App() {
       const f = fc.entregadoFecha || fc.fechaGeneracion;
       ev.push({
         fecha: f || '', fechaFmt: f ? fmt(f) : 'Sin fecha', tipo: 'asignacion',
-        titulo: `Acta FC-10 Â· ${fc.funcionarioNombre || 'Sin responsable'}`,
+        titulo: `Acta FC-10 · ${fc.funcionarioNombre || 'Sin responsable'}`,
         detalle: fc.devolucionFecha ? `Devuelto el ${fmt(fc.devolucionFecha)}` : `Entregado en ${fc.entregadoLugar || fc.dependencia || ''}`.trim()
       });
     });
@@ -242,7 +246,7 @@ export default function App() {
       const dest = fc.dependenciaDestinataria || fc.destinatario || '';
       ev.push({
         fecha: fc.fecha || '', fechaFmt: fc.fecha ? fmt(fc.fecha) : 'Sin fecha', tipo: 'traslado',
-        titulo: `Traslado ${rem} â†’ ${dest}`,
+        titulo: `Traslado ${rem} → ${dest}`,
         detalle: fc.motivo || fc.tipoRegistro || ''
       });
     });
@@ -255,12 +259,12 @@ export default function App() {
         if (m && typeof m === 'object') {
           if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
             const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
-            detalle = keys.length ? `Campos: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? 'â€¦' : ''}` : 'Registro actualizado';
+            detalle = keys.length ? `Campos: ${keys.slice(0, 6).join(', ')}${keys.length > 6 ? '…' : ''}` : 'Registro actualizado';
           } else {
             const bits = [];
             if (m.solicitante) bits.push(`Por: ${m.solicitante}`);
             if (m.motivo) bits.push(`Motivo: ${m.motivo}`);
-            detalle = bits.join(' Â· ');
+            detalle = bits.join(' · ');
           }
         } else if (m) detalle = String(m);
       } catch (e) { detalle = String(row.mensaje || ''); }
@@ -268,7 +272,7 @@ export default function App() {
     });
     return ev.sort((x, y) => String(y.fecha || '').localeCompare(String(x.fecha || '')));
   }, [fichaBien, eventosAuditFicha, fc10List, fc11List]);
-  // Fotos del bien: galerÃ­a en ficha (mÃ¡x. 5, Storage + URLs en el registro)
+  // Fotos del bien: galería en ficha (máx. 5, Storage + URLs en el registro)
   const [subiendoFoto, setSubiendoFoto] = useState(false);
   const subirFotoBien = async (file) => {
     if (!fichaBien || !file) return;
@@ -281,7 +285,7 @@ export default function App() {
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from('fotos-bienes').getPublicUrl(nombre);
       const fotos = [...(fichaBien.fotos || []), { url: pub.publicUrl, ruta: nombre, fecha: new Date().toISOString(), usuario: currentUser?.username || 'Usuario' }].slice(-5);
-      // Si se supera el tope, borrar la mÃ¡s vieja del storage
+      // Si se supera el tope, borrar la más vieja del storage
       const sobrantes = (fichaBien.fotos || []).filter(f => !fotos.includes(f));
       if (sobrantes.length > 0) {
         try { await supabase.storage.from('fotos-bienes').remove(sobrantes.map(f => f.ruta).filter(Boolean)); } catch (e) {}
@@ -289,7 +293,7 @@ export default function App() {
       const actualizado = { ...fichaBien, fotos };
       const { error: dbErr } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', fichaBien.id);
       if (dbErr) throw dbErr;
-      // Releer del servidor como fuente de verdad (la galerÃ­a muestra exactamente lo guardado)
+      // Releer del servidor como fuente de verdad (la galería muestra exactamente lo guardado)
       let final = actualizado;
       try {
         const { data: releido, error: readErr } = await supabase.from('bens').select('*').eq('id', fichaBien.id).maybeSingle();
@@ -326,8 +330,8 @@ export default function App() {
   };
 
   const [searchFuncionarioInput, setSearchFuncionarioInput] = useState('');
-  // Filtros/bÃºsqueda/paginaciÃ³n del inventario: hook extraÃ­do (Fase 3).
-  // La UI usa los mismos nombres vÃ­a desestructuraciÃ³n.
+  // Filtros/búsqueda/paginación del inventario: hook extraído (Fase 3).
+  // La UI usa los mismos nombres vía desestructuración.
   const {
     searchInput, setSearchInput, searchTerm, setSearchTerm, debouncedSearchTerm,
     filtroFuncionario, setFiltroFuncionario, filtroUbicacion, setFiltroUbicacion,
@@ -352,7 +356,7 @@ export default function App() {
     () => funcionariosPadron.filter(f => f.dependencia === dependenciaActual),
     [funcionariosPadron, dependenciaActual]
   );
-  // CatÃ¡logo de ubicaciones por dependencia (del organigrama oficial)
+  // Catálogo de ubicaciones por dependencia (del organigrama oficial)
   const [ubicacionesList, setUbicacionesList] = useState([]);
   const [isUbicacionesModalOpen, setIsUbicacionesModalOpen] = useState(false);
   const [isSavingUbicacion, setIsSavingUbicacion] = useState(false);
@@ -380,7 +384,7 @@ export default function App() {
     });
     return mapa;
   }, [ubicacionesDep, bienes, funcionariosPadron, dependenciaActual]);
-  // Dependencias detectadas en los datos que no estÃ¡n en el catÃ¡logo (errores de carga, nombres viejos)
+  // Dependencias detectadas en los datos que no están en el catálogo (errores de carga, nombres viejos)
   const dependenciasDetectadas = useMemo(() => {
     const oficiales = new Set(todasDependencias.map(d => normalizeStr(d)));
     const mapa = new Map();
@@ -418,13 +422,13 @@ export default function App() {
         const { error } = await supabase.from('ubicaciones').insert([row]);
         if (error) throw error;
         setUbicacionesList(prev => [...prev, row].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
-        addToast(`UbicaciÃ³n "${nombre}" agregada.`, 'success');
+        addToast(`Ubicación "${nombre}" agregada.`, 'success');
       } else {
         const anterior = ubicacionesList.find(u => u.id === id);
         if (!anterior || normalizeStr(anterior.nombre) === normalizeStr(nombre)) return;
         const { error } = await supabase.from('ubicaciones').update({ nombre }).eq('id', id);
         if (error) throw error;
-        // Cascada: renombrar tambiÃ©n en bienes y funcionarios que usaban el nombre anterior
+        // Cascada: renombrar también en bienes y funcionarios que usaban el nombre anterior
         const bienesAfectados = bienes.filter(b => normalizeStr(b.ubicacion || '') === normalizeStr(anterior.nombre));
         for (let i = 0; i < bienesAfectados.length; i += 10) {
           const chunk = bienesAfectados.slice(i, i + 10);
@@ -443,7 +447,7 @@ export default function App() {
           setFuncionariosPadron(prev => prev.map(f => (ids.has(f.id) ? { ...f, ubicacion: nombre } : f)));
         }
         setUbicacionesList(prev => prev.map(u => (u.id === id ? { ...u, nombre } : u)).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
-        addToast(`UbicaciÃ³n actualizada en ${bienesAfectados.length} bienes y ${funcAfectados.length} funcionarios.`, 'success');
+        addToast(`Ubicación actualizada en ${bienesAfectados.length} bienes y ${funcAfectados.length} funcionarios.`, 'success');
       }
     } catch (e) {
       addToast('No se pudo guardar. Verifica la tabla ubicaciones en Supabase.', 'error');
@@ -571,7 +575,7 @@ export default function App() {
       const { error } = await supabase.from('funcionarios').update({ ubicacion: ubicacionNombre || '' }).eq('id', funcId);
       if (error) throw error;
       setFuncionariosPadron(prev => prev.map(f => (f.id === funcId ? { ...f, ubicacion: ubicacionNombre || '' } : f)));
-      addToast(ubicacionNombre ? 'Funcionario asignado a la ubicaciÃ³n.' : 'Funcionario sin ubicaciÃ³n.', 'success');
+      addToast(ubicacionNombre ? 'Funcionario asignado a la ubicación.' : 'Funcionario sin ubicación.', 'success');
     } catch (e) {
       addToast('No se pudo asignar.', 'error');
     }
@@ -587,12 +591,12 @@ export default function App() {
       const { error } = await supabase.from('ubicaciones').delete().eq('id', id);
       if (error) throw error;
       setUbicacionesList(prev => prev.filter(u => u.id !== id));
-      addToast('UbicaciÃ³n eliminada.', 'success');
+      addToast('Ubicación eliminada.', 'success');
     } catch (e) {
       addToast('No se pudo eliminar.', 'error');
     }
   };
-  // Atajo "/": enfoca el buscador del inventario Â· Ctrl/Cmd+K: paleta global
+  // Atajo "/": enfoca el buscador del inventario · Ctrl/Cmd+K: paleta global
   const searchRef = useRef(null);
   const [cmdOpen, setCmdOpen] = useState(false);
   useEffect(() => {
@@ -616,26 +620,26 @@ export default function App() {
     if (tab === 'funcionarios' && texto) setSearchFuncionarioInput(texto);
     setActiveTab(tab);
   };
-  // Tour guiado: pasos segÃºn rol, auto-inicio solo la primera vez
+  // Tour guiado: pasos según rol, auto-inicio solo la primera vez
   const [tourPaso, setTourPaso] = useState(-1);
   const pasosTour = useMemo(() => {
     const base = [
-      { tab: 'dashboard', selector: null, titulo: 'Bienvenido al sistema', texto: 'Recorrido rÃ¡pido de lo mÃ¡s importante. Puedes omitirlo y retomarlo cuando quieras desde Centro de Ayuda.' },
-      { tab: 'dashboard', selector: '[data-tour="dash-stats"]', titulo: 'MÃ©tricas accionables', texto: 'Cada tarjeta filtra el inventario al hacer clic: activos, con QR, sin FC-10 y pendientes de QR.' },
-      { tab: 'dashboard', selector: '[data-tour="dash-pendientes"]', titulo: 'AtenciÃ³n requerida', texto: 'Tu lista de trabajo: lo que falta por etiquetar, asignar, ubicar o regularizar, con acceso directo.' },
-      { tab: 'inventario', selector: '[data-tour="inv-search"]', titulo: 'BÃºsqueda robusta', texto: 'Ignora tildes y entiende varias palabras. Atajos: "/" enfoca aquÃ­ y Ctrl+K abre la bÃºsqueda global.' },
-      { tab: 'inventario', selector: '[data-tour="inv-table"]', titulo: 'Acciones por fila', texto: 'Desde cada bien: ficha 360 con trazabilidad, QR, acta FC-10, traslado, ediciÃ³n y duplicado.' },
-      { tab: null, selector: '[data-tour="scan"]', titulo: 'EscÃ¡ner QR', texto: 'Con la cÃ¡mara del celular o una lectora USB localizas cualquier bien al instante.' },
+      { tab: 'dashboard', selector: null, titulo: 'Bienvenido al sistema', texto: 'Recorrido rápido de lo más importante. Puedes omitirlo y retomarlo cuando quieras desde Centro de Ayuda.' },
+      { tab: 'dashboard', selector: '[data-tour="dash-stats"]', titulo: 'Métricas accionables', texto: 'Cada tarjeta filtra el inventario al hacer clic: activos, con QR, sin FC-10 y pendientes de QR.' },
+      { tab: 'dashboard', selector: '[data-tour="dash-pendientes"]', titulo: 'Atención requerida', texto: 'Tu lista de trabajo: lo que falta por etiquetar, asignar, ubicar o regularizar, con acceso directo.' },
+      { tab: 'inventario', selector: '[data-tour="inv-search"]', titulo: 'Búsqueda robusta', texto: 'Ignora tildes y entiende varias palabras. Atajos: "/" enfoca aquí y Ctrl+K abre la búsqueda global.' },
+      { tab: 'inventario', selector: '[data-tour="inv-table"]', titulo: 'Acciones por fila', texto: 'Desde cada bien: ficha 360 con trazabilidad, QR, acta FC-10, traslado, edición y duplicado.' },
+      { tab: null, selector: '[data-tour="scan"]', titulo: 'Escáner QR', texto: 'Con la cámara del celular o una lectora USB localizas cualquier bien al instante.' },
     ];
     if (isAdmin) {
       base.push(
-        { tab: 'auditoria', selector: '[data-tour="aud-kpis"]', titulo: 'MÃ³dulo de AuditorÃ­a', texto: 'Solo administradores: libro de eventos, conciliaciÃ³n fÃ­sica, muestreo aleatorio y salud de datos.' },
-        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. EncontrarÃ¡s esta guÃ­a y las novedades de cada versiÃ³n en el Centro de Ayuda.' }
+        { tab: 'auditoria', selector: '[data-tour="aud-kpis"]', titulo: 'Módulo de Auditoría', texto: 'Solo administradores: libro de eventos, conciliación física, muestreo aleatorio y salud de datos.' },
+        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. Encontrarás esta guía y las novedades de cada versión en el Centro de Ayuda.' }
       );
     } else {
       base.push(
-        { tab: 'resumen', selector: '[data-tour="nav-resumen"]', titulo: 'Mi Dependencia', texto: 'Tu vista de solo lectura: nÃºmeros, pendientes y Ãºltimas asignaciones sin riesgo de romper nada.' },
-        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. EncontrarÃ¡s esta guÃ­a y las novedades de cada versiÃ³n en el Centro de Ayuda.' }
+        { tab: 'resumen', selector: '[data-tour="nav-resumen"]', titulo: 'Mi Dependencia', texto: 'Tu vista de solo lectura: números, pendientes y últimas asignaciones sin riesgo de romper nada.' },
+        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. Encontrarás esta guía y las novedades de cada versión en el Centro de Ayuda.' }
       );
     }
     return base;
@@ -650,8 +654,8 @@ export default function App() {
     setTourPaso(-1);
     try { localStorage.setItem('tour_visto_v1', '1'); } catch (e) {}
   };
-  const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicaciÃ³n', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida Ãºtil vencida', porVencer: 'Vida Ãºtil por vencer' };
-  // AuditorÃ­a (solo admin): libro de eventos + conciliaciÃ³n fÃ­sica + muestreo aleatorio
+  const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida', porVencer: 'Vida útil por vencer' };
+  // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);
   const [isLoadingAud, setIsLoadingAud] = useState(false);
   const [searchAud, setSearchAud] = useState('');
@@ -688,7 +692,7 @@ export default function App() {
         setTotalAud(count || 0);
         setPaginaAud(pag);
       }
-      // KPIs livianos del perÃ­odo (solo 2 columnas)
+      // KPIs livianos del período (solo 2 columnas)
       try {
         const hace30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
         let qk = supabase.from('auditoria').select('accion,fecha').gte('fecha', hace30).limit(2000);
@@ -727,14 +731,14 @@ export default function App() {
       if (m && typeof m === 'object') {
         if (m.cambios && m.cambios.anterior && m.cambios.nuevo) {
           const keys = Object.keys(m.cambios.nuevo).filter(k => JSON.stringify(m.cambios.nuevo[k]) !== JSON.stringify(m.cambios.anterior[k]));
-          return keys.length ? `Campos: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? 'â€¦' : ''}` : 'Registro actualizado';
+          return keys.length ? `Campos: ${keys.slice(0, 5).join(', ')}${keys.length > 5 ? '…' : ''}` : 'Registro actualizado';
         }
         const bits = [];
         if (m.solicitante) bits.push(m.solicitante);
         if (m.motivo) bits.push(m.motivo);
         if (m.descripcion) bits.push(String(m.descripcion).slice(0, 60));
-        else if (m.rotulo) bits.push(`RÃ³tulo ${m.rotulo}`);
-        return bits.join(' Â· ');
+        else if (m.rotulo) bits.push(`Rótulo ${m.rotulo}`);
+        return bits.join(' · ');
       }
       return String(row.mensaje || '').slice(0, 120);
     } catch (e) { return String(row.mensaje || '').slice(0, 120); }
@@ -747,7 +751,7 @@ export default function App() {
     if (a.includes('MUESTREO') || a.includes('CONCILIA')) return 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20';
     return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
   };
-  // EvoluciÃ³n del valor patrimonial: incorporado por mes (Ãºltimos 12 meses)
+  // Evolución del valor patrimonial: incorporado por mes (últimos 12 meses)
   const evolucionValor = useMemo(() => {
     const porMes = {};
     bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual)).forEach(b => {
@@ -787,7 +791,7 @@ export default function App() {
       if (vistos.has(k)) duplicados.push(b);
       else vistos.set(k, b.id);
     });
-    // Posibles duplicados del padrÃ³n: mismo nombre normalizado, distinto registro
+    // Posibles duplicados del padrón: mismo nombre normalizado, distinto registro
     const vistosFunc = new Map();
     const duplicadosFunc = [];
     funcionariosPadron.forEach(f => {
@@ -797,12 +801,12 @@ export default function App() {
       else vistosFunc.set(k, f.id);
     });
     return [
-      { id: 'dup', label: 'RÃ³tulos duplicados', count: duplicados.length, detalle: duplicados.slice(0, 20), icon: 'fa-clone', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
-      { id: 'dupfunc', label: 'Posibles duplicados en padrÃ³n', count: duplicadosFunc.length, detalle: duplicadosFunc.slice(0, 20), icon: 'fa-user-group', box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20', esPadron: true },
+      { id: 'dup', label: 'Rótulos duplicados', count: duplicados.length, detalle: duplicados.slice(0, 20), icon: 'fa-clone', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+      { id: 'dupfunc', label: 'Posibles duplicados en padrón', count: duplicadosFunc.length, detalle: duplicadosFunc.slice(0, 20), icon: 'fa-user-group', box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20', esPadron: true },
       { id: 'fc10', label: 'FC-10 sin bien asociado', count: fc10List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-file-signature', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
       { id: 'fc11', label: 'FC-11 sin bien asociado', count: fc11List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-truck-fast', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
       { id: 'sindep', label: 'Bienes sin dependencia', count: bienes.filter(b => !String(b.dependencia || '').trim()).length, detalle: [], icon: 'fa-building-columns', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border-zinc-500/20' },
-      { id: 'sinfecha', label: 'Bienes sin fecha de adquisiciÃ³n', count: bienes.filter(b => !String(b.fechaAdquisicion || '').trim()).length, detalle: [], icon: 'fa-calendar-xmark', box: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
+      { id: 'sinfecha', label: 'Bienes sin fecha de adquisición', count: bienes.filter(b => !String(b.fechaAdquisicion || '').trim()).length, detalle: [], icon: 'fa-calendar-xmark', box: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
     ];
   }, [bienes, fc10List, fc11List]);
   const resultadoConteo = useMemo(() => {
@@ -826,8 +830,8 @@ export default function App() {
     setConteoInput('');
   };
   const descargarActaConteoPDF = async () => {
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerÃ­as PDF...', 'warning');
-    setIsProcessing({ active: true, text: 'Generando acta de conciliaciÃ³n...' });
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerías PDF...', 'warning');
+    setIsProcessing({ active: true, text: 'Generando acta de conciliación...' });
     try {
       const logo = await resolveLogoImg(dependenciaActual);
       const porId = new Map(bienes.map(b => [b.id, b]));
@@ -836,7 +840,7 @@ export default function App() {
           const b = [...porId.values()].find(x => x.id === code || normalizeStr(x.rotulo) === normalizeStr(code));
           return b
             ? { rotulo: b.rotulo, descripcion: b.descripcion, ubicacion: b.ubicacion, resultado: 'HALLADO' }
-            : { rotulo: '-', descripcion: `CÃ³digo no registrado: ${code}`, ubicacion: '-', resultado: 'NO REGISTRADO' };
+            : { rotulo: '-', descripcion: `Código no registrado: ${code}`, ubicacion: '-', resultado: 'NO REGISTRADO' };
         }),
         ...resultadoConteo.faltantes.map(b => ({ rotulo: b.rotulo, descripcion: b.descripcion, ubicacion: b.ubicacion, resultado: 'FALTANTE' }))
       ];
@@ -846,11 +850,11 @@ export default function App() {
         dependencia: dependenciaActual,
         alcance: conteoUbicacion || 'Toda la dependencia',
         auditor: currentUser?.nombre || currentUser?.username || '',
-        resumen: `${resultadoConteo.hallados} hallados de ${resultadoConteo.total} Â· ${resultadoConteo.faltantes.length} faltantes Â· ${resultadoConteo.noRegistrados.length} no registrados`,
+        resumen: `${resultadoConteo.hallados} hallados de ${resultadoConteo.total} · ${resultadoConteo.faltantes.length} faltantes · ${resultadoConteo.noRegistrados.length} no registrados`,
         filas, logoDataUrl: logo
       });
       doc.save(`Acta_Conciliacion_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
-      addToast('Acta de conciliaciÃ³n generada.', 'success');
+      addToast('Acta de conciliación generada.', 'success');
     } catch (e) {
       addToast('Error al generar el acta: ' + (e.message || 'desconocido'), 'error');
     } finally {
@@ -859,7 +863,7 @@ export default function App() {
   };
   const descargarActaMuestreoPDF = async () => {
     if (muestra.length === 0) return addToast('Genera primero la muestra.', 'warning');
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerÃ­as PDF...', 'warning');
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerías PDF...', 'warning');
     setIsProcessing({ active: true, text: 'Generando acta de muestreo...' });
     try {
       const logo = await resolveLogoImg(dependenciaActual);
@@ -901,7 +905,7 @@ export default function App() {
       accion: 'CONCILIACION_FISICA', entidad: 'CONCILIACION', entidadId: null,
       detalles: { total: resultadoConteo.total, hallados: resultadoConteo.hallados, faltantes: resultadoConteo.faltantes.length, noRegistrados: resultadoConteo.noRegistrados.length }
     });
-    addToast('Acta de conciliaciÃ³n registrada en el libro.', 'success');
+    addToast('Acta de conciliación registrada en el libro.', 'success');
     fetchAuditoria();
   };
   const generarMuestra = () => {
@@ -955,8 +959,8 @@ export default function App() {
     addToast(`Entorno cambiado a ${pendingDependencia}`, "success");
   };
   
-  // BÃºsqueda robusta: insensible a tildes/mayÃºsculas y multi-palabra (AND),
-  // asÃ­ "gomez cordioli", "cordioli daniel" o "daniel 123" encuentran igual.
+  // Búsqueda robusta: insensible a tildes/mayúsculas y multi-palabra (AND),
+  // así "gomez cordioli", "cordioli daniel" o "daniel 123" encuentran igual.
   const funcionariosPurosDependencia = useMemo(() => {
       let lista = funcionariosPadron.filter(f => f.dependencia === dependenciaActual);
 
@@ -976,15 +980,15 @@ export default function App() {
       return lista.sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
   }, [funcionariosPadron, dependenciaActual, searchFuncionarioInput]);
 
-  // 2. Calculamos el total de pÃ¡ginas exactas basÃ¡ndonos solo en los funcionarios puros
+  // 2. Calculamos el total de páginas exactas basándonos solo en los funcionarios puros
   const totalPagesFuncs = Math.ceil(funcionariosPurosDependencia.length / itemsPorPaginaFuncs);
 
-  // 3. Cortamos la porciÃ³n correspondiente a la pÃ¡gina actual
+  // 3. Cortamos la porción correspondiente a la página actual
   const funcionariosPaginados = useMemo(() => {
       const start = (currentPaginaFuncionarios - 1) * itemsPorPaginaFuncs;
       const subLista = funcionariosPurosDependencia.slice(start, start + itemsPorPaginaFuncs);
 
-      // Agregamos los separadores alfabÃ©ticos Ãºnicamente para los elementos de esta pÃ¡gina
+      // Agregamos los separadores alfabéticos únicamente para los elementos de esta página
       const listaConSeparadores = [];
       let letraActual = '';
 
@@ -1008,8 +1012,8 @@ export default function App() {
     setCurrentUser(null);
     setShowLogoutConfirm(false);
   }, []);
-  // SesiÃ³n real: al arrancar, solo vale si Supabase confirma sesiÃ³n activa.
-  // Sin sesiÃ³n no hay acceso aunque exista bandera local (cierra la puerta de DevTools).
+  // Sesión real: al arrancar, solo vale si Supabase confirma sesión activa.
+  // Sin sesión no hay acceso aunque exista bandera local (cierra la puerta de DevTools).
   useEffect(() => {
     let vivo = true;
     supabase.auth.getSession().then(({ data }) => {
@@ -1036,7 +1040,7 @@ export default function App() {
     try {
       if (!isSilent) setIsLoading(true);
 
-    // --- 1. VALIDACIÃ“N DE ROL EN SERVIDOR ---
+    // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
         const { data: dbUser, error: userError } = await supabase
           .from('usuarios')
@@ -1045,19 +1049,19 @@ export default function App() {
           .maybeSingle();
 
         if (userError || !dbUser) {
-          addToast("SesiÃ³n no vÃ¡lida o usuario inexistente.", "error");
+          addToast("Sesión no válida o usuario inexistente.", "error");
           handleLogout();
           return;
         }
 
         const esAdminEnDB = dbUser.cargo === 'admin';
         if (currentUser.role === 'admin' && !esAdminEnDB) {
-          addToast("Se detectÃ³ una alteraciÃ³n no autorizada en los permisos de sesiÃ³n.", "error");
+          addToast("Se detectó una alteración no autorizada en los permisos de sesión.", "error");
           handleLogout();
           return;
         }
       }
-    // --- FIN DE VALIDACIÃ“N DE ROL ---
+    // --- FIN DE VALIDACIÓN DE ROL ---
 
     const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout de red')), 8000)
@@ -1105,14 +1109,14 @@ export default function App() {
         if (inventarioFinal.length > 0) {
           await localforage.setItem(CACHE_BIENES, inventarioFinal);
           // Si ninguna fila trae sello (datos legacy), el punto de sync es "ahora":
-          // desde aquÃ­, toda ediciÃ³n ya sale sellada y entra en el delta.
+          // desde aquí, toda edición ya sale sellada y entra en el delta.
           await localforage.setItem(META_BIENES, { updated_at: maxUpdatedAt || ahoraISO(), actualizadoEn: Date.now() });
           setBienes(inventarioFinal);
         } else {
           setBienes([]);
         }
         } else {
-          // Delta: solo filas tocadas desde la Ãºltima sincronizaciÃ³n (KB, no MB).
+          // Delta: solo filas tocadas desde la última sincronización (KB, no MB).
           const { data: cambios, error: errorDelta } = await supabase
             .from('bens')
             .select('id, data, updated_at')
@@ -1165,7 +1169,7 @@ export default function App() {
       await Promise.race([fetchPromise, timeoutPromise]);
 
     } catch (error) { 
-        console.error("Error crÃ­tico de datos:", error);
+        console.error("Error crítico de datos:", error);
         if (!isSilent) setDbError(true);
         
         try {
@@ -1178,7 +1182,7 @@ export default function App() {
         setIsLoading(false); 
     }
   }, [dependenciaActual, currentUser, handleLogout]);
-// --- CONSULTA PÃšBLICA PARA ESCANEO DE QR ROBUSTA CON EXTRACCIÃ“N DE VALOR ---
+// --- CONSULTA PÚBLICA PARA ESCANEO DE QR ROBUSTA CON EXTRACCIÓN DE VALOR ---
 // (clearAllFilters vive en useInventarioFiltros, Fase 3)
 useEffect(() => {
   if (!publicBienId) return;
@@ -1189,7 +1193,7 @@ useEffect(() => {
       let bienEncontrado = null;
 
       // 1. Consulta directa a 'bens' (datos completos, incluye valorUnitario).
-      //    El RPC pÃºblico devuelve una proyecciÃ³n sin valor, por eso ya no va primero.
+      //    El RPC público devuelve una proyección sin valor, por eso ya no va primero.
       try {
         const { data: directData } = await supabase
           .from('bens')
@@ -1201,7 +1205,7 @@ useEffect(() => {
         }
       } catch (e) {}
 
-      // 2. RPC pÃºblico como respaldo (puede no traer valorUnitario).
+      // 2. RPC público como respaldo (puede no traer valorUnitario).
       if (!bienEncontrado || !tieneValor(bienEncontrado)) {
         try {
           const { data: rpcData, error: rpcError } = await supabase.rpc('obtener_bien_publico', {
@@ -1218,7 +1222,7 @@ useEffect(() => {
         } catch (e) {}
       }
 
-      // 3. Fallback en cachÃ© IndexedDB local
+      // 3. Fallback en caché IndexedDB local
       if (!bienEncontrado) {
         try {
           const allKeys = await localforage.keys();
@@ -1244,17 +1248,17 @@ useEffect(() => {
         });
       }
     } catch (err) {
-      console.error("Error al cargar bien pÃºblico:", err);
+      console.error("Error al cargar bien público:", err);
       setPublicBienData({
         rotulo: 'Error',
-        descripcion: 'OcurriÃ³ un problema al procesar la solicitud del cÃ³digo QR.'
+        descripcion: 'Ocurrió un problema al procesar la solicitud del código QR.'
       });
     }
   };
 
   cargarBienPublico();
 }, [publicBienId]);
-  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÃTICO DE SESIÃ“N (15 Minutos) ---
+  // --- MANEJO DE INACTIVIDAD Y CIERRE AUTOMÁTICO DE SESIÓN (15 Minutos) ---
   // INACTIVITY_LIMIT_MS vive en constants/appConstants (Fase 0 del split).
 
 useEffect(() => {
@@ -1263,7 +1267,7 @@ useEffect(() => {
   let inactivityTimer;
 
   const handleInactivityLogout = () => {
-    addToast("SesiÃ³n cerrada automÃ¡ticamente por inactividad (15 min).", "warning");
+    addToast("Sesión cerrada automáticamente por inactividad (15 min).", "warning");
     handleLogout();
   };
 
@@ -1290,13 +1294,13 @@ useEffect(() => {
           const notifInterval = setInterval(() => { if (!document.hidden) sondearNotificaciones(); }, 30000);
           const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, (payload) => { fusionarNotificacion(payload); }).subscribe();
           // Tiempo real en bienes: lo que cambia en un equipo (ej: foto desde el celular)
-          // se refleja solo en los demÃ¡s, sin refrescar
+          // se refleja solo en los demás, sin refrescar
           const bensChannel = supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
               try {
                   if (payload.eventType === 'DELETE') {
                       if (payload.old?.id) {
                         setBienes(prev => prev.filter(b => b.id !== payload.old.id));
-                        // La cachÃ© tambiÃ©n debe olvidar el borrado o el prÃ³ximo delta lo resucita.
+                        // La caché también debe olvidar el borrado o el próximo delta lo resucita.
                         localforage.getItem(`bienes_cache_${dependenciaActual}`).then(cache => {
                           if (Array.isArray(cache)) localforage.setItem(`bienes_cache_${dependenciaActual}`, cache.filter(b => b.id !== payload.old.id));
                         }).catch(() => {});
@@ -1340,7 +1344,7 @@ useEffect(() => {
         const esEmail = entrada.includes('@');
         const emailAcceso = esEmail ? entrada.toLowerCase() : `${entrada.toLowerCase()}@unp.edu.py`;
         const nombreUsuario = esEmail ? entrada.split('@')[0] : entrada;
-        // SesiÃ³n real con Supabase Auth
+        // Sesión real con Supabase Auth
         const { error: errorAuth } = await supabase.auth.signInWithPassword({
             email: emailAcceso,
             password: loginPass
@@ -1352,13 +1356,13 @@ useEffect(() => {
             if (/confirm/i.test(msgAuth)) {
                 addToast("Cuenta sin confirmar. Pide al administrador que la confirme en Supabase.", "error");
             } else {
-                addToast("Credenciales incorrectas. Verifique su usuario y contraseÃ±a.", "error");
+                addToast("Credenciales incorrectas. Verifique su usuario y contraseña.", "error");
             }
             setIsProcessing({ active: false, text: '' });
             return;
         }
 
-        // Perfil y rol desde la tabla usuarios (solo legible con sesiÃ³n)
+        // Perfil y rol desde la tabla usuarios (solo legible con sesión)
         const { data: perfil, error: errorPerfil } = await supabase
             .from('usuarios')
             .select('username, nombre, cargo, dependencia')
@@ -1388,7 +1392,7 @@ useEffect(() => {
         setCurrentUser(userSession); 
         setIsAuthenticated(true); 
         setDependenciaActual(userSession.dependencia);
-        // Cierra la puerta dev: el gate decide segÃºn el rol (dev entra, resto al muro).
+        // Cierra la puerta dev: el gate decide según el rol (dev entra, resto al muro).
         setMostrarLoginDev(false); 
         
         addToast(`Bienvenido, ${perfil.nombre} (${userSession.dependencia})`, "success"); 
@@ -1403,7 +1407,7 @@ useEffect(() => {
   const funcionariosConDatos = useMemo(() => { 
       const map = new Map(); 
       
-      // 1. PadrÃ³n oficial de la dependencia
+      // 1. Padrón oficial de la dependencia
       funcionariosPadron.filter(f => f.dependencia === dependenciaActual).forEach(f => {
           const nombreSeguro = String(f.nombre).trim();
           if(!map.has(normalizeStr(nombreSeguro))) {
@@ -1434,7 +1438,7 @@ useEffect(() => {
       return Array.from(map.values()).sort((a,b)=>a.nombre.localeCompare(b.nombre)); 
   }, [fc10List, bienes, funcionariosPadron, dependenciaActual]);
 
-  // Listas Ãºnicas, stats, pendientes, filtrado y paginaciÃ³n: todo vive en
+  // Listas únicas, stats, pendientes, filtrado y paginación: todo vive en
   // useInventarioFiltros (Fase 3). La UI usa los mismos nombres.
 
 
@@ -1442,8 +1446,8 @@ useEffect(() => {
   
   // filteredBienes, paginatedBienes/itemsPaginados y totalPages: en useInventarioFiltros (Fase 3).
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
-  // FC-10 vigente por bien (para mostrar la fecha de asignaciÃ³n en el inventario).
-  // Si hay varios, gana el vigente (sin devoluciÃ³n); si no, el mÃ¡s reciente.
+  // FC-10 vigente por bien (para mostrar la fecha de asignación en el inventario).
+  // Si hay varios, gana el vigente (sin devolución); si no, el más reciente.
   const fc10VigentePorBien = useMemo(() => {
     const mapa = new Map();
     for (const fc of fc10List) {
@@ -1471,10 +1475,10 @@ useEffect(() => {
           return normalizeStr(n.dependencia) === normalizeStr(dependenciaActual);
       });
   }, [notificaciones, dependenciaActual, isAdmin]);
-  // Resolver solicitud de eliminaciÃ³n del padrÃ³n (solo admin, desde Aprobaciones)
+  // Resolver solicitud de eliminación del padrón (solo admin, desde Aprobaciones)
   const resolverSolicitudFuncionario = async (notif, aprobar) => {
       try {
-          setIsProcessing({ active: true, text: aprobar ? 'Aprobando eliminaciÃ³n...' : 'Rechazando solicitud...' });
+          setIsProcessing({ active: true, text: aprobar ? 'Aprobando eliminación...' : 'Rechazando solicitud...' });
           const estadoNuevo = aprobar ? 'APROBADO' : 'RECHAZADO';
           const notifActualizada = { ...notif, estado: estadoNuevo, resueltoPor: currentUser?.username || 'Admin', resueltoFecha: new Date().toISOString() };
           setNotificaciones(prev => prev.map(n => n.id === notif.id ? notifActualizada : n));
@@ -1487,10 +1491,10 @@ useEffect(() => {
           const notifId = generateId();
           const notifUsuario = {
               id: notifId, tipoRegistro: 'NOTIFICACION', usuarioDestino: solicitanteUsername,
-              titulo: aprobar ? `EliminaciÃ³n aprobada: ${notif.nombre || ''}` : `EliminaciÃ³n rechazada: ${notif.nombre || ''}`,
+              titulo: aprobar ? `Eliminación aprobada: ${notif.nombre || ''}` : `Eliminación rechazada: ${notif.nombre || ''}`,
               mensaje: aprobar
-                  ? `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrÃ³n fue APROBADA.`
-                  : `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrÃ³n fue RECHAZADA.`,
+                  ? `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrón fue APROBADA.`
+                  : `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrón fue RECHAZADA.`,
               leido: false, fecha: new Date().toISOString()
           };
           setNotificaciones(prev => [notifUsuario, ...prev]);
@@ -1503,7 +1507,7 @@ useEffect(() => {
           });
           addToast(aprobar ? 'Funcionario eliminado y notificado.' : 'Solicitud rechazada y notificada.', 'success');
       } catch (e) {
-          addToast('Error al procesar la resoluciÃ³n.', 'error');
+          addToast('Error al procesar la resolución.', 'error');
       } finally {
           setIsProcessing({ active: false, text: '' });
       }
@@ -1538,7 +1542,7 @@ const handleDownloadLabelPNG = async (bien, returnOnly = false) => {
     const dataUrl = await generateProfessionalLabelPNG(bien, appLogo, returnOnly);
     if (!returnOnly) {
       await marcarBienConQR(bien.id);
-      addToast("Etiqueta descargada con Ã©xito", "success");
+      addToast("Etiqueta descargada con éxito", "success");
       setIsQRModalOpen(false);
     }
     return dataUrl;
@@ -1556,7 +1560,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     const dataUrl = await generateSimpleQR(bien, returnOnly);
     if (!returnOnly) {
       await marcarBienConQR(bien.id);
-      addToast("CÃ³digo QR simple descargado", "success");
+      addToast("Código QR simple descargado", "success");
       setIsQRModalOpen(false);
     }
     return dataUrl;
@@ -1569,7 +1573,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
   const handleBulkLabelPNGZip = async () => {
     if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
-    setIsProcessing({ active: true, text: 'Iniciando generaciÃ³n masiva de etiquetas...' });
+    setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
 
     setTimeout(async () => {
       try {
@@ -1620,7 +1624,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
             }
           }
         } catch (e) { console.error("Error bulk hasQR:", e); }
-        addToast("Archivo ZIP de etiquetas generado con Ã©xito", "success");
+        addToast("Archivo ZIP de etiquetas generado con éxito", "success");
       } catch (error) {
         console.error("Error en ZIP:", error);
         addToast("Hubo un error al generar el archivo ZIP.", "error");
@@ -1634,7 +1638,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   const handleBulkSimpleQRZip = async () => {
     if (filteredBienes.length === 0) return addToast("No hay bienes filtrados.", "warning");
     
-    setIsProcessing({ active: true, text: 'Iniciando compresiÃ³n de QRs simples...' });
+    setIsProcessing({ active: true, text: 'Iniciando compresión de QRs simples...' });
 
     setTimeout(async () => {
       try {
@@ -1685,7 +1689,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
             }
           }
         } catch (e) { console.error("Error bulk simple QR:", e); }
-        addToast("Archivo ZIP de QRs generado con Ã©xito", "success");
+        addToast("Archivo ZIP de QRs generado con éxito", "success");
       } catch (error) {
         console.error("Error en ZIP QR:", error);
         addToast("Hubo un error al generar el archivo ZIP.", "error");
@@ -1699,7 +1703,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
 
   // Logo para PDFs: respeta el logo subido por el usuario, si no usa el
-  // institucional segÃºn dependencia, y como Ãºltimo recurso el placeholder.
+  // institucional según dependencia, y como último recurso el placeholder.
   const resolveLogoImg = async (dependencia) => {
     if (appLogo) return appLogo;
     try {
@@ -1710,18 +1714,18 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   };
 
   const handleGenerateFC04PDF = (fc) => {
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerÃ­as PDF...", "warning");
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     setIsProcessing({ active: true, text: 'Generando PDF FC-04...' });
     setTimeout(async () => {
       try {
         const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', FORMATO_PDF); const pageWidth = doc.internal.pageSize.width; const pageHeight = doc.internal.pageSize.height;
-        const logoImg = await resolveLogoImg(fc.dependencia); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÃ“N DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
+        const logoImg = await resolveLogoImg(fc.dependencia); doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(14); doc.text("MOVIMIENTO DE BIENES DE USO (FC-04)", pageWidth / 2, 40, { align: 'center' });
         const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]; const mesNombre = monthNames[parseInt(fc.mes) - 1]; doc.setFontSize(10); doc.text(`Dependencia: ${fc.dependencia}`, 14, 50); doc.text(`Periodo: ${mesNombre.toUpperCase()} ${fc.anio}`, pageWidth - 14, 50, { align: 'right' }); const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento); doc.text(`Origen de Movimiento: ${origenObj ? `${origenObj.id} - ${origenObj.nombre}` : fc.origenMovimiento}`, 14, 56);
         let finalY = 62;
         if (fc.sinMovimiento) { doc.setFontSize(16); doc.setTextColor(100, 100, 100); doc.text("NO SE REGISTRA MOVIMIENTO ESTE MES", pageWidth / 2, finalY + 30, { align: 'center' }); finalY += 60; } 
         else { 
             const tableRows = fc.bienesSnapshot.map(b => [b.cuenta || '-', b.subcuenta || '-', b.analitico1 || '-', b.analitico2 || '-', b.rotulo || '-', b.descripcion || '-', formatCurrency(b.valorUnitario), formatDateText(b.fechaAdquisicion) || '-', b.vidaUtil || '-']); 
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "AnalÃ­tico 1", "AnalÃ­tico 2", "RÃ³tulo / CÃ³digo", "DescripciÃ³n del Bien", "Valor Unitario (Gs.)", "Fecha AdquisiciÃ³n", "Vida atil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta", "Subcuenta", "Analítico 1", "Analítico 2", "Rótulo / Código", "Descripción del Bien", "Valor Unitario (Gs.)", "Fecha Adquisición", "Vida atil"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center' }, 1: { halign: 'center' }, 2: { halign: 'center' }, 3: { halign: 'center' }, 4: { halign: 'center' }, 6: { halign: 'right', fontStyle: 'bold' }, 7: { halign: 'center' }, 8: { halign: 'center' } } }); finalY = doc.lastAutoTable.finalY + 10; 
         }
         if (!fc.sinMovimiento && fc.bienesSnapshot?.length > 0) { doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0, 0, 0); doc.text(`Cantidad Total de Bienes: ${fc.bienesSnapshot.length}`, 14, finalY); finalY += 10; }
         if (finalY > pageHeight - 45) { doc.addPage(); finalY = 40; }
@@ -1734,7 +1738,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   const handleGenerateFC11PDF = (fcsData) => {
     const fcs = Array.isArray(fcsData) ? fcsData : [fcsData];
     if (fcs.length === 0) return addToast("No hay datos para generar FC-11", "warning");
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerÃ­as PDF...", "warning");
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     setIsProcessing({ active: true, text: 'Generando PDF FC-11...' });
     const todayStr = new Date().toISOString().split('T')[0];
     setTimeout(async () => {
@@ -1744,22 +1748,22 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         const copias = ['ORIGINAL', 'DUPLICADO', 'TRIPLICADO'];
         for(let i = 0; i < 3; i++) {
             if(i > 0) doc.addPage();
-            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÃ“N DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
+            doc.addImage(logoImg, 'PNG', 14, 12, 22, 22); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, 18, { align: 'center' }); doc.setFontSize(11); doc.text("DIRECCIÓN DE CONTABILIDAD", pageWidth / 2, 24, { align: 'center' }); doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, 29, { align: 'center' }); doc.setFontSize(13); doc.text("FORMULARIO DE MOVIMIENTO INTERNO DE BIENES (FC-11)", pageWidth / 2, 38, { align: 'center' });
             doc.setFontSize(6); doc.setTextColor(200); doc.setFont("helvetica", "italic"); doc.text(`--- ${copias[i]} ---`, pageWidth - 14, 12, { align: 'right' }); doc.setTextColor(0); doc.setFont("helvetica", "normal");
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`NÂº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.text(`Nº Formulario: ${fc.numeroFormulario || 'S/N'}`, 14, 48); doc.setFont("helvetica", "normal"); doc.text(formattedDate, pageWidth - 14, 48, { align: 'right' });
             let finalY = 54; doc.autoTable({ startY: finalY, theme: 'grid', rowPageBreak: 'avoid', margin: { bottom: 30 }, body: [ [`Dependencia Remitente: ${fc.dependenciaRemitente || ''} ${fc.areaRemitente ? '- ' + fc.areaRemitente : ''}`.trim()], [`Dependencia Destinataria: ${fc.dependenciaDestinataria || ''} ${fc.areaDestinataria ? '- ' + fc.areaDestinataria : ''}`.trim()] ], styles: { fontSize: 10, cellPadding: 4, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1, fontStyle: 'bold', fillColor: [248, 249, 250] } }); finalY = doc.lastAutoTable.finalY + 6;
-            const tableRows = fcs.map(item => { const b = item.bienSnapshot || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (item.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÃ' : 'NO' ]; });
+            const tableRows = fcs.map(item => { const b = item.bienSnapshot || {}; const cuentaFull = [b.cuenta, b.subcuenta, b.analitico1, b.analitico2].filter(Boolean).join('-'); return [ cuentaFull || '-', b.rotulo || '-', b.descripcion || '-', formatDateText(b.fechaAdquisicion) || '-', (item.estadoConservacion || b.estadoConservacion || '-').toUpperCase(), b.hasQR ? 'SÍ' : 'NO' ]; });
             if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "RÃ³tulo / CÃ³digo", "DescripciÃ³n del Bien", "Fecha de AdquisiciÃ³n", "Estado FÃ­sico", "QR"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 32 }, 1: { halign: 'center', cellWidth: 26 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 12 } } }); finalY = doc.lastAutoTable.finalY + 8;
+            doc.autoTable({ startY: finalY, theme: 'grid', head: [["Cuenta Contable", "Rótulo / Código", "Descripción del Bien", "Fecha de Adquisición", "Estado Físico", "QR"]], body: tableRows, rowPageBreak: 'avoid', margin: { bottom: 30 }, styles: { fontSize: 8, cellPadding: 3, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.1 }, headStyles: { fillColor: [248, 249, 250], fontStyle: 'bold', halign: 'center', textColor: [32,33,36] }, alternateRowStyles: { fillColor: [250, 252, 253] }, columnStyles: { 0: { halign: 'center', cellWidth: 32 }, 1: { halign: 'center', cellWidth: 26 }, 2: { cellWidth: 'auto' }, 3: { halign: 'center', cellWidth: 30 }, 4: { halign: 'center', cellWidth: 24 }, 5: { halign: 'center', cellWidth: 12 } } }); finalY = doc.lastAutoTable.finalY + 8;
             doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.text(`Cantidad Total de Bienes Trasladados: ${fcs.length}`, 14, finalY); finalY += 10;
             if (finalY > pageHeight - 40) { doc.addPage(); finalY = 20; }
-            doc.setFont("helvetica", "bold"); doc.text("Motivo o circunstancia del movimiento:", 14, finalY); finalY += 8; const motivos = ["Traspaso", "PrÃ©stamo", "Inservible", "Faltante"]; let startX = 20; doc.setFont("helvetica", "normal");
+            doc.setFont("helvetica", "bold"); doc.text("Motivo o circunstancia del movimiento:", 14, finalY); finalY += 8; const motivos = ["Traspaso", "Préstamo", "Inservible", "Faltante"]; let startX = 20; doc.setFont("helvetica", "normal");
             motivos.forEach((m) => { doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.rect(startX, finalY - 3, 4, 4); if (fc.motivo === m) { doc.setFont("helvetica", "bold"); doc.text("X", startX + 0.9, finalY + 0.4); doc.setFont("helvetica", "normal"); } doc.text(m, startX + 6, finalY + 0.4); startX += 40; }); finalY += 10;
             if (finalY > pageHeight - 30) { doc.addPage(); finalY = 20; }
             doc.setFont("helvetica", "bold"); doc.text("Observaciones:", 14, finalY); finalY += 6; doc.setFont("helvetica", "normal"); doc.text(fc.observaciones || 'Ninguna.', 14, finalY, { maxWidth: pageWidth - 28, align: 'justify' });
             if (finalY > pageHeight - 65) { doc.addPage(); finalY = 30;} else { finalY += 35; }
             doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.4); doc.line(14, finalY, 70, finalY); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text("Jefe de Dependencia Remitente", 42, finalY + 5, { align: 'center' }); doc.line(78, finalY, 138, finalY); doc.text("Jefe de Dependencia Destinataria", 108, finalY + 5, { align: 'center' }); doc.line(146, finalY, 202, finalY); doc.text("Jefe Dpto. Bienes Patrimoniales", 174, finalY + 5, { align: 'center' });
-            let pieY = pageHeight - 15; doc.setFont("helvetica", "normal"); doc.text("DistribuciÃ³n: Original para el Departamento de Bienes Patrimoniales, Copias para dependencia remitente y destinataria.", 14, pieY);
+            let pieY = pageHeight - 15; doc.setFont("helvetica", "normal"); doc.text("Distribución: Original para el Departamento de Bienes Patrimoniales, Copias para dependencia remitente y destinataria.", 14, pieY);
         }
         const cleanFormNum = (fc.numeroFormulario || 'S-N').replace(/[^a-zA-Z0-9]/g, '-'); doc.save(`FC11_Traslado_${cleanFormNum}_${todayStr}.pdf`); addToast("Reporte FC-11 generado", "success");
       } catch(e) { console.error(e); addToast("Error PDF: " + (e.message || "Desconocido"), "error"); } finally { setIsProcessing({ active: false, text: '' }); }
@@ -1770,7 +1774,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     const bienesAListar = Array.isArray(bienesData) ? bienesData : [bienesData];
     if (fcs.length === 0) return addToast("No hay datos para generar FC-10", "warning");
 
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerÃ­as PDF...", "warning");
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     setIsProcessing({ active: true, text: 'Generando PDF FC-10...' });
     
     setTimeout(() => {
@@ -1832,7 +1836,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         return (gYear === fc10Year) || matchDev;
     }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime());
 
-    if (fcsAnuales.length === 0) return addToast(`No hay datos FC-10 para el aÃ±o ${fc10Year}`, "warning");
+    if (fcsAnuales.length === 0) return addToast(`No hay datos FC-10 para el año ${fc10Year}`, "warning");
     
     setIsProcessing({ active: true, text: 'Generando Excel...' });
     setTimeout(() => {
@@ -1870,7 +1874,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         return year === fc10Year;
     }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
 
-    if (fcsAnuales11.length === 0) return addToast(`No hay datos FC-11 para el aÃ±o ${fc10Year}`, "warning");
+    if (fcsAnuales11.length === 0) return addToast(`No hay datos FC-11 para el año ${fc10Year}`, "warning");
     
     setIsProcessing({ active: true, text: 'Generando Excel...' });
     setTimeout(() => {
@@ -1905,7 +1909,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   };
 
   const executeGenerateFC03 = () => {
-    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerÃ­as PDF...", "warning");
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast("Cargando librerías PDF...", "warning");
     
     let bienesToPrint = filteredBienes.filter(b => b.estadoConservacion !== 'De Baja');
     
@@ -1942,12 +1946,12 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
             return [
                 b.cuenta || '', b.subcuenta || '', b.analitico1 || '', b.analitico2 || '', 
                 b.descripcion || '', b.ubicacion || '-', b.funcionario || 'Sin Asignar', 
-                formatDateText(b.fechaAdquisicion) || '', b.rotulo || 'S/RÃ³tulo', '1', 
+                formatDateText(b.fechaAdquisicion) || '', b.rotulo || 'S/Rótulo', '1', 
                 formatCurrency(valor), formatCurrency(valor), 'C', getEstadoAbbr(b.estadoConservacion), '', ''
             ];
         });
 
-        // NÃºmero a letras: helper puro en utils/numeroLetras (Fase 1).
+        // Número a letras: helper puro en utils/numeroLetras (Fase 1).
         const strTotal = formatCurrency(totalValor);
         
         tableRows.push([
@@ -1974,19 +1978,19 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 [
                     { content: 'CUENTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'SUB\nCTA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'ESPECIFICACIÃ“N', colSpan: 2, styles: { halign: 'center' } },
-                    { content: 'DESCRIPCIÃ“N', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
-                    { content: 'UBICACIÃ“N', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'ESPECIFICACIÓN', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'DESCRIPCIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
+                    { content: 'UBICACIÓN', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'FUNCIONARIO', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'EN REGISTROS Y/O DOCUMENTO', colSpan: 5, styles: { halign: 'center' } },
-                    { content: 'INVENTARIO\nFÃSICO', colSpan: 2, styles: { halign: 'center' } },
+                    { content: 'INVENTARIO\nFÍSICO', colSpan: 2, styles: { halign: 'center' } },
                     { content: 'DIFERENCIA', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } },
                     { content: 'OBS.', rowSpan: 2, styles: { halign: 'center', valign: 'middle' } }
                 ],
                 [
                     { content: 'An. 1', styles: { halign: 'center' } },
                     { content: 'An. 2', styles: { halign: 'center' } },
-                    { content: 'FECHA\nADQUISICIÃ“N', styles: { halign: 'center' } },
+                    { content: 'FECHA\nADQUISICIÓN', styles: { halign: 'center' } },
                     { content: 'ROTULADO', styles: { halign: 'center' } },
                     { content: 'CANT.', styles: { halign: 'center' } },
                     { content: 'VALOR\nUNIT.', styles: { halign: 'center' } },
@@ -2030,10 +2034,10 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
                 doc.setFontSize(7.5); doc.setFont("helvetica", "bold");
                 doc.text("ENTIDAD", 12, 35.5);
-                doc.text("UNIDAD JERÃRQUICA", 12, 43.1);
-                doc.text("REPARTICIÃ“N", 12, 50.7);
+                doc.text("UNIDAD JERÁRQUICA", 12, 43.1);
+                doc.text("REPARTICIÓN", 12, 50.7);
                 doc.text("DEPENDENCIA", 12, 58.3);
-                doc.text("ÃREA", 12, 65.9);
+                doc.text("ÁREA", 12, 65.9);
 
                 doc.setFont("helvetica", "normal");
                 doc.text("28 - UNIVERSIDAD NACIONAL DE PILAR", 44, 35.5);
@@ -2042,7 +2046,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.text(dependenciaActual.toUpperCase(), 44, 58.3, { maxWidth: 94 });
                 doc.text(`${repText} (Resp: ${funcText})`, 44, 65.9, { maxWidth: 94 });
 
-                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÃ“N", 142, 35.5);
+                doc.setFont("helvetica", "bold"); doc.text("ESTADO DE CONSERVACIÓN", 142, 35.5);
                 doc.setFont("helvetica", "normal");
                 doc.text("MB........Muy Bueno", 142, 43.1);
                 doc.text("B..........Bueno", 142, 50.7);
@@ -2056,7 +2060,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
                 doc.text("C...... Conforme", 197, 53);
 
                 doc.setFont("helvetica", "bold");
-                doc.text(`Hoja NÂ° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35);
+                doc.text(`Hoja N° ${doc.internal.getCurrentPageInfo().pageNumber}`, pageWidth - 35, 35);
 
                 doc.text("Fecha", 197, 59); 
                 doc.setFont("helvetica", "normal"); 
@@ -2081,10 +2085,10 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
                 const rightX = pageWidth - 15 - sigWidth;
                 doc.line(rightX, finalY, rightX + sigWidth, finalY); 
-                doc.text("Directora General de AdministraciÃ³n y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
+                doc.text("Directora General de Administración y Finanzas", rightX + (sigWidth/2), finalY + 4, { align: 'center' });
 
                 doc.setFont("helvetica", "italic"); doc.setFontSize(6); doc.setTextColor(100);
-                doc.text("Generado por el Sistema Integrado de GestiÃ³n Patrimonial UNP", 14, pageHeight - 4);
+                doc.text("Generado por el Sistema Integrado de Gestión Patrimonial UNP", 14, pageHeight - 4);
                 doc.setTextColor(0);
             }
         });
@@ -2126,7 +2130,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   };
   
   const handleDownloadTemplateCSV = () => {
-      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;AnalÃ­tico 1;AnalÃ­tico 2;DescripciÃ³n General;Fecha AdquisiciÃ³n (YYYY-MM-DD);NÂº RÃ³tulo;Valor Unitario (Sin puntos);Vida atil (AÃ±os)\n" +
+      const csvContent = "\uFEFFCuenta Mayor;Sub-Cuenta;Analítico 1;Analítico 2;Descripción General;Fecha Adquisición (YYYY-MM-DD);Nº Rótulo;Valor Unitario (Sin puntos);Vida atil (Años)\n" +
                           "2.6.1.01;01;01;01;\"Computadora HP i5\";2023-01-15;10001;4500000;5\n" +
                           ";;;;\"Escritorio de Madera\";2022-11-10;10002;1200000;10";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2155,18 +2159,18 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         const newBienes = [];
         let duplicatesSkipped = 0;
 
-        // Mapeo automÃ¡tico de columnas: acepta encabezados con otros nombres,
-        // sin tildes, mayÃºsculas o abreviaturas (ej: "Rotulo", "VALOR", "Fecha").
+        // Mapeo automático de columnas: acepta encabezados con otros nombres,
+        // sin tildes, mayúsculas o abreviaturas (ej: "Rotulo", "VALOR", "Fecha").
         const ALIAS_COLUMNAS = {
-          rotulo: ['NÂº RÃ“TULO', 'N ROTULO', 'ROTULO', 'RÃ“TULO', 'CÃ“DIGO', 'CODIGO'],
+          rotulo: ['Nº RÓTULO', 'N ROTULO', 'ROTULO', 'RÓTULO', 'CÓDIGO', 'CODIGO'],
           cuenta: ['CUENTA MAYOR', 'CUENTA'],
           subcuenta: ['SUB-CUENTA', 'SUBCUENTA', 'SUB CUENTA'],
-          analitico1: ['ANALÃTICO 1', 'ANALITICO 1', 'AN 1', 'AN. 1'],
-          analitico2: ['ANALÃTICO 2', 'ANALITICO 2', 'AN 2', 'AN. 2'],
-          descripcion: ['DESCRIPCIÃ“N GENERAL', 'DESCRIPCION GENERAL', 'DESCRIPCIÃ“N', 'DESCRIPCION', 'DETALLE'],
-          fechaAdquisicion: ['FECHA ADQUISICIÃ“N (YYYY-MM-DD)', 'FECHA ADQUISICION', 'FECHA ADQUISICIÃ“N', 'FECHA'],
+          analitico1: ['ANALÍTICO 1', 'ANALITICO 1', 'AN 1', 'AN. 1'],
+          analitico2: ['ANALÍTICO 2', 'ANALITICO 2', 'AN 2', 'AN. 2'],
+          descripcion: ['DESCRIPCIÓN GENERAL', 'DESCRIPCION GENERAL', 'DESCRIPCIÓN', 'DESCRIPCION', 'DETALLE'],
+          fechaAdquisicion: ['FECHA ADQUISICIÓN (YYYY-MM-DD)', 'FECHA ADQUISICION', 'FECHA ADQUISICIÓN', 'FECHA'],
           valorUnitario: ['VALOR UNITARIO (SIN PUNTOS)', 'VALOR UNITARIO', 'VALOR', 'PRECIO', 'COSTO'],
-          vidaUtil: ['VIDA ATIL (AÃ‘OS)', 'VIDA ÃšTIL', 'VIDA UTIL', 'VIDA'],
+          vidaUtil: ['VIDA ATIL (AÑOS)', 'VIDA ÚTIL', 'VIDA UTIL', 'VIDA'],
         };
         const encabezados = results.meta.fields || [];
         const buscarColumna = (aliases) => {
@@ -2216,18 +2220,18 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           try {
             const payload = newBienes.map(b => conSello({ id: b.id, data: b }));
             await supabase.from('bens').insert(payload);
-            // ActualizaciÃ³n local dirigida (evita recargar todo el inventario)
+            // Actualización local dirigida (evita recargar todo el inventario)
             setBienes(prev => [...newBienes, ...prev.filter(b => !newBienes.some(n => n.id === b.id))]);
             try {
               const cacheActual = await localforage.getItem(`bienes_cache_${dependenciaActual}`) || [];
               await localforage.setItem(`bienes_cache_${dependenciaActual}`, [...newBienes, ...cacheActual.filter(b => !newBienes.some(n => n.id === b.id))]);
             } catch (e) {}
-            addToast(`Â¡0xito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
+            addToast(`¡0xito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
           } catch (error) {
             addToast("Error al guardar registros en la base de datos.", "error");
           }
         } else {
-          addToast(`No se importÃ³ ningÃºn bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
+          addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
         }
 
         setIsProcessing({ active: false, text: '' });
@@ -2240,9 +2244,9 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       }
     });
   };
-  // --- BACKUP GENERAL DE PROTECCIÃ“N DEL SISTEMA (SOLO ADMINS) ---
+  // --- BACKUP GENERAL DE PROTECCIÓN DEL SISTEMA (SOLO ADMINS) ---
   const handleExportBackupGeneral = async () => {
-    if (!isAdmin) return addToast("AcciÃ³n permitida Ãºnicamente para administradores.", "error");
+    if (!isAdmin) return addToast("Acción permitida únicamente para administradores.", "error");
     setIsProcessing({ active: true, text: "Generando respaldo integral del sistema..." });
 
     try {
@@ -2261,7 +2265,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       const backupData = {
         metadata: {
           version: "2.0",
-          sistema: "Sistema de GestiÃ³n Patrimonial UNP",
+          sistema: "Sistema de Gestión Patrimonial UNP",
           fechaGeneracion: new Date().toISOString(),
           generadoPor: currentUser?.username || "Admin",
           totalBienes: allBienes.data?.length || 0,
@@ -2334,20 +2338,20 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   };
   const handleExportInventarioExcel = () => {
       if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
-      if (!window.XLSX) return addToast("Cargando librerÃ­a Excel, intenta de nuevo...", "warning");
+      if (!window.XLSX) return addToast("Cargando librería Excel, intenta de nuevo...", "warning");
       setIsProcessing({ active: true, text: 'Generando Excel...' });
       setTimeout(() => {
           try {
               const filas = filteredBienes.map(b => ({
                   'Cuenta': b.cuenta || '-', 'Subcuenta': b.subcuenta || '-',
-                  'AnalÃ­tico 1': b.analitico1 || '-', 'AnalÃ­tico 2': b.analitico2 || '-',
-                  'RÃ³tulo': b.rotulo || '-', 'DescripciÃ³n': b.descripcion || '-',
-                  'Dependencia': b.dependencia || '-', 'UbicaciÃ³n': b.ubicacion || '-',
+                  'Analítico 1': b.analitico1 || '-', 'Analítico 2': b.analitico2 || '-',
+                  'Rótulo': b.rotulo || '-', 'Descripción': b.descripcion || '-',
+                  'Dependencia': b.dependencia || '-', 'Ubicación': b.ubicacion || '-',
                   'Funcionario': b.funcionario || '-',
-                  'Fecha AdquisiciÃ³n': formatDateText(b.fechaAdquisicion) || '-',
+                  'Fecha Adquisición': formatDateText(b.fechaAdquisicion) || '-',
                   'Valor Unitario (Gs.)': parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0,
-                  'Estado': b.estadoConservacion || '-', 'Vida Ãštil': b.vidaUtil || '-',
-                  'FC-10': b.hasFC10 ? 'SÃ' : 'NO', 'QR': b.hasQR ? 'SÃ' : 'NO'
+                  'Estado': b.estadoConservacion || '-', 'Vida Útil': b.vidaUtil || '-',
+                  'FC-10': b.hasFC10 ? 'SÍ' : 'NO', 'QR': b.hasQR ? 'SÍ' : 'NO'
               }));
               const wb = window.XLSX.utils.book_new();
               const ws = window.XLSX.utils.json_to_sheet(filas);
@@ -2358,7 +2362,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
               filas.forEach(r => { porEstado[r['Estado']] = porEstado[r['Estado']] || { cant: 0, valor: 0 }; porEstado[r['Estado']].cant++; porEstado[r['Estado']].valor += r['Valor Unitario (Gs.)'] || 0; });
               const resumen = [
                   { 'Concepto': 'Dependencia', 'Valor': dependenciaActual },
-                  { 'Concepto': 'Fecha de generaciÃ³n', 'Valor': new Date().toLocaleDateString('es-PY') },
+                  { 'Concepto': 'Fecha de generación', 'Valor': new Date().toLocaleDateString('es-PY') },
                   { 'Concepto': 'Total de bienes', 'Valor': filas.length },
                   { 'Concepto': 'Valor total (Gs.)', 'Valor': totalValor },
                   { 'Concepto': '', 'Valor': '' },
@@ -2379,7 +2383,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       }, 100);
   };
   const sincronizarBienesConPadron = async () => {
-    setIsProcessing({ active: true, text: 'Sincronizando activos con el PadrÃ³n de Funcionarios...' });
+    setIsProcessing({ active: true, text: 'Sincronizando activos con el Padrón de Funcionarios...' });
 
     try {
       let actualizados = 0;
@@ -2404,7 +2408,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       if (actualizados > 0) {
         setBienes(nuevosBienes);
 
-        // ActualizaciÃ³n por lotes para no congelar la app
+        // Actualización por lotes para no congelar la app
         const CHUNK_SIZE = 10;
         for (let i = 0; i < bienesAActualizar.length; i += CHUNK_SIZE) {
           const chunk = bienesAActualizar.slice(i, i + CHUNK_SIZE);
@@ -2414,13 +2418,13 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         }
 
         await localforage.setItem(`bienes_cache_${dependenciaActual}`, nuevosBienes);
-        addToast(`Â¡SincronizaciÃ³n exitosa! Se actualizaron ${actualizados} registros con sus datos oficiales.`, "success");
+        addToast(`¡Sincronización exitosa! Se actualizaron ${actualizados} registros con sus datos oficiales.`, "success");
       } else {
-        addToast("Los activos de esta dependencia ya coinciden exactamente con el padrÃ³n oficial.", "info");
+        addToast("Los activos de esta dependencia ya coinciden exactamente con el padrón oficial.", "info");
       }
     } catch (err) {
       console.error(err);
-      addToast("Error al procesar la sincronizaciÃ³n en la base de datos.", "error");
+      addToast("Error al procesar la sincronización en la base de datos.", "error");
     } finally {
       setIsProcessing({ active: false, text: '' });
     }
@@ -2439,14 +2443,14 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       reader.onload = async (event) => {
         const buffer = event.target.result;
         
-        // FORZAR LA DECODIFICACIÃ“N EN UTF-8 PARA CORREGIR TILDES Y Ã‘
+        // FORZAR LA DECODIFICACIÓN EN UTF-8 PARA CORREGIR TILDES Y Ñ
         const decoder = new TextDecoder('utf-8');
         const text = decoder.decode(buffer);
         
         const lines = text.split(/\r?\n/); 
         
         if (lines.length < 1) { 
-            addToast("El archivo CSV estÃ¡ vacÃ­o.", "warning"); 
+            addToast("El archivo CSV está vacío.", "warning"); 
             setIsProcessing({ active: false, text: '' }); 
             return; 
         }
@@ -2455,11 +2459,11 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         const duplicados = [];
         const errores = [];
 
-        // Mapeo automÃ¡tico de columnas por alias (acepta otros nombres, orden y sin tildes)
+        // Mapeo automático de columnas por alias (acepta otros nombres, orden y sin tildes)
         const ALIAS_FUNC = {
-          cedula: ['CÃ‰DULA', 'CEDULA', 'CI', 'C.I.', 'DOCUMENTO', 'NRO DOCUMENTO', 'NÃšMERO DE DOCUMENTO'],
+          cedula: ['CÉDULA', 'CEDULA', 'CI', 'C.I.', 'DOCUMENTO', 'NRO DOCUMENTO', 'NÚMERO DE DOCUMENTO'],
           nombre: ['NOMBRE COMPLETO', 'NOMBRE', 'FUNCIONARIO', 'APELLIDO Y NOMBRE', 'NOMBRE Y APELLIDO', 'PERSONA'],
-          cargo: ['CARGO', 'PUESTO', 'FUNCIÃ“N', 'FUNCION', 'ROL', 'CARGO INSTITUCIONAL'],
+          cargo: ['CARGO', 'PUESTO', 'FUNCIÓN', 'FUNCION', 'ROL', 'CARGO INSTITUCIONAL'],
         };
         const normH = (s) => normalizeStr(s || '');
         let idx = { cedula: 0, nombre: 1, cargo: 2 };
@@ -2495,7 +2499,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           const cargoCSV = String(parts[idx.cargo] || '').trim();
 
           if (!cedulaCSV || !nombreCSV) {
-              errores.push({ linea: i + 1, motivo: 'CÃ©dula o Nombre vacÃ­os' });
+              errores.push({ linea: i + 1, motivo: 'Cédula o Nombre vacíos' });
               continue;
           }
 
@@ -2542,7 +2546,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           dependencia: dependenciaActual
       };
 
-      if (!nuevoFunc.cedula || !nuevoFunc.nombre) return addToast("CÃ©dula y Nombre son obligatorios.", "warning");
+      if (!nuevoFunc.cedula || !nuevoFunc.nombre) return addToast("Cédula y Nombre son obligatorios.", "warning");
 
       try {
           const { error } = await supabase.from('funcionarios').insert([nuevoFunc]);
@@ -2556,10 +2560,10 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   };
 
   const handleDownloadTemplateFuncionarios = () => {
-      const csvContent = "\uFEFFCÃ©dula;Nombre Completo;Cargo\n1234567;Juan PÃ©rez;Asistente Administrativo\n7654321;MarÃ­a GÃ³mez;Directora de Ãrea";
+      const csvContent = "\uFEFFCédula;Nombre Completo;Cargo\n1234567;Juan Pérez;Asistente Administrativo\n7654321;María Gómez;Directora de Área";
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       if (window.saveAs) window.saveAs(blob, "Plantilla_Carga_Funcionarios.csv");
-      addToast("Plantilla CSV del padrÃ³n descargada", "success");
+      addToast("Plantilla CSV del padrón descargada", "success");
   };
   const confirmCSVImportFuncionarios = async () => {
     if (pendingFuncionariosToImport.length === 0) return;
@@ -2583,7 +2587,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
             if (errUpd) throw errUpd;
         }
         
-        // ActualizaciÃ³n local dirigida (mismo efecto que la recarga, sin transferencia extra)
+        // Actualización local dirigida (mismo efecto que la recarga, sin transferencia extra)
         setFuncionariosPadron(prev => {
             let lista = [...prev];
             porActualizar.forEach(act => {
@@ -2592,7 +2596,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
             const nuevos = porInsertar.map(({ esActualizacion, ...rest }) => rest);
             return [...nuevos, ...lista];
         });
-        addToast(`Â¡0xito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
+        addToast(`¡0xito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
     } catch (error) {
         console.error(error);
         addToast("Error al sincronizar con la base de datos.", "error");
@@ -2674,7 +2678,7 @@ const handleEditFuncionario = (funcionario) => {
             addToast(res.error.message || "Error al procesar la solicitud", "error");
         }
     } catch (error) {
-        addToast("Error de conexiÃ³n.", "error");
+        addToast("Error de conexión.", "error");
     }
   };
 
@@ -2692,7 +2696,7 @@ const handleEditFuncionario = (funcionario) => {
     const rotuloInput = formData.get('rotulo').trim(); 
     const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && b.dependencia === dependenciaActual && (!bienEditing || b.id !== bienEditing.id)); 
     if (isDuplicate) { 
-        addToast(`El rÃ³tulo "${rotuloInput}" ya estÃ¡ registrado en esta dependencia.`, "error"); 
+        addToast(`El rótulo "${rotuloInput}" ya está registrado en esta dependencia.`, "error"); 
         setIsSaving(false);
         setIsProcessing({ active: false, text: '' });
         return; 
@@ -2737,11 +2741,11 @@ const handleEditFuncionario = (funcionario) => {
     };
     
     try { 
-        // xÃ“ AQUÃ SE INTERCEPTA EL MODO OFFLINE
+        // xÓ AQUÍ SE INTERCEPTA EL MODO OFFLINE
         if (!navigator.onLine) {
             await enqueueOfflineAction({ type: 'SAVE_BIEN', payload: bienData });
             
-            // Actualizamos el estado de la app y la cachÃ© IndexedDB
+            // Actualizamos el estado de la app y la caché IndexedDB
             setBienes(prev => [bienData, ...prev.filter(b => b.id !== bienData.id)]);
             const cacheActual = (await localforage.getItem(`bienes_cache_${dependenciaActual}`)) || [];
             await localforage.setItem(`bienes_cache_${dependenciaActual}`, [bienData, ...cacheActual.filter(b => b.id !== bienData.id)]);
@@ -2749,7 +2753,7 @@ const handleEditFuncionario = (funcionario) => {
             setIsBienModalOpen(false);
             setIsSaving(false);
             setIsProcessing({ active: false, text: '' });
-            return addToast(`Guardado localmente. Se sincronizarÃ¡ al recuperar la seÃ±al.`, "warning");
+            return addToast(`Guardado localmente. Se sincronizará al recuperar la señal.`, "warning");
         }
 
         let res;
@@ -2810,7 +2814,7 @@ const handleEditFuncionario = (funcionario) => {
                 setBienEditing(null);
             } else {
                 setIsBienModalOpen(false); 
-                addToast("Bien guardado y actualizado con el padrÃ³n", "success"); 
+                addToast("Bien guardado y actualizado con el padrón", "success"); 
             }
         } else {
             addToast("Error al guardar en el servidor.", "error");
@@ -2941,7 +2945,7 @@ const handleEditFuncionario = (funcionario) => {
         setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
         setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
         setIsFC10ModalOpen(false); 
-        addToast(isDevuelto ? "DevoluciÃ³n registrada" : "FC-10 Guardado exitosamente", "success"); 
+        addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
     } catch (error) { console.error(error); addToast("Error al guardar.", "error"); }
   };
   const markAsRead = async (notif) => {
@@ -2985,8 +2989,8 @@ const handleEditFuncionario = (funcionario) => {
     setFc04Items(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  // ExtracciÃ³n de cÃ³digo QR: helper puro en utils/qr (Fase 1).
-  // Modo conteo: el escÃ¡ner alimenta la conciliaciÃ³n fÃ­sica en vez de abrir el bien
+  // Extracción de código QR: helper puro en utils/qr (Fase 1).
+  // Modo conteo: el escáner alimenta la conciliación física en vez de abrir el bien
   const [scanParaConteo, setScanParaConteo] = useState(false);
   const handleScanSuccess = async (decodedText) => {
     const targetId = extraerCodigoQR(decodedText);
@@ -3064,7 +3068,7 @@ const handleEditFuncionario = (funcionario) => {
                       { fps: 10, qrbox: { width: 250, height: 250 } },
                       (decodedText) => { html5QrCode.stop().then(() => { handleScanSuccess(decodedText); }).catch(() => { handleScanSuccess(decodedText); }); },
                       (errorMessage) => {}
-                  ).catch(err => { addToast("No se pudo acceder a la cÃ¡mara. Verifique los permisos.", "error"); setIsScannerOpen(false); });
+                  ).catch(err => { addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error"); setIsScannerOpen(false); });
               }
           }, 300);
       }
@@ -3082,10 +3086,10 @@ const handleEditFuncionario = (funcionario) => {
           esSolicitud: true,
           accion: 'solicitud',
           titulo: n.tipo === 'BAJA_FUNCIONARIO'
-            ? `Solicitud de padrÃ³n: ${n.nombre || 'S/N'}`
+            ? `Solicitud de padrón: ${n.nombre || 'S/N'}`
             : `Solicitud de Baja: #${n.rotulo || 'S/R'}`,
           mensaje: n.tipo === 'BAJA_FUNCIONARIO'
-            ? `${n.solicitante || 'Un funcionario'} solicita eliminar a "${n.nombre || ''}" del padrÃ³n. Motivo: ${n.motivo || 'No especificado'}.`
+            ? `${n.solicitante || 'Un funcionario'} solicita eliminar a "${n.nombre || ''}" del padrón. Motivo: ${n.motivo || 'No especificado'}.`
             : `${n.solicitante || 'Un funcionario'} solicita la baja de "${n.descripcion || 'Bien'}". Motivo: ${n.motivo || 'No especificado'}.`,
           fecha: n.created_at || new Date().toISOString(),
           leido: false,
@@ -3101,9 +3105,9 @@ const handleEditFuncionario = (funcionario) => {
   const unreadCount = misNotificaciones.filter(n => !n.leido).length;
   const saludoBienvenida = useMemo(() => {
     const hora = new Date().getHours();
-    if (hora < 12) return "Â¡Buenos dÃ­as";
-    if (hora < 19) return "Â¡Buenas tardes";
-    return "Â¡Buenas noches";
+    if (hora < 12) return "¡Buenos días";
+    if (hora < 19) return "¡Buenas tardes";
+    return "¡Buenas noches";
   }, []);
 
   const renderPagination = () => (
@@ -3147,7 +3151,7 @@ const handleEditFuncionario = (funcionario) => {
       setIsProcessing({ active: true, text: accion === "aprobar" ? "Aprobando baja..." : "Rechazando solicitud..." });
 
       try {
-          // Encontrar la notificaciÃ³n de solicitud de baja pendiente asociada
+          // Encontrar la notificación de solicitud de baja pendiente asociada
           const notifPendiente = notifOrigen || notificaciones.find(
               n => n.tipo === "BAJA_BIEN" && (n.bienId === bien.id || n.bien_id === bien.id) && n.estado === "PENDIENTE"
           );
@@ -3155,7 +3159,7 @@ const handleEditFuncionario = (funcionario) => {
           const estadoNuevo = accion === "aprobar" ? "APROBADO" : "RECHAZADO";
           const solicitanteUsername = notifPendiente?.solicitante || notifPendiente?.solicitadoPor || bien?.bajaSolicitadaPor || "Usuario";
 
-          // 1. Actualizar estado local inmediatamente para mÃ¡xima fluidez UX sin recargas
+          // 1. Actualizar estado local inmediatamente para máxima fluidez UX sin recargas
           if (notifPendiente) {
               const notifActualizada = { ...notifPendiente, estado: estadoNuevo, motivoResolucion: motivoFinal, resueltoPor: currentUser?.username || "Admin", resueltoFecha: new Date().toISOString() };
               setNotificaciones(prev => prev.map(n => n.id === notifPendiente.id ? notifActualizada : n));
@@ -3173,7 +3177,7 @@ const handleEditFuncionario = (funcionario) => {
               await localforage.setItem(cacheKey, cacheActual.map(b => b.id === bien.id ? updatedBien : b));
           }
 
-          // 3. Crear notificaciÃ³n directa en el buzÃ³n del funcionario solicitante
+          // 3. Crear notificación directa en el buzón del funcionario solicitante
           if (solicitanteUsername) {
               const notifId = generateId();
               const rotuloTxt = bien?.rotulo ? `#${bien.rotulo}` : "";
@@ -3184,7 +3188,7 @@ const handleEditFuncionario = (funcionario) => {
                   accion,
                   titulo: accion === "aprobar" ? `Baja Aprobada: Bien ${rotuloTxt}` : `Baja Rechazada: Bien ${rotuloTxt}`,
                   mensaje: accion === "aprobar"
-                      ? `La solicitud de baja para el bien "${bien?.descripcion || rotuloTxt}" ha sido APROBADA por la administraciÃ³n.${motivoFinal ? " Motivo: " + motivoFinal : ""}`
+                      ? `La solicitud de baja para el bien "${bien?.descripcion || rotuloTxt}" ha sido APROBADA por la administración.${motivoFinal ? " Motivo: " + motivoFinal : ""}`
                       : `La solicitud de baja para el bien "${bien?.descripcion || rotuloTxt}" ha sido RECHAZADA.${motivoFinal ? " Motivo: " + motivoFinal : ""}`,
                   leido: false,
                   fecha: new Date().toISOString(),
@@ -3194,7 +3198,7 @@ const handleEditFuncionario = (funcionario) => {
               await supabase.from("notificaciones").insert([{ id: notifId, data: notifUsuario }]);
           }
 
-          // 4. Registrar auditorÃ­a de la resoluciÃ³n
+          // 4. Registrar auditoría de la resolución
           await registrarAuditoria({
               usuario: currentUser?.username || "Admin",
               dependencia: dependenciaActual,
@@ -3207,7 +3211,7 @@ const handleEditFuncionario = (funcionario) => {
           addToast(accion === "aprobar" ? "Baja aprobada y notificada al usuario." : "Solicitud rechazada y notificada al usuario.", "success");
       } catch (e) {
           console.error("Error al resolver baja:", e);
-          addToast("Error al procesar la resoluciÃ³n.", "error");
+          addToast("Error al procesar la resolución.", "error");
       } finally {
           setIsProcessing({ active: false, text: "" });
           setResolucionBaja(null);
@@ -3215,7 +3219,7 @@ const handleEditFuncionario = (funcionario) => {
       }
   };
 
-  // --- INICIO DE CÃ“DIGO RESTAURADO ---
+  // --- INICIO DE CÓDIGO RESTAURADO ---
   const parseNotifRow = (item) => {
       const d = item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item;
       return { id: item.id, ...d };
@@ -3226,7 +3230,7 @@ const handleEditFuncionario = (funcionario) => {
           setNotificaciones(data.map(parseNotifRow));
       }
   };
-  // Sondeo liviano: Ãºltimas 100 por actualizaciÃ³n, fusionadas sin recargar todo
+  // Sondeo liviano: últimas 100 por actualización, fusionadas sin recargar todo
   const sondearNotificaciones = async () => {
       try {
           const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').order('updated_at', { ascending: false }).limit(100);
@@ -3283,7 +3287,7 @@ const handleEditFuncionario = (funcionario) => {
               res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
 
               if (!res.error) {
-                addToast('Solicitud enviada con Ã©xito al administrador.', 'success');
+                addToast('Solicitud enviada con éxito al administrador.', 'success');
                 setMotivoSolicitudBaja('');
                 setItemToDelete(null);
                 cargarNotificaciones();
@@ -3321,7 +3325,7 @@ const handleEditFuncionario = (funcionario) => {
               res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
               
               if (!res.error) { 
-                addToast("Solicitud de baja enviada con Ã©xito al administrador.", "success"); 
+                addToast("Solicitud de baja enviada con éxito al administrador.", "success"); 
                 setMotivoSolicitudBaja('');
                 setItemToDelete(null);
                 cargarNotificaciones(); 
@@ -3363,9 +3367,9 @@ const handleEditFuncionario = (funcionario) => {
               }
               else if (type === 'funcionario') res = await supabase.from('funcionarios').delete().eq('id', id);
 
-              if (!res.error) addToast("AcciÃ³n completada", "success");
+              if (!res.error) addToast("Acción completada", "success");
           }
-          // ActualizaciÃ³n local dirigida (evita una recarga total y ahorra transferencia)
+          // Actualización local dirigida (evita una recarga total y ahorra transferencia)
           if (res && !res.error) {
               if (type === 'bien') {
                   if (item.estadoConservacion === 'De Baja') setBienes(prev => prev.filter(b => b.id !== id));
@@ -3383,7 +3387,7 @@ const handleEditFuncionario = (funcionario) => {
         setItemToDelete(null); 
       }
   };
-  // xÃ“ Escuchador de estado de red (Offline / Online)
+  // xÓ Escuchador de estado de red (Offline / Online)
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -3396,14 +3400,14 @@ const handleEditFuncionario = (funcionario) => {
 
     const handleOffline = () => {
       setIsOnline(false);
-      addToast("ConexiÃ³n perdida. Se activÃ³ el modo de almacenamiento local.", "warning");
+      addToast("Conexión perdida. Se activó el modo de almacenamiento local.", "warning");
     };
 
     // Escuchar eventos nativos del navegador
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Intentar sincronizar por si habÃ­a algo pendiente al cargar la app
+    // Intentar sincronizar por si había algo pendiente al cargar la app
     if (navigator.onLine) {
       handleOnline();
     }
@@ -3419,12 +3423,12 @@ const handleEditFuncionario = (funcionario) => {
           cargarNotificaciones();
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
-  // --- FIN DE CÃ“DIGO RESTAURADO ---
-  // Toasts: hook extraÃ­do (Fase 1). Misma API que el cÃ³digo inline original.
+  // --- FIN DE CÓDIGO RESTAURADO ---
+  // Toasts: hook extraído (Fase 1). Misma API que el código inline original.
 
 
-// --- VISTA PaBLICA DE ESCANEO QR REDISEÃ‘ADA Y OPTIMIZADA PARA MÃ“VILES ---
-// --- VISTA PÃšBLICA DE ESCANEO QR CLARA, MODERNA Y OPTIMIZADA PARA MÃ“VILES (iOS / ANDROID) ---
+// --- VISTA PaBLICA DE ESCANEO QR REDISEÑADA Y OPTIMIZADA PARA MÓVILES ---
+// --- VISTA PÚBLICA DE ESCANEO QR CLARA, MODERNA Y OPTIMIZADA PARA MÓVILES (iOS / ANDROID) ---
 // Bypass de desarrollador (?mant=off): permite trabajar durante el mantenimiento
 if (typeof window !== 'undefined') {
   try {
@@ -3434,7 +3438,7 @@ if (typeof window !== 'undefined') {
   } catch (e) {}
 }
 const mantBypass = typeof window !== 'undefined' && sessionStorage.getItem('mant_bypass') === '1';
-// Auto-reparaciÃ³n de rol: si el mantenimiento estÃ¡ activo y la sesiÃ³n local no
+// Auto-reparación de rol: si el mantenimiento está activo y la sesión local no
 // refleja el rol desarrollador, se verifica en vivo contra la base (cubre
 // cambios de rol posteriores al login y sesiones locales viejas).
 useEffect(() => {
@@ -3469,7 +3473,7 @@ const saveMantenimiento = async (data) => {
       data.en_mantenimiento ? 'warning' : 'success'
     );
   } catch (e) {
-    addToast('No se pudo guardar. Crea la tabla app_config en Supabase (te pasÃ© el SQL).', 'error');
+    addToast('No se pudo guardar. Crea la tabla app_config en Supabase (te pasé el SQL).', 'error');
   } finally {
     setIsSavingMant(false);
   }
@@ -3497,14 +3501,14 @@ if (publicBienId) {
           </div>
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-700 mb-2 border border-blue-200/60">
-            <i className="fa-solid fa-circle-check text-[10px] text-blue-600"></i> VerificaciÃ³n Oficial de Activo
+            <i className="fa-solid fa-circle-check text-[10px] text-blue-600"></i> Verificación Oficial de Activo
           </span>
 
           <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
             Universidad Nacional de Pilar
           </h1>
           <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5">
-            Sistema Integrado de GestiÃ³n Patrimonial
+            Sistema Integrado de Gestión Patrimonial
           </p>
         </div>
 
@@ -3529,13 +3533,13 @@ if (publicBienId) {
               </button>
             )}
 
-            {/* Tarjeta de RÃ³tulo y Estado */}
+            {/* Tarjeta de Rótulo y Estado */}
             <div className="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <div className="flex justify-between items-center gap-2">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">CÃ³digo / RÃ³tulo</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Código / Rótulo</p>
                   <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight mt-0.5 truncate">
-                    {publicBienData.rotulo || "S/RÃ³tulo"}
+                    {publicBienData.rotulo || "S/Rótulo"}
                   </p>
                 </div>
                 {publicBienData.estadoConservacion && (
@@ -3550,19 +3554,19 @@ if (publicBienId) {
               </div>
 
               <div className="mt-3 pt-3 border-t border-slate-200/60">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DescripciÃ³n General</p>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción General</p>
                 <p className={`text-xs sm:text-sm font-bold text-slate-800 mt-1 leading-relaxed ${!publicDescExpandida && (publicBienData.descripcion || '').length > 140 ? 'line-clamp-3' : ''}`}>
-                  {publicBienData.descripcion || "Sin descripciÃ³n asignada"}
+                  {publicBienData.descripcion || "Sin descripción asignada"}
                 </p>
                 {(publicBienData.descripcion || '').length > 140 && (
                   <button onClick={() => setPublicDescExpandida(v => !v)} className="mt-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
-                    {publicDescExpandida ? 'Ver menos' : 'Ver mÃ¡s'}
+                    {publicDescExpandida ? 'Ver menos' : 'Ver más'}
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Datos TÃ©cnicos y Contables */}
+            {/* Datos Técnicos y Contables */}
             <div className="grid grid-cols-2 gap-2.5">
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -3596,7 +3600,7 @@ if (publicBienId) {
               {publicBienData.fechaAdquisicion && (
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-regular fa-calendar text-amber-600"></i> AdquisiciÃ³n
+                    <i className="fa-regular fa-calendar text-amber-600"></i> Adquisición
                   </p>
                   <p className="text-xs font-bold text-slate-800 mt-1 truncate">
                     {String(publicBienData.fechaAdquisicion).split("T")[0]}
@@ -3607,16 +3611,16 @@ if (publicBienId) {
               {publicBienData.vidaUtil && (
                 <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70">
                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <i className="fa-solid fa-hourglass-half text-purple-600"></i> Vida Ãštil
+                    <i className="fa-solid fa-hourglass-half text-purple-600"></i> Vida Útil
                   </p>
                   <p className="text-xs font-bold text-slate-800 mt-1 truncate">
-                    {publicBienData.vidaUtil} aÃ±os
+                    {publicBienData.vidaUtil} años
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Custodio, UbicaciÃ³n y Dependencia */}
+            {/* Custodio, Ubicación y Dependencia */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/70 space-y-3">
               <div>
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -3634,10 +3638,10 @@ if (publicBienId) {
 
               <div className="pt-2.5 border-t border-slate-200/60">
                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <i className="fa-solid fa-location-dot text-rose-600"></i> UbicaciÃ³n FÃ­sica
+                  <i className="fa-solid fa-location-dot text-rose-600"></i> Ubicación Física
                 </p>
                 <p className="text-xs font-bold text-slate-900 mt-1">
-                  {publicBienData.ubicacion || "Sin UbicaciÃ³n Registrada"}
+                  {publicBienData.ubicacion || "Sin Ubicación Registrada"}
                 </p>
               </div>
 
@@ -3661,7 +3665,7 @@ if (publicBienId) {
           </div>
         )}
 
-        {/* Pie y botÃ³n de retorno */}
+        {/* Pie y botón de retorno */}
         <div className="pt-2">
           <button 
             onClick={() => window.location.href = window.location.origin} 
@@ -3702,7 +3706,7 @@ if (publicBienId) {
         {!isOnline && (
           <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
             <i className="fa-solid fa-wifi-slash text-base"></i>
-            <span className="flex-1">Sin conexiÃ³n a red (Modo Local)</span>
+            <span className="flex-1">Sin conexión a red (Modo Local)</span>
           </div>
         )}
 
@@ -3739,7 +3743,7 @@ if (publicBienId) {
           {dbError && (
             <div className="flex items-center justify-center gap-x-6 bg-red-50 px-6 py-2.5 sm:px-3.5 border-b border-red-200 dark:bg-red-900/30 dark:border-red-900/50 shadow-sm z-50">
               <p className="text-sm leading-6 text-red-700 dark:text-red-400 font-medium">
-                <i className="fa-solid fa-wifi mr-2"></i> Error de sincronizaciÃ³n con Supabase. Verifique su conexiÃ³n.
+                <i className="fa-solid fa-wifi mr-2"></i> Error de sincronización con Supabase. Verifique su conexión.
               </p>
             </div>
           )}
@@ -3751,7 +3755,7 @@ if (publicBienId) {
                                 {activeTab === 'dashboard' && (
                   <div className="space-y-5 sm:space-y-6 animate-fade-in pb-12">
                     
-                    {/* 1. ENCABEZADO DE PÃGINA COMPACTO */}
+                    {/* 1. ENCABEZADO DE PÁGINA COMPACTO */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-4 min-w-0">
                         <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-xl sm:text-2xl shadow-md">
@@ -3759,7 +3763,7 @@ if (publicBienId) {
                         </div>
                         <div className="min-w-0">
                           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400 truncate">
-                            Panel General Â· {dependenciaActual}
+                            Panel General · {dependenciaActual}
                           </p>
                           <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white tracking-tight truncate mt-0.5">
                             {saludoBienvenida}, {currentUser?.nombre || 'Usuario'}!
@@ -3774,12 +3778,12 @@ if (publicBienId) {
                         </span>
                         <div className="flex flex-col">
                           <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Sistema Sincronizado</span>
-                          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">ConexiÃ³n activa</span>
+                          <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">Conexión activa</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* 2. TARJETAS DE MÃ‰TRICAS ACCIONABLES */}
+                    {/* 2. TARJETAS DE MÉTRICAS ACCIONABLES */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" data-tour="dash-stats">
 
                       {/* Bienes Activos */}
@@ -3795,7 +3799,7 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? 'â€¦' : <AnimatedNumber value={stats.totalItems} />}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.totalItems} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Bienes Activos
@@ -3818,8 +3822,8 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? 'â€¦' : <><AnimatedNumber value={stats.withQR} />
-                          <span className="text-base text-zinc-400 font-semibold"> / {isLoading ? 'â€¦' : Number(stats.totalItems || 0).toLocaleString('es-PY')}</span></>}
+                          {isLoading ? '…' : <><AnimatedNumber value={stats.withQR} />
+                          <span className="text-base text-zinc-400 font-semibold"> / {isLoading ? '…' : Number(stats.totalItems || 0).toLocaleString('es-PY')}</span></>}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Bienes con QR
@@ -3842,13 +3846,13 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-amber-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? 'â€¦' : <AnimatedNumber value={stats.withoutFc10} />}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.withoutFc10} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Sin FC-10
                         </p>
                         <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
-                          Pendientes de asignaciÃ³n
+                          Pendientes de asignación
                         </p>
                       </button>
 
@@ -3865,7 +3869,7 @@ if (publicBienId) {
                           <i className="fa-solid fa-chevron-right text-xs text-zinc-300 dark:text-zinc-600 group-hover:text-rose-500 group-hover:translate-x-0.5 transition-all"></i>
                         </div>
                         <p className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight tabular-nums">
-                          {isLoading ? 'â€¦' : <AnimatedNumber value={stats.withoutQR} />}
+                          {isLoading ? '…' : <AnimatedNumber value={stats.withoutQR} />}
                         </p>
                         <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 mt-1.5 uppercase tracking-[0.14em]">
                           Pendiente QR
@@ -3881,11 +3885,11 @@ if (publicBienId) {
                     <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm" data-tour="dash-pendientes">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                <i className="fa-solid fa-list-check text-zinc-400"></i> AtenciÃ³n requerida
+                                <i className="fa-solid fa-list-check text-zinc-400"></i> Atención requerida
                             </h2>
                             {pendientes.every(p => p.count === 0) && (
                                 <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                                    <i className="fa-solid fa-circle-check"></i> Todo al dÃ­a
+                                    <i className="fa-solid fa-circle-check"></i> Todo al día
                                 </span>
                             )}
                         </div>
@@ -3914,7 +3918,7 @@ if (publicBienId) {
                     <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-3 sm:p-4 shadow-sm">
                         <p className="px-2 pb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Accesos directos</p>
                         <div className="flex flex-wrap items-center gap-2">
-                            <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} title="AÃ±adir nuevo registro" className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-[13px] transition-all shadow-sm active:scale-95 cursor-pointer">
+                            <button onClick={() => { setBienEditing(null); setIsBienModalOpen(true); }} title="Añadir nuevo registro" className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:hover:bg-zinc-200 text-white dark:text-zinc-900 font-bold text-[13px] transition-all shadow-sm active:scale-95 cursor-pointer">
                                 <i className="fa-solid fa-plus text-xs"></i> Nuevo registro
                             </button>
                             <span className="hidden sm:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1"></span>
@@ -3933,10 +3937,10 @@ if (publicBienId) {
                         </div>
                     </div>
 
-                    {/* 4. GRÃFICOS Y TENDENCIAS */}
+                    {/* 4. GRÁFICOS Y TENDENCIAS */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                       
-                      {/* Estado de RegularizaciÃ³n */}
+                      {/* Estado de Regularización */}
                       <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col overflow-hidden p-6 sm:p-7">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -3965,7 +3969,7 @@ if (publicBienId) {
                             <div className="flex justify-between items-end mb-3">
                               <div>
                                 <p className="text-xs font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Etiquetado QR</p>
-                                <p className="text-[11px] text-zinc-500 font-medium mt-1">{stats.withQR} de {stats.totalItems} activos con cÃ³digo</p>
+                                <p className="text-[11px] text-zinc-500 font-medium mt-1">{stats.withQR} de {stats.totalItems} activos con código</p>
                               </div>
                               <span className="text-2xl font-semibold text-zinc-900 dark:text-white tracking-tight">{stats.percQR.toFixed(1)}%</span>
                             </div>
@@ -3980,7 +3984,7 @@ if (publicBienId) {
                       <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col overflow-hidden p-6 sm:p-7">
                         <div className="flex justify-between items-center mb-8">
                           <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                             <i className="fa-solid fa-chart-line text-brand-primary"></i> GestiÃ³n Anual
+                             <i className="fa-solid fa-chart-line text-brand-primary"></i> Gestión Anual
                           </h2>
                         </div>
                         <div className="flex flex-1 flex-col sm:flex-row gap-8">
@@ -3994,7 +3998,7 @@ if (publicBienId) {
                                   </div>
                               ) : timeStats.adqByYear.map((item, idx) => {
                                   const colors = ["bg-zinc-900 dark:bg-white", "bg-zinc-600 dark:bg-zinc-400", "bg-zinc-400 dark:bg-zinc-600", "bg-zinc-300 dark:bg-zinc-700"];
-                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" title={`Filtrar inventario por aÃ±o ${item.year}`} onClick={() => { clearAllFilters(); setFiltroAnio(item.year); setActiveTab('inventario'); }} />;
+                                  return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" title={`Filtrar inventario por año ${item.year}`} onClick={() => { clearAllFilters(); setFiltroAnio(item.year); setActiveTab('inventario'); }} />;
                               })}
                             </div>
                           </div>
@@ -4015,87 +4019,14 @@ if (publicBienId) {
                   </div>
                 )}
 
-                {activeTab === 'resumen' && (
-                  <div className="space-y-6 animate-fade-in pb-12">
-                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-house-user text-lg"></i>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Vista de solo lectura</p>
-                          <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight mt-0.5">Mi Dependencia Â· {dependenciaActual}</h2>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
-                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.totalItems} /></p>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Bienes activos</p>
-                      </div>
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
-                        <p className="text-2xl sm:text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight">Gs. {formatCurrency(stats.totalValue)}</p>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Valor patrimonial</p>
-                      </div>
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
-                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.withoutQR} /></p>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Pendientes de QR</p>
-                      </div>
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
-                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.withoutFc10} /></p>
-                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Sin acta FC-10</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
-                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
-                          <i className="fa-solid fa-list-check text-zinc-400"></i> Estado de regularizaciÃ³n
-                        </h3>
-                        <div className="space-y-3">
-                          {pendientes.map(p => (
-                            <div key={p.id} className="flex items-center gap-3">
-                              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${p.box}`}>
-                                <i className={`fa-solid ${p.icon} text-xs`}></i>
-                              </span>
-                              <span className="flex-1 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300">{p.label}</span>
-                              <span className="text-sm font-bold tabular-nums text-zinc-900 dark:text-white">{p.count}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
-                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
-                          <i className="fa-solid fa-clock-rotate-left text-zinc-400"></i> Ãšltimas asignaciones
-                        </h3>
-                        <div className="space-y-1">
-                          {fc10List.filter(fc => fc.dependencia === dependenciaActual).sort((a, b) => String(b.fechaGeneracion || b.entregadoFecha || '').localeCompare(String(a.fechaGeneracion || a.entregadoFecha || ''))).slice(0, 5).map(fc => (
-                            <div key={fc.id} className="flex items-center gap-3 py-2 border-b border-zinc-100 dark:border-white/5 last:border-0">
-                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 text-xs font-bold">
-                                {(fc.funcionarioNombre || '?').charAt(0)}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate">{fc.funcionarioNombre || 'Sin responsable'}</span>
-                                <span className="block text-[11px] text-zinc-400 truncate">{fc.entregadoFecha ? formatDateText(fc.entregadoFecha) : (fc.fechaGeneracion ? formatDateText(fc.fechaGeneracion) : '')}</span>
-                              </span>
-                            </div>
-                          ))}
-                          {fc10List.filter(fc => fc.dependencia === dependenciaActual).length === 0 && (
-                            <p className="text-xs font-semibold text-zinc-400 py-4 text-center">Sin asignaciones registradas.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
                 {activeTab === 'inventario' && (
   <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
     
     {/* 1. ENCABEZADO Y ACCIONES PRINCIPALES */}
     <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 
-      {/* TÃ­tulo de la SecciÃ³n + Contador */}
+      {/* Título de la Sección + Contador */}
       <div className="flex items-center gap-4">
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
           <i className="fa-solid fa-boxes-stacked text-lg"></i>
@@ -4106,16 +4037,16 @@ if (publicBienId) {
               Inventario General
             </h2>
             <span title={hasFilters ? 'Bienes que coinciden con los filtros' : 'Incluye bienes dados de baja; los activos se miden en el Panel'} className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10 whitespace-nowrap shrink-0">
-              {hasFilters ? `${filteredBienes.length} resultados` : `${filteredBienes.length} registros Â· ${stats.totalItems} activos`}
+              {hasFilters ? `${filteredBienes.length} resultados` : `${filteredBienes.length} registros · ${stats.totalItems} activos`}
             </span>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            GestiÃ³n integral e inventario consolidado de activos de la Universidad
+            Gestión integral e inventario consolidado de activos de la Universidad
           </p>
         </div>
       </div>
 
-      {/* Barra de Acciones RÃ¡pidas: secundarias con scroll, CTA primario siempre visible */}
+      {/* Barra de Acciones Rápidas: secundarias con scroll, CTA primario siempre visible */}
       <div className="flex items-center gap-2 min-w-0">
       <div className="flex items-center gap-2 min-w-0 overflow-x-auto hide-scrollbar py-0.5 -my-0.5">
         <button 
@@ -4180,16 +4111,16 @@ if (publicBienId) {
           className="inline-flex shrink-0 items-center gap-2 px-5 h-10 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-700 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-bold shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
         >
           <i className="fa-solid fa-plus text-xs"></i>
-          <span className="whitespace-nowrap">AÃ±adir Registro</span>
+          <span className="whitespace-nowrap">Añadir Registro</span>
         </button>
       </div>
 
     </div>
 
-    {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIÃ“N EN GRID */}
+    {/* 2. PANEL DE FILTROS BaSQUEDA Y SELECCIÓN EN GRID */}
     <div className="bg-white dark:bg-white/[0.04] p-4 sm:p-5 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm space-y-4">
       
-      {/* Campo de BÃºsqueda Principal */}
+      {/* Campo de Búsqueda Principal */}
       <div className="relative w-full">
         <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
         <input 
@@ -4197,7 +4128,7 @@ if (publicBienId) {
           ref={searchRef}
           title="Buscar (atajo: /)"
           data-tour="inv-search"
-          placeholder="Buscar por rÃ³tulo, descripciÃ³n, funcionario... Ej: 1045 silla"
+          placeholder="Buscar por rótulo, descripción, funcionario... Ej: 1045 silla"
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setSearchInput(e.target.value); setCurrentPage(1); }}
           className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 pl-11 pr-11 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/5 outline-none transition-all"
@@ -4205,7 +4136,7 @@ if (publicBienId) {
         {searchTerm && (
           <button
             onClick={() => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); }}
-            title="Limpiar bÃºsqueda"
+            title="Limpiar búsqueda"
             className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/20 transition-all cursor-pointer"
           >
             <i className="fa-solid fa-xmark text-xs"></i>
@@ -4232,17 +4163,17 @@ if (publicBienId) {
           onChange={(e) => setFiltroUbicacion(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
-          <option value="">UbicaciÃ³n: Todas</option>
+          <option value="">Ubicación: Todas</option>
           {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
         </select>
 
-        {/* AÃ±o */}
+        {/* Año */}
         <select 
           value={filtroAnio || ''} 
           onChange={(e) => setFiltroAnio(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
-          <option value="">AÃ±o: Todos</option>
+          <option value="">Año: Todos</option>
           {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
@@ -4256,23 +4187,23 @@ if (publicBienId) {
           {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
-        {/* AnalÃ­tico 1 */}
+        {/* Analítico 1 */}
         <select 
           value={filtroAnalitico1 || ''} 
           onChange={(e) => setFiltroAnalitico1(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
-          <option value="">AnalÃ­tico 1: Todos</option>
+          <option value="">Analítico 1: Todos</option>
           {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
         </select>
 
-        {/* AnalÃ­tico 2 */}
+        {/* Analítico 2 */}
         <select 
           value={filtroAnalitico2 || ''} 
           onChange={(e) => setFiltroAnalitico2(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
         >
-          <option value="">AnalÃ­tico 2: Todos</option>
+          <option value="">Analítico 2: Todos</option>
           {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
         </select>
 
@@ -4375,9 +4306,9 @@ if (publicBienId) {
                           
                                                     <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                             <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                              <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">IdentificaciÃ³n y DescripciÃ³n</th>
-                              <th className="px-4 py-4 w-[28%]">LocalizaciÃ³n y Custodio</th>
-                              <th className="px-4 py-4 w-[18%]">CondiciÃ³n y Estado</th>
+                              <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">Identificación y Descripción</th>
+                              <th className="px-4 py-4 w-[28%]">Localización y Custodio</th>
+                              <th className="px-4 py-4 w-[18%]">Condición y Estado</th>
                               <th className="py-4 pl-4 pr-6 sm:pr-8 text-right w-[16%]">Acciones</th>
                             </tr>
                           </thead>
@@ -4397,7 +4328,7 @@ if (publicBienId) {
                               return (
                                 <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group">
                                   
-                                  {/* Columna 1: IdentificaciÃ³n */}
+                                  {/* Columna 1: Identificación */}
                                   <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
                                     <div className="flex items-start gap-3.5">
                                       <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 text-xs">
@@ -4427,16 +4358,16 @@ if (publicBienId) {
                                     </div>
                                   </td>
 
-                                  {/* Columna 2: LocalizaciÃ³n y Custodio */}
+                                  {/* Columna 2: Localización y Custodio */}
                                   <td className="px-4 py-4 align-top">
                                     <div className="space-y-1.5">
                                       <div className="flex items-center gap-2 text-xs font-bold text-zinc-800 dark:text-zinc-200">
                                         <i className="fa-solid fa-user-check text-emerald-500 text-xs shrink-0"></i>
-                                        <span className="truncate">{item.funcionario || 'Sin asignaciÃ³n'}</span>
+                                        <span className="truncate">{item.funcionario || 'Sin asignación'}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
                                         <i className="fa-solid fa-location-dot text-rose-500 text-xs shrink-0"></i>
-                                        <span className="truncate">{item.ubicacion || 'Sin ubicaciÃ³n'}</span>
+                                        <span className="truncate">{item.ubicacion || 'Sin ubicación'}</span>
                                       </div>
                                       {(() => {
                                         const fc10 = fc10VigentePorBien.get(item.id);
@@ -4452,7 +4383,7 @@ if (publicBienId) {
                                     </div>
                                   </td>
 
-                                  {/* Columna 3: CondiciÃ³n y QR (BotÃ³n interactivo) */}
+                                  {/* Columna 3: Condición y QR (Botón interactivo) */}
                                   <td className="px-4 py-4 align-middle">
                                     <div className="flex flex-wrap items-center gap-2">
                                       <span className={`inline-flex items-center justify-center px-2.5 py-1 min-w-[76px] text-center rounded-xl text-[11px] font-bold border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
@@ -4462,7 +4393,7 @@ if (publicBienId) {
                                       <button 
                                         type="button"
                                         onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
-                                        title={item.hasQR ? "Ver / Descargar CÃ³digo QR" : "Generar CÃ³digo QR"}
+                                        title={item.hasQR ? "Ver / Descargar Código QR" : "Generar Código QR"}
                                         className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1 min-w-[76px] rounded-xl text-[11px] font-semibold border transition-all cursor-pointer active:scale-95 ${
                                           item.hasQR 
                                             ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-900 dark:border-white shadow-xs hover:opacity-85' 
@@ -4492,7 +4423,7 @@ if (publicBienId) {
                                       <button 
                                         onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
                                         className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                        title="Generar CÃ³digo QR"
+                                        title="Generar Código QR"
                                       >
                                         <i className="fa-solid fa-qrcode text-xs"></i>
                                       </button>
@@ -4501,7 +4432,7 @@ if (publicBienId) {
                                       <button 
                                         onClick={() => openFC10Modal(item)}
                                         className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                        title="AsignaciÃ³n FC-10"
+                                        title="Asignación FC-10"
                                       >
                                         <i className="fa-solid fa-file-signature text-xs"></i>
                                       </button>
@@ -4561,7 +4492,7 @@ if (publicBienId) {
                         </table>
                       </div>
 
-                      {/* PaginaciÃ³n Integrada */}
+                      {/* Paginación Integrada */}
                       {renderPagination()}
                     </div>
 
@@ -4583,7 +4514,7 @@ if (publicBienId) {
                             </span>
                           </div>
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                            GestiÃ³n y aprobaciÃ³n de bienes dados de baja en <strong className="text-zinc-900 dark:text-white font-semibold">{dependenciaActual}</strong>
+                            Gestión y aprobación de bienes dados de baja en <strong className="text-zinc-900 dark:text-white font-semibold">{dependenciaActual}</strong>
                           </p>
                         </div>
                       </div>
@@ -4597,12 +4528,12 @@ if (publicBienId) {
                               <th className="py-4 pl-6 sm:pl-8 pr-4">Registro Solicitado</th>
                               <th className="px-4 py-4">Solicitante</th>
                               <th className="px-4 py-4">Fecha</th>
-                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">DecisiÃ³n</th>
+                              <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">Decisión</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-zinc-100/80 dark:divide-zinc-800/30">
                             {solicitudesBaja.map((notif) => {
-                              // Solicitud de padrÃ³n: fila adaptada a funcionario
+                              // Solicitud de padrón: fila adaptada a funcionario
                               if (notif.tipo === 'BAJA_FUNCIONARIO') {
                                 return (
                                   <tr key={notif.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors">
@@ -4613,7 +4544,7 @@ if (publicBienId) {
                                         </div>
                                         <div className="min-w-0">
                                           <p className="font-bold text-zinc-900 dark:text-white text-sm truncate">{notif.nombre || 'Sin nombre'}</p>
-                                          <p className="text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400 mt-0.5">CI {notif.cedula || 'S/C'} Â· PadrÃ³n</p>
+                                          <p className="text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400 mt-0.5">CI {notif.cedula || 'S/C'} · Padrón</p>
                                         </div>
                                       </div>
                                       {notif.motivo && (
@@ -4656,7 +4587,7 @@ if (publicBienId) {
                               const bienAsociado = bienes.find(b => b.id === (notif.bienId || notif.bien_id)) || {
                                 id: notif.bienId || notif.bien_id,
                                 rotulo: notif.rotulo || 'S/R',
-                                descripcion: notif.descripcion || 'Sin descripciÃ³n',
+                                descripcion: notif.descripcion || 'Sin descripción',
                                 bajaSolicitadaPor: notif.solicitante || 'Usuario'
                               };
 
@@ -4715,7 +4646,7 @@ if (publicBienId) {
                                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-400 mb-3">
                                     <i className="fa-solid fa-check-double text-2xl"></i>
                                   </div>
-                                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Bandeja de aprobaciones al dÃ­a</p>
+                                  <p className="text-sm font-semibold text-zinc-900 dark:text-white">Bandeja de aprobaciones al día</p>
                                   <p className="text-xs text-zinc-400 mt-1">No hay solicitudes de baja pendientes en esta dependencia.</p>
                                 </td>
                               </tr>
@@ -4736,16 +4667,16 @@ if (publicBienId) {
                         </div>
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">AuditorÃ­a</h2>
+                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Auditoría</h2>
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-violet-500/10 text-violet-700 dark:text-violet-300 border border-violet-500/20">
                               Solo administradores
                             </span>
                           </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trazabilidad, conciliaciÃ³n fÃ­sica y verificaciÃ³n por muestreo</p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trazabilidad, conciliación física y verificación por muestreo</p>
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                      <button onClick={() => fetchAuditoria(1)} title="Recargar libro de auditorÃ­a" className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                      <button onClick={() => fetchAuditoria(1)} title="Recargar libro de auditoría" className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                         <i className={`fa-solid fa-rotate ${isLoadingAud ? 'fa-spin' : ''}`}></i> Actualizar
                       </button>
                       </div>
@@ -4753,7 +4684,7 @@ if (publicBienId) {
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="aud-kpis">
                       {[
-                        { label: 'Eventos (30 dÃ­as)', valor: kpisAud.total, icon: 'fa-bolt', box: 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' },
+                        { label: 'Eventos (30 días)', valor: kpisAud.total, icon: 'fa-bolt', box: 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' },
                         { label: 'Altas registradas', valor: kpisAud.altas, icon: 'fa-plus', box: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
                         { label: 'Modificaciones', valor: kpisAud.mods, icon: 'fa-pen-to-square', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/20' },
                         { label: 'Bajas y eliminaciones', valor: kpisAud.bajas, icon: 'fa-flag', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' },
@@ -4771,17 +4702,17 @@ if (publicBienId) {
                     <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
                         <div className="flex items-center justify-between gap-3 mb-1">
                             <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                                <i className="fa-solid fa-chart-line text-emerald-500"></i> EvoluciÃ³n del valor patrimonial
+                                <i className="fa-solid fa-chart-line text-emerald-500"></i> Evolución del valor patrimonial
                             </h3>
-                            <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Ãšltimos 12 meses</span>
+                            <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Últimos 12 meses</span>
                         </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Valor incorporado por mes Â· clic en una barra para filtrar el inventario.</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Valor incorporado por mes · clic en una barra para filtrar el inventario.</p>
                         <div className="flex items-end gap-1.5 sm:gap-2 h-40">
                             {evolucionValor.map(e => (
                                 <button
                                     key={e.key}
                                     onClick={() => { clearAllFilters(); setFiltroAnio(e.year); setFiltroMes(e.month); setActiveTab('inventario'); }}
-                                    title={`${e.etiqueta}: Gs. ${Number(e.valor).toLocaleString('es-PY')} â€” clic para filtrar`}
+                                    title={`${e.etiqueta}: Gs. ${Number(e.valor).toLocaleString('es-PY')} — clic para filtrar`}
                                     className="flex-1 h-full flex flex-col items-center justify-end gap-1.5 rounded-lg group/bar focus-visible:ring-2 focus-visible:ring-brand-primary outline-none cursor-pointer"
                                 >
                                     <span className="text-[10px] font-bold tabular-nums text-zinc-400 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap">
@@ -4835,10 +4766,10 @@ if (publicBienId) {
                                         key={f.id}
                                         onClick={() => { setSearchFuncionarioInput(f.nombre || ''); setCurrentPaginaFuncionarios(1); setActiveTab('funcionarios'); }}
                                         className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
-                                        title="Revisar en el padrÃ³n"
+                                        title="Revisar en el padrón"
                                     >
                                         <span className="font-bold text-zinc-700 dark:text-zinc-300 truncate">{f.nombre}</span>
-                                        <span className="text-zinc-400 tabular-nums truncate">CI {f.cedula} Â· {f.cargo}</span>
+                                        <span className="text-zinc-400 tabular-nums truncate">CI {f.cedula} · {f.cargo}</span>
                                     </button>
                                 ))}
                             </div>
@@ -4848,13 +4779,13 @@ if (publicBienId) {
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
                         <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
-                          <i className="fa-solid fa-clipboard-check text-emerald-500"></i> ConciliaciÃ³n fÃ­sica
+                          <i className="fa-solid fa-clipboard-check text-emerald-500"></i> Conciliación física
                         </h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rÃ³tulos y compara contra el inventario activo del alcance elegido.</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rótulos y compara contra el inventario activo del alcance elegido.</p>
                         <div className="flex flex-wrap items-center gap-2 mb-3">
                           <select
                             value={conteoUbicacion} onChange={(e) => setConteoUbicacion(e.target.value)}
-                            title="Alcance de la conciliaciÃ³n"
+                            title="Alcance de la conciliación"
                             className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary max-w-[220px] truncate"
                           >
                             <option value="">Toda la dependencia ({bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja').length})</option>
@@ -4868,7 +4799,7 @@ if (publicBienId) {
                             value={conteoInput}
                             onChange={(e) => setConteoInput(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); agregarCodigoConteo(conteoInput); } }}
-                            placeholder="RÃ³tulo o cÃ³digo QR + Enter..."
+                            placeholder="Rótulo o código QR + Enter..."
                             className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-11 pl-11 pr-10 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 transition-all"
                           />
                           {conteoInput && (
@@ -4902,8 +4833,8 @@ if (publicBienId) {
                           </div>
                         )}
                         <div className="flex flex-wrap gap-2">
-                          <button onClick={() => { setScanParaConteo(true); setIsScannerOpen(true); }} title="Escanear etiquetas con la cÃ¡mara" className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
-                            <i className="fa-solid fa-camera"></i> Escanear con cÃ¡mara
+                          <button onClick={() => { setScanParaConteo(true); setIsScannerOpen(true); }} title="Escanear etiquetas con la cámara" className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                            <i className="fa-solid fa-camera"></i> Escanear con cámara
                           </button>
                           <button onClick={() => { setConteoCodigos([]); setConteoInput(''); }} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Limpiar</button>
                           <button onClick={exportarConteoCSV} disabled={conteoCodigos.length === 0} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Exportar CSV</button>
@@ -4918,7 +4849,7 @@ if (publicBienId) {
                         <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
                           <i className="fa-solid fa-shuffle text-violet-500"></i> Muestreo aleatorio
                         </h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">SelecciÃ³n al azar para verificaciÃ³n fÃ­sica y acta del resultado.</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Selección al azar para verificación física y acta del resultado.</p>
                         <div className="flex flex-wrap items-center gap-2 mb-4">
                           <input
                             type="number" min="1" max="200"
@@ -4958,7 +4889,7 @@ if (publicBienId) {
                                   />
                                   <span className="min-w-0 flex-1">
                                     <span className="block font-mono text-xs font-bold text-zinc-800 dark:text-zinc-200 truncate">{b.rotulo}</span>
-                                    <span className="block text-[11px] text-zinc-400 truncate">{b.descripcion} Â· {b.ubicacion || 'Sin ubicaciÃ³n'}</span>
+                                    <span className="block text-[11px] text-zinc-400 truncate">{b.descripcion} · {b.ubicacion || 'Sin ubicación'}</span>
                                   </span>
                                 </label>
                               ))}
@@ -4977,7 +4908,7 @@ if (publicBienId) {
                     <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm overflow-hidden">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-5 border-b border-zinc-100 dark:border-white/10">
                         <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mr-auto">
-                          <i className="fa-solid fa-book-open text-zinc-400"></i> Libro de auditorÃ­a
+                          <i className="fa-solid fa-book-open text-zinc-400"></i> Libro de auditoría
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">{totalAud} eventos</span>
                         </h3>
                         <div className="flex rounded-xl bg-zinc-100 dark:bg-white/5 p-1 gap-1" role="tablist" aria-label="Alcance del libro">
@@ -5006,7 +4937,7 @@ if (publicBienId) {
                           value={filtroAccionAud} onChange={(e) => setFiltroAccionAud(e.target.value)}
                           className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary"
                         >
-                          <option value="">AcciÃ³n: Todas</option>
+                          <option value="">Acción: Todas</option>
                           {accionesUnicasAud.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
                       </div>
@@ -5016,7 +4947,7 @@ if (publicBienId) {
                             <tr className="text-[10px] sm:text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em]">
                               <th className="py-3.5 pl-6 pr-4">Fecha</th>
                               <th className="px-4 py-3.5">Usuario</th>
-                              <th className="px-4 py-3.5">AcciÃ³n</th>
+                              <th className="px-4 py-3.5">Acción</th>
                               <th className="px-4 py-3.5">Evento</th>
                               <th className="py-3.5 pl-4 pr-6">Detalle</th>
                             </tr>
@@ -5048,7 +4979,7 @@ if (publicBienId) {
                       </div>
                       <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-3.5 border-t border-zinc-100 dark:border-white/10">
                         <span className="text-xs text-zinc-500 font-medium">
-                          PÃ¡gina <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{totalAud === 0 ? 0 : paginaAud}</span> de <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{Math.max(1, Math.ceil(totalAud / 50))}</span>
+                          Página <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{totalAud === 0 ? 0 : paginaAud}</span> de <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{Math.max(1, Math.ceil(totalAud / 50))}</span>
                         </span>
                         <div className="flex gap-2">
                           <button
@@ -5070,102 +5001,15 @@ if (publicBienId) {
                     </div>
                   </div>
                 )}
-                {activeTab === 'usuarios' && isAdmin && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-users-gear text-lg"></i>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">GestiÃ³n de Usuarios</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
-                              {usuariosList.length}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">GestiÃ³n de cuentas y roles de acceso al sistema</p>
-                        </div>
-                      </div>
-                      
-                      <button onClick={() => { setUsuarioEditing(null); setIsUsuarioModalOpen(true); }} className={STYLES.btnPrimary}>
-                        <i className="fa-solid fa-user-plus text-xs"></i> Nuevo Usuario
-                      </button>
-                    </div>
-
-                    <div className="flex-1 bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl flex flex-col overflow-hidden relative">
-                        <div className="flex-1 overflow-auto custom-scrollbar">
-                          <table className="min-w-full text-left">
-                            <thead className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 backdrop-blur-md z-10 border-b border-zinc-200/80 dark:border-darkbg-border">
-                              <tr className="text-[11px] font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-wider">
-                                <th className="py-3.5 pl-6 pr-4 w-1/3">Usuario y Nombre</th>
-                                <th className="px-4 py-3.5 w-1/3">Rol de Sistema</th>
-                                <th className="relative py-3.5 pl-4 pr-6 text-right"><span className="sr-only">Acciones</span></th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white dark:bg-darkbg-card divide-y divide-zinc-100 dark:divide-darkbg-border/60">
-                              {usuariosList.map(u => (
-                                <tr key={u.username} className="hover:bg-zinc-50 dark:hover:bg-darkbg-hover/50 transition-colors border-b border-zinc-50 dark:border-darkbg-border/30">
-                                    <td className="py-3 pl-6 pr-4 align-middle">
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-100 dark:bg-darkbg-main text-brand-primary dark:text-brand-accent font-bold text-sm border border-zinc-200/60 dark:border-darkbg-border/60 shadow-sm">
-                                              {u.nombre ? u.nombre.charAt(0).toUpperCase() : 'U'}
-                                          </div>
-                                          <div>
-                                              <div className="font-semibold text-zinc-900 dark:text-white text-sm">{u.nombre}</div>
-                                              <div className="text-xs text-zinc-500 mt-0.5">@{u.username}</div>
-                                          </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 align-middle">
-                                        {u.cargo === 'desarrollador'
-                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 ring-1 ring-inset ring-violet-500/20 shadow-sm"><i className="fa-solid fa-code text-[10px]"></i> Desarrollador</span>
-                                            : u.cargo === 'admin'
-                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-900/20 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-shield-halved text-[10px]"></i> Administrador</span>
-                                            : <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 shadow-sm"><i className="fa-solid fa-user text-[10px]"></i> Funcionario</span>
-                                        }
-                                    </td>
-                                    <td className="relative py-3 pl-4 pr-6 align-middle text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                          {u.cargo === 'desarrollador' && !esDesarrollador ? (
-                                              <span title="Solo el Desarrollador gestiona esta cuenta" className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-300 dark:text-zinc-600">
-                                                  <i className="fa-solid fa-lock text-[13px]"></i>
-                                              </span>
-                                          ) : (
-                                          <>
-                                          <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar usuario">
-                                              <i className="fa-solid fa-pen-to-square text-[13px]"></i>
-                                          </button>
-                                          {u.username !== currentUser.username && (
-                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo, item: u})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
-                                                  <i className="fa-solid fa-trash-can text-[13px]"></i>
-                                              </button>
-                                          )}
-                                          </>
-                                          )}
-                                        </div>
-                                    </td>
-                                </tr>
-                              ))}
-                              {usuariosList.length === 0 && (
-                                <tr>
-                                  <td colSpan="3" className="p-12 text-center text-sm font-medium text-zinc-400 italic">No hay usuarios registrados en el sistema.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                    </div>
-                  </div>
-                )}
+                {activeTab === 'usuarios' && isAdmin && (<UsuariosView usuariosList={usuariosList} setUsuarioEditing={setUsuarioEditing} setIsUsuarioModalOpen={setIsUsuarioModalOpen} esDesarrollador={esDesarrollador} currentUser={currentUser} setItemToDelete={setItemToDelete} STYLES={STYLES} />)}
                 {activeTab === 'funcionarios' && (
                   <div className="animate-fade-in flex flex-col flex-1 space-y-6 pb-12">
                     
-                    {/* CABECERA DE SECCIÃ“N */}
+                    {/* CABECERA DE SECCIÓN */}
                     <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 
-                        {/* IdentificaciÃ³n de la secciÃ³n */}
+                        {/* Identificación de la sección */}
                         <div className="flex items-center gap-4">
                           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
                             <i className="fa-solid fa-address-book text-lg"></i>
@@ -5183,7 +5027,7 @@ if (publicBienId) {
                           </div>
                         </div>
 
-                        {/* Botones de AcciÃ³n Principal */}
+                        {/* Botones de Acción Principal */}
                         <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={sincronizarBienesConPadron}
@@ -5216,7 +5060,7 @@ if (publicBienId) {
                           <button
                             onClick={() => setIsUbicacionesModalOpen(true)}
                             className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
-                            title="Gestionar catÃ¡logo de ubicaciones"
+                            title="Gestionar catálogo de ubicaciones"
                           >
                             <i className="fa-solid fa-location-dot text-sky-600 dark:text-sky-400"></i>
                             <span>Ubicaciones</span>
@@ -5237,17 +5081,17 @@ if (publicBienId) {
 
                       </div>
 
-                      {/* Barra de bÃºsqueda del padrÃ³n */}
+                      {/* Barra de búsqueda del padrón */}
                       <div className="mt-4 pt-4 border-t border-zinc-100 dark:border-white/10">
   <div className="relative w-full">
     <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
     <input
       type="text"
-      placeholder="Buscar funcionario por nombre, apellido o nÃºmero de cÃ©dula..."
+      placeholder="Buscar funcionario por nombre, apellido o número de cédula..."
       value={searchFuncionarioInput}
       onChange={(e) => {
         setSearchFuncionarioInput(e.target.value);
-        setCurrentPaginaFuncionarios(1); // Resetea la paginaciÃ³n para mostrar resultados desde la pÃ¡gina 1
+        setCurrentPaginaFuncionarios(1); // Resetea la paginación para mostrar resultados desde la página 1
       }}
       className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-11 pl-11 pr-4 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 outline-none transition-all"
     />
@@ -5262,7 +5106,7 @@ if (publicBienId) {
                           <table className="min-w-full text-left border-collapse">
                             <thead className="sticky top-0 bg-zinc-50/95 dark:bg-zinc-900/95 backdrop-blur-md z-10 border-b border-zinc-200/70 dark:border-white/10">
                               <tr className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em]">
-                                <th className="py-4 pl-8 pr-4">CÃ©dula de Identidad</th>
+                                <th className="py-4 pl-8 pr-4">Cédula de Identidad</th>
                                 <th className="px-4 py-4 w-1/3">Nombre Completo</th>
                                 <th className="px-4 py-4 w-1/3">Cargo Institucional</th>
                                 <th className="relative py-4 pl-4 pr-8 text-right">Acciones</th>
@@ -5314,7 +5158,7 @@ if (publicBienId) {
                                               <button
                                                   onClick={() => handleDeleteFuncionario(f.id)}
                                                   className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
-                                                  title={isAdmin ? 'Eliminar funcionario' : 'Solicitar eliminaciÃ³n al administrador'}
+                                                  title={isAdmin ? 'Eliminar funcionario' : 'Solicitar eliminación al administrador'}
                                               >
                                                   <i className={`fa-solid ${isAdmin ? 'fa-trash-can' : 'fa-paper-plane'} text-xs`}></i>
                                               </button>
@@ -5342,310 +5186,11 @@ if (publicBienId) {
                   </div>
                 )}
 
-                {activeTab === 'fc04' && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-file-invoice text-lg"></i>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Registro Mensual FC-04</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
-                              {filteredFC04.length}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">GestiÃ³n contable de altas y bajas patrimoniales</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
-                        <button onClick={() => openFC04Modal(null)} className={STYLES.btnPrimary}>
-                            <i className="fa-solid fa-plus text-xs"></i> Redactar Planilla
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm min-h-[400px]">
-                      {isLoading ? ( <SkeletonLoader /> ) : filteredFC04.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
-                              <i className="fa-solid fa-folder-open text-2xl"></i>
-                            </div>
-                            <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin expedientes registrados</h3>
-                            <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen formularios FC-04 generados en el ciclo seleccionado.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                          {filteredFC04.map(fc => {
-                            const origenObj = ORIGENES_FC04.find(o => o.id === fc.origenMovimiento);
-                            const isAlta = fc.origenMovimiento !== 'B';
-                            return (
-                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group`}>
-                                <div className="flex justify-between items-start mb-6">
-                                  <div className="flex items-center gap-4">
-                                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-xl shadow-2xs ${isAlta ? 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300' : 'bg-brand-light text-brand-dark dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
-                                        <i className={`fa-solid ${isAlta ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down'}`}></i>
-                                    </div>
-                                    <div>
-                                        <p className="font-extrabold text-zinc-900 dark:text-white text-lg leading-snug">{origenObj?.nombre || fc.origenMovimiento}</p>
-                                        <p className="text-xs text-zinc-400 font-bold mt-0.5 uppercase tracking-wider">Periodo: {fc.mes} / {fc.anio}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <button onClick={()=>handleGenerateFC04PDF(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Imprimir PDF"><i className="fa-solid fa-print text-xs"></i></button>
-                                    <button onClick={()=>openFC04Modal(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                                    {isAdmin && (
-                                        <button onClick={()=>setItemToDelete({type:'fc04', id:fc.id, item: fc})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                <div className="mt-auto pt-4 border-t border-zinc-100 dark:border-darkbg-border">
-                                  {fc.sinMovimiento ? (
-                                    <span className="inline-flex items-center rounded-xl bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600 dark:bg-darkbg-main dark:text-zinc-400 border border-zinc-200 dark:border-darkbg-border">Sin Movimiento</span>
-                                  ) : (
-                                    <div>
-                                        <p className="text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Activos ({fc.bienesSnapshot?.length || 0})</p>
-                                        <div className="flex flex-wrap gap-1.5">
-                                          {fc.bienesSnapshot?.slice(0, 3).map(b => ( <span key={b.id} className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 dark:bg-darkbg-main dark:text-zinc-300 border border-zinc-200/60 dark:border-darkbg-border">{b.rotulo}</span> ))}
-                                          {fc.bienesSnapshot?.length > 3 && <span className="text-xs font-bold text-brand-primary self-center ml-1">+{fc.bienesSnapshot.length - 3}</span>}
-                                        </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                {activeTab === 'fc04' && (<Fc04View filteredFC04={filteredFC04} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} openFC04Modal={openFC04Modal} STYLES={STYLES} isLoading={isLoading} ORIGENES_FC04={ORIGENES_FC04} handleGenerateFC04PDF={handleGenerateFC04PDF} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
 
-                {activeTab === 'fc10' && (
-                <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-file-signature text-lg"></i>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Actas de Responsabilidad (FC-10)</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
-                              {filteredFC10.length}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">DelegaciÃ³n y custodia legal de los bienes institucionales</p>
-                        </div>
-                      </div>
-
-                      {/* CONTENEDOR DE CONTROLES SUPERIOR */}
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />                       
-                        {/* NUEVO BOTÃ“N CONSOLIDADO */}
-                        <button onClick={() => setIsConsolidatedFC10ModalOpen(true)} className={STYLES.btnPrimary + " flex items-center gap-2"}>
-                            <i className="fa-solid fa-file-lines text-xs"></i> FC-10 Consolidado
-                        </button>
-                        <button onClick={handleExportFC10CSV} title={`Exportar actas del aÃ±o ${fc10Year} a CSV`} className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
-                            <i className="fa-solid fa-file-csv text-emerald-600 dark:text-emerald-400"></i> Exportar aÃ±o
-                        </button>
-                      </div>
-                    </div>                    
-                    <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
-                      {isLoading ? (
-                        <SkeletonLoader />
-                      ) : filteredFC10.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
-                            <i className="fa-solid fa-folder-open text-2xl"></i>
-                          </div>
-                          <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin asignaciones en el ciclo</h3>
-                          <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen actas FC-10 generadas en el periodo seleccionado.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                          {filteredFC10.map(fc => {
-                            const bien = bienes.find(b=>b.id === fc.bienId) || {};
-                            const isDevuelto = !!fc.devolucionFecha;
-                            return (
-                              <div key={fc.id} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
-                                <div className="p-5 flex-1 flex flex-col">
-                                    <div className="flex justify-between items-start gap-2 mb-4">
-                                        <div className="flex flex-col gap-1.5 min-w-0">
-                                            {isDevuelto ? (
-                                                <span className="inline-flex w-fit items-center rounded-lg bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
-                                                    Devuelto
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex w-fit items-center rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                                                    Vigente
-                                                </span>
-                                            )}
-                                            <span className="text-xs font-medium tabular-nums text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
-                                                <i className="fa-regular fa-calendar"></i> {formatDateText(fc.entregadoFecha || fc.fechaGeneracion)}
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-1 shrink-0 rounded-xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/70 dark:border-white/10 p-1">
-                                            <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Imprimir acta"><i className="fa-solid fa-print text-xs"></i></button>
-                                            <button onClick={() => openFC10Modal(bien, fc)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar / Cerrar acta"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                                            {isAdmin && (
-                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id, item: { ...fc, bienRotulo: bien?.rotulo, bienDescripcion: bien?.descripcion }})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar acta"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="mt-1 flex flex-col flex-1">
-    <h4 className="font-bold text-zinc-900 dark:text-white text-sm tracking-tight truncate" title={fc.funcionarioNombre}>{fc.funcionarioNombre}</h4>
-    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium truncate">{fc.funcionarioCargo}{fc.funcionarioDoc ? ` Â· CI ${formatCI(fc.funcionarioDoc)}` : ''}</p>
-
-    <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-white/10">
-        <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-200 line-clamp-2 leading-relaxed" title={bien.descripcion || 'DescripciÃ³n no disponible'}>
-            {bien.descripcion || 'DescripciÃ³n no disponible'}
-        </p>
-        <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1.5 font-semibold tabular-nums">
-            <i className="fa-solid fa-tag mr-1.5"></i>{bien.rotulo || 'S/RÃ³tulo'}
-        </p>
-    </div>
-</div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                </div>
-            )}
-                {activeTab === 'fc11' && (
-                  <div className="animate-fade-in flex flex-col flex-1 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-truck-fast text-lg"></i>
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2.5">
-                            <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Autorizaciones de Traslado (FC-11)</h2>
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
-                              {filteredFC11.length}
-                            </span>
-                          </div>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Movilidad interna institucional de bienes entre dependencias</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
-                        <button onClick={handleExportFC11CSV} className={STYLES.btnSecondary}>
-                            <i className="fa-solid fa-file-csv text-emerald-600 dark:text-emerald-400"></i> Exportar CSV
-                        </button>
-                      </div>
-                    </div>                    
-                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm min-h-[400px]">
-                      {isLoading ? ( <SkeletonLoader /> ) : filteredFC11.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
-                            <i className="fa-solid fa-boxes-packing text-2xl"></i>
-                          </div>
-                          <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin traslados registrados</h3>
-                          <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen expedientes FC-11 procesados en el periodo seleccionado.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                          {filteredFC11.map(fc => {
-                            const depRemitente = fc.dependenciaRemitente || fc.remitente || '';
-                            const depDestinataria = fc.dependenciaDestinataria || fc.destinatario || '';
-                            const esSalida = depRemitente === dependenciaActual;
-                            return (
-                              <div key={fc.id} className={`${STYLES.card} p-6 flex flex-col hover:border-brand-primary/50 transition-all group relative overflow-hidden`}>
-                                <div className={`absolute top-0 left-0 w-full h-1 ${esSalida ? 'bg-zinc-500' : 'bg-brand-primary'}`}></div>
-                                <div className="flex justify-between items-start mb-5">
-                                  <div className="flex items-center gap-3">
-                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl text-lg shadow-2xs ${esSalida ? 'bg-zinc-100 text-zinc-700 dark:bg-darkbg-main dark:text-zinc-300' : 'bg-brand-light text-brand-primary dark:bg-brand-primary/20 dark:text-brand-accent'}`}>
-                                        <i className={`fa-solid ${esSalida ? 'fa-arrow-right-from-bracket' : 'fa-arrow-right-to-bracket'}`}></i>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        {esSalida ? <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2.5 py-0.5 text-[10px] font-black text-zinc-700 border border-zinc-200 dark:bg-darkbg-main dark:text-zinc-300 dark:border-darkbg-border uppercase tracking-wider">Despacho</span> : <span className="inline-flex items-center rounded-lg bg-brand-light px-2.5 py-0.5 text-[10px] font-black text-brand-primary border border-brand-primary/20 dark:bg-brand-primary/20 dark:text-brand-accent uppercase tracking-wider">RecepciÃ³n</span>}
-                                        <p className="text-xs font-mono font-bold text-zinc-900 dark:text-zinc-100 mt-1 uppercase">NÂº {fc.numeroFormulario}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <button onClick={()=>handleGenerateFC11PDF([fc])} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Re-imprimir"><i className="fa-solid fa-print text-xs"></i></button>
-                                    <button onClick={()=>openFC11Modal(bienes.find(b => b.id === fc.bienId) || fc.bienSnapshot, fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                                    {isAdmin && (
-                                        <button onClick={()=>setItemToDelete({type:'fc11', id:fc.id, item: fc})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="mt-2 flex-1 flex flex-col">
-                                  <div className="flex flex-col gap-1.5 mb-4 border-l-2 border-zinc-200 dark:border-darkbg-border pl-3 py-1">
-                                     <p className="text-xs text-zinc-500 dark:text-zinc-400"><span className="font-bold text-zinc-900 dark:text-zinc-100">{esSalida ? 'Hacia:' : 'Desde:'}</span> {esSalida ? depDestinataria : depRemitente}</p>
-                                  </div>
-                                  <div className="mt-auto bg-zinc-50/80 dark:bg-darkbg-main/80 p-3.5 rounded-xl border border-zinc-200/60 dark:border-darkbg-border">
-                                    <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mb-1 font-mono"><i className="fa-solid fa-tag text-zinc-400 mr-1.5"></i> {fc.bienSnapshot?.rotulo}</p>
-                                    <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{fc.bienSnapshot?.descripcion || 'EspecificaciÃ³n omitida'}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}                
-                {activeTab === 'ayuda' && (
-                  <div className="space-y-6 animate-fade-in pb-12">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                          <i className="fa-solid fa-circle-question text-lg"></i>
-                        </div>
-                        <div>
-                          <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Soporte y Normativa</h2>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">GuÃ­a operativa y documentaciÃ³n oficial del ciclo de vida de los bienes</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setTourPaso(0)}
-                        title="Recorrer la guÃ­a interactiva"
-                        className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none shrink-0"
-                      >
-                        <i className="fa-solid fa-route"></i> Hacer tour guiado
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-                        <div className="lg:col-span-5 flex flex-col">
-                            <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
-                                <i className="fa-solid fa-network-wired text-brand-primary"></i> Procedimiento LÃ³gico
-                            </h2>
-                            <div className={`${STYLES.card} p-6 sm:p-8 relative overflow-hidden flex-1`}>
-                                <div className="absolute left-[56px] top-12 bottom-12 w-0.5 bg-zinc-200 dark:bg-darkbg-border hidden sm:block z-0"></div>
-                                <div className="space-y-2 relative z-10">
-                                    <WorkflowStep number="1" title="Alta (FC-04)" description="La incorporaciÃ³n inicial exige la creaciÃ³n de un FC-04 de Alta. Esto registra contablemente el Ã­tem en la base de datos principal." icon="fa-arrow-trend-up" color="bg-zinc-500" />
-                                    <WorkflowStep number="2" title="DelegaciÃ³n (FC-10)" description="La entrega fÃ­sica requiere el levantamiento de un FC-10 nominal. Este instrumento legal transfiere la responsabilidad civil del objeto." icon="fa-file-signature" color="bg-brand-primary" />
-                                    <WorkflowStep number="3" title="Movilidad (FC-11)" description="Toda reubicaciÃ³n entre facultades debe ampararse en un FC-11, el cual extingue automÃ¡ticamente la responsabilidad del custodio anterior." icon="fa-dolly" color="bg-zinc-600" />
-                                    <WorkflowStep number="4" title="ExtinciÃ³n (FC-04)" description="El desuso o rotura definitiva obliga a tramitar un FC-04 de Baja para remover contablemente el valor del patrimonio activo." icon="fa-ban" color="bg-red-500" />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="lg:col-span-7">
-                            <h2 className="text-lg font-bold leading-6 text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
-                                <i className="fa-solid fa-clipboard-question text-brand-primary"></i> Preguntas Frecuentes
-                            </h2>
-                            <div className="space-y-4">
-                                <FaqItem question="ExplicaciÃ³n de la alerta crÃ­tica 'Req. AcciÃ³n'" answer="Este indicador previene discrepancias en el inventario. Se activa bajo dos escenarios: 1) Ingreso de un nuevo bien sin ubicaciÃ³n fÃ­sica definida. 2) RecepciÃ³n de un bien trasladado (FC-11) que no ha sido re-asignado legalmente mediante un nuevo FC-10." />
-                                <FaqItem question="Protocolo para exclusiÃ³n de inventario (Baja)" answer="La normativa exige generar un expediente FC-04 de cierre, seleccionando 'Baja' como origen. El sistema procesarÃ¡ el descargo contable e inhabilitarÃ¡ el registro. La modificaciÃ³n manual del estado en el inventario solo se admite para correcciones de digitaciÃ³n." />
-                                <FaqItem question="Autocompletado de la estructura organizacional" answer="El formulario FC-10 emplea aprendizaje histÃ³rico. Al procesar las primeras asignaciones, el sistema mapea la jerarquÃ­a (Unidad, ReparticiÃ³n, etc.) permitiendo el despliegue automÃ¡tico en procesos futuros, reduciendo la carga administrativa." />
-                                <FaqItem question="RecuperaciÃ³n de registros histÃ³ricos (Bajas)" answer="A fines de precisiÃ³n contable, los Ã­tems dados de baja no participan de las mÃ©tricas principales. Para auditar este histÃ³rico, acceda a 'Directorio Patrimonial' y ejecute el filtro 'Bajas' en el panel de herramientas." />
-                                <FaqItem question="ExportaciÃ³n masiva de cÃ³digo de barras (QR)" answer="A travÃ©s de la vista de Inventario, usted puede aplicar segmentaciones por ubicaciÃ³n o custodio. Ejecute el comando 'Lote QRs' para compilar un archivo comprimido (.zip) estructurado para impresiÃ³n industrial." />
-                            </div>
-                        </div>
-                    </div>
-                  </div>
-               )}
+                {activeTab === 'fc10' && (<Fc10View filteredFC10={filteredFC10} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleExportFC10CSV={handleExportFC10CSV} isLoading={isLoading} bienes={bienes} handleGenerateFC10PDF={handleGenerateFC10PDF} openFC10Modal={openFC10Modal} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
+                {activeTab === 'fc11' && (<Fc11View filteredFC11={filteredFC11} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} handleExportFC11CSV={handleExportFC11CSV} isLoading={isLoading} dependenciaActual={dependenciaActual} handleGenerateFC11PDF={handleGenerateFC11PDF} openFC11Modal={openFC11Modal} bienes={bienes} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
+                {activeTab === 'ayuda' && (<AyudaView setTourPaso={setTourPaso} STYLES={STYLES} />)}
             </div>
           </main>
       </div>
@@ -5661,7 +5206,7 @@ if (publicBienId) {
               STYLES={STYLES}
           />
       )}
-      {/* ... demÃ¡s modales ... */}
+      {/* ... demás modales ... */}
       <FuncionarioModal 
     isOpen={isFuncionarioModalOpen}
     onClose={() => setIsFuncionarioModalOpen(false)}
@@ -5705,7 +5250,7 @@ if (publicBienId) {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">Generar Inventario FC-03</h2>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parÃ¡metros del reporte</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
                 </div>
               </div>
               <button onClick={() => setIsFC03ModalOpen(false)} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
@@ -5723,7 +5268,7 @@ if (publicBienId) {
                             setShowFC03FuncDropdown(false);
                         }}>
                             <option value="general">General (Toda la Dependencia)</option>
-                            <option value="ubicacion">Por UbicaciÃ³n EspecÃ­fica</option>
+                            <option value="ubicacion">Por Ubicación Específica</option>
                             <option value="funcionario">Por Funcionario Responsable</option>
                         </select>
                         <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
@@ -5731,10 +5276,10 @@ if (publicBienId) {
                 </div>               
                 {fc03Config.tipoFiltro === 'ubicacion' && (
                     <div className="space-y-2 animate-fade-in">
-                        <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar UbicaciÃ³n</label>
+                        <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Ubicación</label>
                         <div className="relative">
                             <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
-                                <option value="">Seleccione una ubicaciÃ³n...</option>
+                                <option value="">Seleccione una ubicación...</option>
                                 {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                             <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
@@ -5825,7 +5370,7 @@ if (publicBienId) {
                                                         <div className="flex flex-col truncate pr-2">
                                                             <span className="truncate">{f.nombre}</span>
                                                             <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
-                                                                {f.cedula !== 'S/C' ? `CI: ${formatCI(f.cedula)}` : 'Sin CÃ©dula'}
+                                                                {f.cedula !== 'S/C' ? `CI: ${formatCI(f.cedula)}` : 'Sin Cédula'}
                                                             </span>
                                                         </div>
                                                         {isSelected && <i className="fa-solid fa-check text-amber-600 shrink-0"></i>}
@@ -5840,11 +5385,11 @@ if (publicBienId) {
                     );
                 })()}
                 <div className="space-y-2">
-                    <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Lugar de EmisiÃ³n</label>
+                    <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Lugar de Emisión</label>
                     <input type="text" className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner" value={fc03Config.lugar} onChange={e => setFc03Config({...fc03Config, lugar: e.target.value})} placeholder="Ej: Pilar" />
                 </div>
             </div>
-            {/* BOTONES DE ACCIÃ“N */}
+            {/* BOTONES DE ACCIÓN */}
             <div className="flex justify-end gap-2 px-6 sm:px-8 py-5 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/50 dark:bg-zinc-900 shrink-0 z-10 rounded-b-[24px]">
               <button onClick={() => setIsFC03ModalOpen(false)} className="h-10 px-5 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/70 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Cancelar</button>
               <button onClick={executeGenerateFC03} className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-zinc-900 dark:disabled:hover:bg-white" disabled={fc03Config.tipoFiltro !== 'general' && !fc03Config.filtroValor}>
@@ -6011,22 +5556,22 @@ if (publicBienId) {
     setMotivoResolucion={setMotivoResolucion}
     STYLES={STYLES}
 />
-      {/* MODAL DE AVISO PARA ELIMINACIÃ“N O SOLICITUD DE BAJA */}
+      {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
       {itemToDelete && (() => {
         const tipo = itemToDelete.type;
         const esFunc = tipo === 'funcionario' || tipo === 'requestBajaFuncionario';
         const esSolicitud = tipo === 'requestBaja' || tipo === 'requestBajaFuncionario';
         const titulo = esFunc
-          ? (esSolicitud ? 'Solicitar eliminaciÃ³n del funcionario' : 'Â¿Eliminar del padrÃ³n?')
-          : (tipo === 'usuario' ? 'Â¿Eliminar usuario?'
-          : tipo === 'fc10' ? 'Â¿Eliminar acta FC-10?'
-          : tipo === 'fc11' ? 'Â¿Eliminar formulario FC-11?'
-          : tipo === 'fc04' ? 'Â¿Eliminar acta FC-04?'
-          : (esSolicitud ? 'Solicitud de Baja / EliminaciÃ³n' : 'Â¿Eliminar o dar de baja el registro?'));
+          ? (esSolicitud ? 'Solicitar eliminación del funcionario' : '¿Eliminar del padrón?')
+          : (tipo === 'usuario' ? '¿Eliminar usuario?'
+          : tipo === 'fc10' ? '¿Eliminar acta FC-10?'
+          : tipo === 'fc11' ? '¿Eliminar formulario FC-11?'
+          : tipo === 'fc04' ? '¿Eliminar acta FC-04?'
+          : (esSolicitud ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?'));
         const nombreFc10 = itemToDelete.item?.funcionarioNombre || 'este funcionario';
-        const rotuloFc10 = itemToDelete.item?.bienRotulo || itemToDelete.item?.rotulo || 'S/RÃ³tulo';
-        const numFc11 = itemToDelete.item?.numeroFormulario || 'S/NÂº';
-        const rotuloFc11 = itemToDelete.item?.bienSnapshot?.rotulo || 'S/RÃ³tulo';
+        const rotuloFc10 = itemToDelete.item?.bienRotulo || itemToDelete.item?.rotulo || 'S/Rótulo';
+        const numFc11 = itemToDelete.item?.numeroFormulario || 'S/Nº';
+        const rotuloFc11 = itemToDelete.item?.bienSnapshot?.rotulo || 'S/Rótulo';
         const periodoFc04 = (itemToDelete.item?.mes || itemToDelete.item?.anio)
           ? `${itemToDelete.item?.mes || '?'} / ${itemToDelete.item?.anio || '?'}` : 'este periodo';
         const nombreUsuario = itemToDelete.item?.nombre
@@ -6034,19 +5579,19 @@ if (publicBienId) {
           : (itemToDelete.item?.username || itemToDelete.username || 'este usuario');
         const descripcion = esFunc
           ? (esSolicitud
-            ? `Se enviarÃ¡ una notificaciÃ³n formal al administrador para evaluar la exclusiÃ³n de "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrÃ³n.`
-            : `Se eliminarÃ¡ a "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrÃ³n de forma permanente. Esta acciÃ³n no se puede deshacer.`)
+            ? `Se enviará una notificación formal al administrador para evaluar la exclusión de "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón.`
+            : `Se eliminará a "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón de forma permanente. Esta acción no se puede deshacer.`)
           : (tipo === 'usuario'
-            ? `Se eliminarÃ¡ al usuario "${nombreUsuario}" de forma permanente. Esta acciÃ³n no se puede deshacer.`
+            ? `Se eliminará al usuario "${nombreUsuario}" de forma permanente. Esta acción no se puede deshacer.`
           : tipo === 'fc10'
-            ? `Se eliminarÃ¡ el acta FC-10 de "${nombreFc10}" (rÃ³tulo ${rotuloFc10}) de forma permanente. Esta acciÃ³n no se puede deshacer.`
+            ? `Se eliminará el acta FC-10 de "${nombreFc10}" (rótulo ${rotuloFc10}) de forma permanente. Esta acción no se puede deshacer.`
           : tipo === 'fc11'
-            ? `Se eliminarÃ¡ el formulario FC-11 NÂº ${numFc11} (rÃ³tulo ${rotuloFc11}) de forma permanente. Esta acciÃ³n no se puede deshacer.`
+            ? `Se eliminará el formulario FC-11 Nº ${numFc11} (rótulo ${rotuloFc11}) de forma permanente. Esta acción no se puede deshacer.`
           : tipo === 'fc04'
-            ? `Se eliminarÃ¡ el acta FC-04 del periodo ${periodoFc04} de forma permanente. Esta acciÃ³n no se puede deshacer.`
+            ? `Se eliminará el acta FC-04 del periodo ${periodoFc04} de forma permanente. Esta acción no se puede deshacer.`
           : (esSolicitud
-            ? `Se enviarÃ¡ una notificaciÃ³n formal al administrador para evaluar la exclusiÃ³n del activo "${itemToDelete.item?.rotulo || 'S/RÃ³tulo'}".`
-            : `Esta acciÃ³n modificarÃ¡ el estado del activo "${itemToDelete.item?.rotulo || 'S/RÃ³tulo'}" a De Baja o lo removerÃ¡ del inventario activo.`));
+            ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
+            : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}" a De Baja o lo removerá del inventario activo.`));
         return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
@@ -6073,7 +5618,7 @@ if (publicBienId) {
                       rows={3}
                       value={motivoSolicitudBaja}
                       onChange={(e) => setMotivoSolicitudBaja(e.target.value)}
-                      placeholder={esFunc ? 'Ej: Renuncia, traslado definitivo, jubilaciÃ³n...' : 'Ej: AverÃ­a irreparable, rotura fÃ­sica, obsolescencia, desuso...'}
+                      placeholder={esFunc ? 'Ej: Renuncia, traslado definitivo, jubilación...' : 'Ej: Avería irreparable, rotura física, obsolescencia, desuso...'}
                       className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3.5 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner resize-none"
                     />
                   </div>
@@ -6091,7 +5636,7 @@ if (publicBienId) {
                         disabled={esSolicitud && !motivoSolicitudBaja.trim()}
                         className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                        {esSolicitud ? 'Enviar Solicitud' : 'Confirmar AcciÃ³n'}
+                        {esSolicitud ? 'Enviar Solicitud' : 'Confirmar Acción'}
                     </button>
                 </div>
 
@@ -6099,7 +5644,7 @@ if (publicBienId) {
         </div>
         );
       })()}
-      {/* MODAL DE CONFIRMACIÃ“N DE BACKUP GENERAL */}
+      {/* MODAL DE CONFIRMACIÓN DE BACKUP GENERAL */}
       {confirmBackupModal && (
         <div className={STYLES.modalOverlay}>
           <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
@@ -6107,10 +5652,10 @@ if (publicBienId) {
               <i className="fa-solid fa-database text-xl"></i>
             </div>
             <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
-              Â¿Descargar Copia de Seguridad?
+              ¿Descargar Copia de Seguridad?
             </h3>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
-              Esta operaciÃ³n compilarÃ¡ y descargarÃ¡ una copia completa e Ã­ntegra (.json) de todos los registros patrimoniales, funcionarios, asignaciones y auditorÃ­as de la Universidad.
+              Esta operación compilará y descargará una copia completa e íntegra (.json) de todos los registros patrimoniales, funcionarios, asignaciones y auditorías de la Universidad.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -6126,14 +5671,14 @@ if (publicBienId) {
                 }}
                 className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
-                <i className="fa-solid fa-download mr-1.5 text-xs"></i> SÃ­, Descargar
+                <i className="fa-solid fa-download mr-1.5 text-xs"></i> Sí, Descargar
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL DE CONFIRMACIÃ“N DE IMPORTACIÃ“N MASIVA CSV */}
+      {/* MODAL DE CONFIRMACIÓN DE IMPORTACIÓN MASIVA CSV */}
       {pendingCSVImport && (
         <div className={STYLES.modalOverlay}>
           <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
@@ -6141,7 +5686,7 @@ if (publicBienId) {
               <i className="fa-solid fa-file-csv text-xl"></i>
             </div>
             <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
-              Â¿Confirmar ImportaciÃ³n Masiva?
+              ¿Confirmar Importación Masiva?
             </h3>
             <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-2xl border border-zinc-200/60 dark:border-zinc-700/60 text-left mb-6 space-y-1.5">
               <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Archivo seleccionado:</p>
@@ -6150,7 +5695,7 @@ if (publicBienId) {
               <p className="text-xs font-bold text-emerald-700 dark:text-emerald-400">{dependenciaActual}</p>
             </div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
-              Los registros serÃ¡n validados para evitar duplicados e incorporados a la base de datos oficial. Â¿Desea proceder con la carga?
+              Los registros serán validados para evitar duplicados e incorporados a la base de datos oficial. ¿Desea proceder con la carga?
             </p>
             <div className="flex gap-3 justify-end">
               <button 
@@ -6175,7 +5720,7 @@ if (publicBienId) {
                 }}
                 className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
               >
-                <i className="fa-solid fa-check mr-1.5 text-xs"></i> SÃ­, Continuar
+                <i className="fa-solid fa-check mr-1.5 text-xs"></i> Sí, Continuar
               </button>
             </div>
           </div>
