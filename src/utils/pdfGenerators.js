@@ -1,4 +1,23 @@
 import QRCode from 'qrcode';
+
+// Sanea texto con mojibake por doble codificación UTF-8 (p. ej. "NÂ°" en vez
+// de "N°", "Ã±" en vez de "ñ"). Viene de datos ya guardados así (importación
+// CSV), así que se corrige en la capa de render sin tocar la base.
+const sanearTextoPDF = (val) => {
+    if (val === null || val === undefined) return val;
+    const s = String(val);
+    if (!s) return s;
+    const mapa = [
+        ['Â°', '°'], ['Â¡', '¡'], ['Â¿', '¿'], ['Â«', '«'], ['Â»', '»'],
+        ['Ã±', 'ñ'], ['Ã‘', 'Ñ'],
+        ['Ã¡', 'á'], ['Ã©', 'é'], ['Ã­', 'í'], ['Ã³', 'ó'], ['Ãº', 'ú'], ['Ã¼', 'ü'],
+        ['ÃÁ', 'Á'], ['ÃÉ', 'É'], ['ÃÍ', 'Í'], ['ÃÓ', 'Ó'], ['ÃÚ', 'Ú'],
+        ['â€œ', '"'], ['â€', '"'], ['â€˜', "'"], ['â€™', "'"], ['â€“', '–'], ['â€”', '—']
+    ];
+    let out = s;
+    for (const [mal, bien] of mapa) out = out.split(mal).join(bien);
+    return out;
+};
 export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -100,8 +119,8 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
                 b.subcuenta || '05',
                 b.analitico1 || '01',
                 b.analitico2 || '01',
-                b.descripcion || 'Sin descripción',
-                b.rotulo || '-',
+                sanearTextoPDF(b.descripcion) || 'Sin descripción',
+                sanearTextoPDF(b.rotulo) || '-',
                 '1',
                 formatCurrency(valorNum),
                 formatCurrency(valorNum)
@@ -159,7 +178,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.autoTable({
             startY: finalY,
             head: [["OBSERVACIONES ADICIONALES:"]],
-            body: [[fc.observaciones || 'Ninguna.']],
+            body: [[sanearTextoPDF(fc.observaciones) || 'Ninguna.']],
             theme: 'grid',
             headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'left' },
             bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, minCellHeight: 18, valign: 'top' },
@@ -210,7 +229,7 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.setFontSize(8);
         doc.text("Firma del Funcionario Responsable", leftX + 35, finalY + 4, { align: 'center' });
         doc.setFont("helvetica", "normal");
-        doc.text(`Aclaración: ${fc.funcionarioNombre || ''}`, leftX, finalY + 9);
+        doc.text(`Aclaración: ${sanearTextoPDF(fc.funcionarioNombre) || ''}`, leftX, finalY + 9);
         doc.text(`C.I.: ${formatCI(fc.funcionarioDoc) || ''}`, leftX, finalY + 14);
 
         const rightX = pageWidth - 95;
@@ -220,17 +239,21 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.setFont("helvetica", "normal");
         doc.text("Aclaración:", rightX, finalY + 9);
 
-        const totalPagesDoc = doc.internal.getNumberOfPages();
-        for (let p = 1; p <= totalPagesDoc; p++) {
-            doc.setPage(p);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(7);
-            doc.setTextColor(130, 130, 130);
-            doc.text(`Página ${p} de ${totalPagesDoc}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-            doc.setTextColor(0, 0, 0);
-        }
-
     });
+
+    // Pie de página ÚNICO: se sella una sola vez al final, cuando ya existen
+    // todas las páginas (original + copia + continuaciones). Antes estaba
+    // dentro del forEach y cada copia re-sellaba encima del sello anterior
+    // ("Página 1 de 2" + "Página 1 de 4" solapados y cortados).
+    const totalPaginasFC10 = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPaginasFC10; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(130, 130, 130);
+        doc.text(`Página ${p} de ${totalPaginasFC10}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+    }
 
     return { doc, fechaDocumento: dateStr, fc };
 };

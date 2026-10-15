@@ -5344,7 +5344,7 @@ if (publicBienId) {
                                               <i className="fa-solid fa-pen-to-square text-[13px]"></i>
                                           </button>
                                           {u.username !== currentUser.username && (
-                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
+                                              <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo, item: u})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
                                                   <i className="fa-solid fa-trash-can text-[13px]"></i>
                                               </button>
                                           )}
@@ -5605,7 +5605,7 @@ if (publicBienId) {
                                     <button onClick={()=>handleGenerateFC04PDF(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Imprimir PDF"><i className="fa-solid fa-print text-xs"></i></button>
                                     <button onClick={()=>openFC04Modal(fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
                                     {isAdmin && (
-                                        <button onClick={()=>setItemToDelete({type:'fc04', id:fc.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                        <button onClick={()=>setItemToDelete({type:'fc04', id:fc.id, item: fc})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
                                     )}
                                   </div>
                                 </div>
@@ -5700,7 +5700,7 @@ if (publicBienId) {
                                             <button onClick={()=>handleGenerateFC10PDF([fc], [bien])} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Imprimir acta"><i className="fa-solid fa-print text-xs"></i></button>
                                             <button onClick={() => openFC10Modal(bien, fc)} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-white dark:hover:text-white dark:hover:bg-white/10 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar / Cerrar acta"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
                                             {isAdmin && (
-                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar acta"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                                <button onClick={()=>setItemToDelete({type:'fc10', id:fc.id, bienId:bien.id, item: { ...fc, bienRotulo: bien?.rotulo, bienDescripcion: bien?.descripcion }})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar acta"><i className="fa-solid fa-trash-can text-xs"></i></button>
                                             )}
                                         </div>
                                     </div>
@@ -5782,7 +5782,7 @@ if (publicBienId) {
                                     <button onClick={()=>handleGenerateFC11PDF([fc])} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:bg-darkbg-hover transition cursor-pointer" title="Re-imprimir"><i className="fa-solid fa-print text-xs"></i></button>
                                     <button onClick={()=>openFC11Modal(bienes.find(b => b.id === fc.bienId) || fc.bienSnapshot, fc)} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-brand-primary hover:bg-brand-light dark:hover:bg-brand-primary/20 transition cursor-pointer" title="Editar"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
                                     {isAdmin && (
-                                        <button onClick={()=>setItemToDelete({type:'fc11', id:fc.id})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
+                                        <button onClick={()=>setItemToDelete({type:'fc11', id:fc.id, item: fc})} className="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition cursor-pointer"><i className="fa-solid fa-trash-can text-xs"></i></button>
                                     )}
                                   </div>
                                 </div>
@@ -6220,18 +6220,40 @@ if (publicBienId) {
 />
       {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
       {itemToDelete && (() => {
-        const esFunc = itemToDelete.type === 'funcionario' || itemToDelete.type === 'requestBajaFuncionario';
-        const esSolicitud = itemToDelete.type === 'requestBaja' || itemToDelete.type === 'requestBajaFuncionario';
+        const tipo = itemToDelete.type;
+        const esFunc = tipo === 'funcionario' || tipo === 'requestBajaFuncionario';
+        const esSolicitud = tipo === 'requestBaja' || tipo === 'requestBajaFuncionario';
         const titulo = esFunc
           ? (esSolicitud ? 'Solicitar eliminación del funcionario' : '¿Eliminar del padrón?')
-          : (esSolicitud ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?');
+          : (tipo === 'usuario' ? '¿Eliminar usuario?'
+          : tipo === 'fc10' ? '¿Eliminar acta FC-10?'
+          : tipo === 'fc11' ? '¿Eliminar formulario FC-11?'
+          : tipo === 'fc04' ? '¿Eliminar acta FC-04?'
+          : (esSolicitud ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?'));
+        const nombreFc10 = itemToDelete.item?.funcionarioNombre || 'este funcionario';
+        const rotuloFc10 = itemToDelete.item?.bienRotulo || itemToDelete.item?.rotulo || 'S/Rótulo';
+        const numFc11 = itemToDelete.item?.numeroFormulario || 'S/Nº';
+        const rotuloFc11 = itemToDelete.item?.bienSnapshot?.rotulo || 'S/Rótulo';
+        const periodoFc04 = (itemToDelete.item?.mes || itemToDelete.item?.anio)
+          ? `${itemToDelete.item?.mes || '?'} / ${itemToDelete.item?.anio || '?'}` : 'este periodo';
+        const nombreUsuario = itemToDelete.item?.nombre
+          ? `${itemToDelete.item.username || itemToDelete.username || ''} (${itemToDelete.item.nombre})`
+          : (itemToDelete.item?.username || itemToDelete.username || 'este usuario');
         const descripcion = esFunc
           ? (esSolicitud
             ? `Se enviará una notificación formal al administrador para evaluar la exclusión de "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón.`
             : `Se eliminará a "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón de forma permanente. Esta acción no se puede deshacer.`)
+          : (tipo === 'usuario'
+            ? `Se eliminará al usuario "${nombreUsuario}" de forma permanente. Esta acción no se puede deshacer.`
+          : tipo === 'fc10'
+            ? `Se eliminará el acta FC-10 de "${nombreFc10}" (rótulo ${rotuloFc10}) de forma permanente. Esta acción no se puede deshacer.`
+          : tipo === 'fc11'
+            ? `Se eliminará el formulario FC-11 Nº ${numFc11} (rótulo ${rotuloFc11}) de forma permanente. Esta acción no se puede deshacer.`
+          : tipo === 'fc04'
+            ? `Se eliminará el acta FC-04 del periodo ${periodoFc04} de forma permanente. Esta acción no se puede deshacer.`
           : (esSolicitud
             ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
-            : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || ''}" a De Baja o lo removerá del inventario activo.`);
+            : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}" a De Baja o lo removerá del inventario activo.`));
         return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
