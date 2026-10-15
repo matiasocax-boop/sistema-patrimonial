@@ -39,6 +39,7 @@ import {
     convertirImagenABase64, getLogoPorDependencia, comprimirImagen 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
+import { conSello, debeResyncTotal, fusionarBienes, ahoraISO } from './services/syncBienes';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
@@ -339,7 +340,7 @@ export default function App() {
         try { await supabase.storage.from('fotos-bienes').remove(sobrantes.map(f => f.ruta).filter(Boolean)); } catch (e) {}
       }
       const actualizado = { ...fichaBien, fotos };
-      const { error: dbErr } = await supabase.from('bens').update({ data: actualizado }).eq('id', fichaBien.id);
+      const { error: dbErr } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', fichaBien.id);
       if (dbErr) throw dbErr;
       // Releer del servidor como fuente de verdad (la galería muestra exactamente lo guardado)
       let final = actualizado;
@@ -367,7 +368,7 @@ export default function App() {
         try { await supabase.storage.from('fotos-bienes').remove([foto.ruta]); } catch (e) {}
       }
       const actualizado = { ...fichaBien, fotos: (fichaBien.fotos || []).filter(f => f.url !== foto.url) };
-      const { error } = await supabase.from('bens').update({ data: actualizado }).eq('id', fichaBien.id);
+      const { error } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', fichaBien.id);
       if (error) throw error;
       setBienes(prev => prev.map(b => (b.id === fichaBien.id ? actualizado : b)));
       setFichaBien(actualizado);
@@ -482,7 +483,7 @@ export default function App() {
         const bienesAfectados = bienes.filter(b => normalizeStr(b.ubicacion || '') === normalizeStr(anterior.nombre));
         for (let i = 0; i < bienesAfectados.length; i += 10) {
           const chunk = bienesAfectados.slice(i, i + 10);
-          await Promise.all(chunk.map(b => supabase.from('bens').update({ data: { ...b, ubicacion: nombre } }).eq('id', b.id)));
+          await Promise.all(chunk.map(b => supabase.from('bens').update(conSello({ data: { ...b, ubicacion: nombre } })).eq('id', b.id)));
         }
         if (bienesAfectados.length > 0) {
           const ids = new Set(bienesAfectados.map(b => b.id));
@@ -1164,6 +1165,16 @@ export default function App() {
       );
 
       const fetchPromise = (async () => {
+        // --- BIENES: descarga total solo si hace falta, si no delta por updated_at ---
+        const CACHE_BIENES = `bienes_cache_${dependenciaActual}`;
+        const META_BIENES = `bienes_meta_${dependenciaActual}`;
+        let metaBienes = null;
+        let cacheBienes = null;
+        try { metaBienes = await localforage.getItem(META_BIENES); } catch (e) {}
+        try { cacheBienes = await localforage.getItem(CACHE_BIENES); } catch (e) {}
+        const descargaTotal = debeResyncTotal(metaBienes) || !Array.isArray(cacheBienes);
+
+        if (descargaTotal) {
         let todosLosNuevosBienes = [];
         let rangeSize = 1000;
         let from = 0;
@@ -1181,7 +1192,7 @@ export default function App() {
           if (error || !batch || batch.length === 0) {
             keepFetchingBienes = false;
           } else {
-            todosLosNuevosBienes = [...todosLosNuevosBienes, ...batch];
+            for (const item of batch) todosLosNuevosBienes.push(item);
             if (batch.length < rangeSize) {
               keepFetchingBienes = false;
             } else {
@@ -1191,18 +1202,28 @@ export default function App() {
           }
         }
 
-        if (todosLosNuevosBienes.length > 0) {
-          const mapaBienes = new Map();
-          todosLosNuevosBienes.forEach(item => {
-              const parsedData = typeof item.data === 'string' ? JSON.parse(item.data) : item.data;
-              mapaBienes.set(item.id, { id: item.id, updated_at: item.updated_at, ...parsedData });
-          });
-          const inventarioFinal = Array.from(mapaBienes.values());
-          
-          await localforage.setItem(`bienes_cache_${dependenciaActual}`, inventarioFinal);
+        const { lista: inventarioFinal, maxUpdatedAt } = fusionarBienes([], todosLosNuevosBienes, dependenciaActual);
+        if (inventarioFinal.length > 0) {
+          await localforage.setItem(CACHE_BIENES, inventarioFinal);
+          // Si ninguna fila trae sello (datos legacy), el punto de sync es "ahora":
+          // desde aquí, toda edición ya sale sellada y entra en el delta.
+          await localforage.setItem(META_BIENES, { updated_at: maxUpdatedAt || ahoraISO(), actualizadoEn: Date.now() });
           setBienes(inventarioFinal);
         } else {
           setBienes([]);
+        }
+        } else {
+          // Delta: solo filas tocadas desde la última sincronización (KB, no MB).
+          const { data: cambios, error: errorDelta } = await supabase
+            .from('bens')
+            .select('id, data, updated_at')
+            .eq('data->>dependencia', dependenciaActual)
+            .gt('updated_at', metaBienes.updated_at);
+          if (errorDelta) throw errorDelta;
+          const { lista, maxUpdatedAt } = fusionarBienes(cacheBienes, cambios || [], dependenciaActual);
+          await localforage.setItem(CACHE_BIENES, lista);
+          await localforage.setItem(META_BIENES, { updated_at: maxUpdatedAt || metaBienes.updated_at, actualizadoEn: Date.now() });
+          setBienes(lista);
         }
 
         const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
@@ -1398,12 +1419,23 @@ useEffect(() => {
           const bensChannel = supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
               try {
                   if (payload.eventType === 'DELETE') {
-                      if (payload.old?.id) setBienes(prev => prev.filter(b => b.id !== payload.old.id));
+                      if (payload.old?.id) {
+                        setBienes(prev => prev.filter(b => b.id !== payload.old.id));
+                        // La caché también debe olvidar el borrado o el próximo delta lo resucita.
+                        localforage.getItem(`bienes_cache_${dependenciaActual}`).then(cache => {
+                          if (Array.isArray(cache)) localforage.setItem(`bienes_cache_${dependenciaActual}`, cache.filter(b => b.id !== payload.old.id));
+                        }).catch(() => {});
+                      }
                       return;
                   }
                   const row = payload.new;
                   if (!row) return;
                   const d = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+                  // El canal trae cambios de TODAS las dependencias: lo ajeno no se mezcla.
+                  if ((d.dependencia || '') !== dependenciaActual) {
+                      setBienes(prev => prev.filter(b => b.id !== row.id));
+                      return;
+                  }
                   const bien = { id: row.id, ...d };
                   setBienes(prev => {
                       const i = prev.findIndex(b => b.id === bien.id);
@@ -1740,7 +1772,7 @@ useEffect(() => {
     setBienes(prev => prev.map(b => b.id === bienId ? updated : b));
 
     try {
-      await supabase.from('bens').update({ data: updated }).eq('id', bienId);
+      await supabase.from('bens').update(conSello({ data: updated })).eq('id', bienId);
       const cacheKey = 'bienes_cache_' + (dependenciaActual || 'general');
       const cache = (await localforage.getItem(cacheKey)) || [];
       await localforage.setItem(cacheKey, cache.map(b => b.id === bienId ? updated : b));
@@ -2343,7 +2375,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
       setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
       
       try { 
-          await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
+          await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
           
           const cacheActual = await localforage.getItem('bienes_cache') || [];
           const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
@@ -2444,7 +2476,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
         if (newBienes.length > 0) {
           try {
-            const payload = newBienes.map(b => ({ id: b.id, data: b }));
+            const payload = newBienes.map(b => conSello({ id: b.id, data: b }));
             await supabase.from('bens').insert(payload);
             // Actualización local dirigida (evita recargar todo el inventario)
             setBienes(prev => [...newBienes, ...prev.filter(b => !newBienes.some(n => n.id === b.id))]);
@@ -2639,7 +2671,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         for (let i = 0; i < bienesAActualizar.length; i += CHUNK_SIZE) {
           const chunk = bienesAActualizar.slice(i, i + CHUNK_SIZE);
           await Promise.all(
-            chunk.map(b => supabase.from('bens').update({ data: b }).eq('id', b.id))
+            chunk.map(b => supabase.from('bens').update(conSello({ data: b })).eq('id', b.id))
           );
         }
 
@@ -2983,7 +3015,7 @@ const handleEditFuncionario = (funcionario) => {
         }
 
         let res;
-        const payload = { id: bienData.id, data: bienData };
+        const payload = conSello({ id: bienData.id, data: bienData });
         if (bienEditing) {
             res = await supabase.from('bens').update(payload).eq('id', bienData.id);
         } else {
@@ -3077,7 +3109,7 @@ const handleEditFuncionario = (funcionario) => {
           setFc10List(prev => prev.map(fc => fc.id === closedFc10.id ? closedFc10 : fc)); 
       }
 
-      await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
+      await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
       
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
       if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
@@ -3113,14 +3145,14 @@ const handleEditFuncionario = (funcionario) => {
               }
           }
           if (newBienes.length > 0) { 
-              const payloadNewBienes = newBienes.map(b => ({ id: b.id, data: b }));
+              const payloadNewBienes = newBienes.map(b => conSello({ id: b.id, data: b }));
               await supabase.from('bens').insert(payloadNewBienes);
               setBienes(prev => [...newBienes, ...prev]); 
               addToast(`${newBienes.length} bienes inyectados.`, "success"); 
           }
           if (updatedBienes.length > 0) { 
               for (const b of updatedBienes) {
-                  await supabase.from('bens').update({ data: b }).eq('id', b.id);
+                  await supabase.from('bens').update(conSello({ data: b })).eq('id', b.id);
               }
               setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
               addToast(`${updatedBienes.length} bajas registradas.`, "success"); 
@@ -3151,7 +3183,7 @@ const handleEditFuncionario = (funcionario) => {
         }
         if (res?.error) throw res.error;
 
-        await supabase.from('bens').update({ data: updatedBien }).eq('id', updatedBien.id);
+        await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
 
         const checkAndAddStructure = async (name, code, tipo) => { 
             if (name && code) { 
@@ -3409,7 +3441,7 @@ const handleEditFuncionario = (funcionario) => {
               const bienReal = bienes.find(b => b.id === bien.id) || bien;
               const updatedBien = { ...bienReal, estadoConservacion: "De Baja" };
               setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b));
-              await supabase.from("bens").update({ data: updatedBien }).eq("id", bien.id);
+              await supabase.from("bens").update(conSello({ data: updatedBien })).eq("id", bien.id);
               const cacheKey = "bienes_cache_" + (dependenciaActual || "general");
               const cacheActual = (await localforage.getItem(cacheKey)) || [];
               await localforage.setItem(cacheKey, cacheActual.map(b => b.id === bien.id ? updatedBien : b));
@@ -3582,7 +3614,7 @@ const handleEditFuncionario = (funcionario) => {
                   if (item.estadoConservacion === 'De Baja') { 
                     res = await supabase.from('bens').delete().eq('id', id); 
                   } else { 
-                    res = await supabase.from('bens').update({ data: { ...item, estadoConservacion: 'De Baja' } }).eq('id', id); 
+                    res = await supabase.from('bens').update(conSello({ data: { ...item, estadoConservacion: 'De Baja' } })).eq('id', id); 
                   }
 
                   await registrarAuditoria({
