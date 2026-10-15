@@ -212,24 +212,24 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.setFontSize(7.5);
         doc.setFont("helvetica", "normal");
         doc.text(disclaimerLines, 14, finalY);
-        finalY += (disclaimerLines.length * 3.5) + 12;
+        finalY += (disclaimerLines.length * 3.5) + 30;
 
-        const leftX = 25;
+        const leftX = 20;
         doc.setLineWidth(0.3);
-        doc.line(leftX, finalY, leftX + 70, finalY);
+        doc.line(leftX, finalY, leftX + 80, finalY);
         doc.setFont("helvetica", "bold");
         doc.setFontSize(8);
-        doc.text("Firma del Funcionario Responsable", leftX + 35, finalY + 4, { align: 'center' });
+        doc.text("Firma del Funcionario Responsable", leftX + 40, finalY + 5, { align: 'center' });
         doc.setFont("helvetica", "normal");
-        doc.text(`Aclaración: ${sanearTextoPDF(fc.funcionarioNombre) || ''}`, leftX, finalY + 9);
-        doc.text(`C.I.: ${formatCI(fc.funcionarioDoc) || ''}`, leftX, finalY + 14);
+        doc.text(`Aclaración: ${sanearTextoPDF(fc.funcionarioNombre) || ''}`, leftX, finalY + 11);
+        doc.text(`C.I.: ${formatCI(fc.funcionarioDoc) || ''}`, leftX, finalY + 17);
 
-        const rightX = pageWidth - 95;
-        doc.line(rightX, finalY, rightX + 70, finalY);
+        const rightX = pageWidth - 100;
+        doc.line(rightX, finalY, rightX + 80, finalY);
         doc.setFont("helvetica", "bold");
-        doc.text("Visto Bueno (Jefe Inmediato)", rightX + 35, finalY + 4, { align: 'center' });
+        doc.text("Visto Bueno (Jefe Inmediato)", rightX + 40, finalY + 5, { align: 'center' });
         doc.setFont("helvetica", "normal");
-        doc.text("Aclaración:", rightX, finalY + 9);
+        doc.text("Aclaración:", rightX, finalY + 11);
 
     });
 
