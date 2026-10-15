@@ -78,7 +78,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
                 {(bien.fotos || []).map((f, i) => (
                   <div key={f.url || i} className="relative group/foto rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-white/5 aspect-square">
                     <button onClick={() => setFotoAmpliada(f.url)} className="w-full h-full cursor-pointer" title="Ampliar foto">
-                      <img src={f.url} alt={`Foto ${i + 1} del bien`} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                      <img src={f.url} alt={`Foto ${i + 1} del bien`} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                     </button>
                     {esAdmin && (
                       <button

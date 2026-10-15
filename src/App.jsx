@@ -2535,7 +2535,9 @@ const handleEditFuncionario = (funcionario) => {
         estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', 
         vidaUtil: formData.get('vidaUtil') || '', 
         hasFC10: bienEditing ? bienEditing.hasFC10 : false, 
-        hasQR: formData.get('hasQR') === 'on' 
+        hasQR: formData.get('hasQR') === 'on',
+        // Preservar fotos existentes (no vienen en el formulario)
+        fotos: bienEditing?.fotos || []
     };
     
     try { 
@@ -2796,7 +2798,8 @@ const handleEditFuncionario = (funcionario) => {
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
           case 'fichaBien': openFichaBien(item); break;
           case 'duplicateBien': {
-              const { id, rotulo, hasQR, hasFC10, funcionario, funcionarioDoc, funcionarioCargo, ...resto } = item;
+              // Duplicar sin identidad, asignación ni fotos (evita archivos compartidos)
+              const { id, rotulo, hasQR, hasFC10, funcionario, funcionarioDoc, funcionarioCargo, fotos, ...resto } = item;
               setBienEditing(null);
               setPrefillBien({ ...resto, rotulo: '' });
               setIsBienModalOpen(true);
