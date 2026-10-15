@@ -1661,6 +1661,25 @@ useEffect(() => {
   const itemsPaginados = paginatedBienes; // <-- AÑADIDO AQUÍ
   const totalPages = Math.ceil(filteredBienes.length / itemsPerPage);
   const filteredFC10 = useMemo(() => { return fc10List.filter(fc => { if (fc.dependencia !== dependenciaActual) return false; const genDate = fc.entregadoFecha || fc.fechaGeneracion || ''; const devDate = fc.devolucionFecha || ''; const [gYear, gMonth] = genDate.split('-'); const matchGen = (gYear === fc10Year && gMonth === fc10Month); let matchDev = false; if (devDate) { const [dYear, dMonth] = devDate.split('-'); matchDev = (dYear === fc10Year && dMonth === fc10Month); } return matchGen || matchDev; }).sort((a, b) => new Date(b.fechaGeneracion).getTime() - new Date(a.fechaGeneracion).getTime()); }, [fc10List, dependenciaActual, fc10Year, fc10Month]);
+  // FC-10 vigente por bien (para mostrar la fecha de asignación en el inventario).
+  // Si hay varios, gana el vigente (sin devolución); si no, el más reciente.
+  const fc10VigentePorBien = useMemo(() => {
+    const mapa = new Map();
+    for (const fc of fc10List) {
+      if (!fc.bienId) continue;
+      const actual = mapa.get(fc.bienId);
+      if (!actual) { mapa.set(fc.bienId, fc); continue; }
+      const actualVigente = !actual.devolucionFecha;
+      const nuevoVigente = !fc.devolucionFecha;
+      if (nuevoVigente && !actualVigente) { mapa.set(fc.bienId, fc); continue; }
+      if (nuevoVigente === actualVigente) {
+        const fA = actual.entregadoFecha || actual.fechaGeneracion || '';
+        const fN = fc.entregadoFecha || fc.fechaGeneracion || '';
+        if (fN > fA) mapa.set(fc.bienId, fc);
+      }
+    }
+    return mapa;
+  }, [fc10List]);
   const filteredFC11 = useMemo(() => { return fc11List.filter(fc => { const rem = fc.dependenciaRemitente || fc.remitente || ''; const dest = fc.dependenciaDestinataria || fc.destinatario || ''; if (rem !== dependenciaActual && dest !== dependenciaActual) return false; const [year, month] = String(fc.fecha || '').split('-'); return year === fc10Year && month === fc10Month; }).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()); }, [fc11List, dependenciaActual, fc10Year, fc10Month]);
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
   const solicitudesBaja = useMemo(() => { 
@@ -4658,6 +4677,17 @@ if (publicBienId) {
                                         <i className="fa-solid fa-location-dot text-rose-500 text-xs shrink-0"></i>
                                         <span className="truncate">{item.ubicacion || 'Sin ubicación'}</span>
                                       </div>
+                                      {(() => {
+                                        const fc10 = fc10VigentePorBien.get(item.id);
+                                        const fechaAsig = fc10 ? (fc10.entregadoFecha || fc10.fechaGeneracion) : null;
+                                        if (!fechaAsig) return null;
+                                        return (
+                                          <div className="flex items-center gap-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400" title={`Asignado por FC-10 el ${formatDateText(fechaAsig)}`}>
+                                            <i className="fa-solid fa-file-signature text-brand-primary dark:text-brand-accent text-xs shrink-0"></i>
+                                            <span className="truncate tabular-nums">Asignado: {formatDateText(fechaAsig)}</span>
+                                          </div>
+                                        );
+                                      })()}
                                     </div>
                                   </td>
 

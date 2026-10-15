@@ -7,6 +7,9 @@ html {
 
 @theme {
   --font-sans: "Open Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  /* Open Sans es la única tipografía del sistema: hasta font-mono (rótulos,
+     códigos, CSV) resuelve a Open Sans para no romper la identidad. */
+  --font-mono: "Open Sans", ui-sans-serif, system-ui, sans-serif;
   --color-brand-primary: #1d4ed8;
   --color-brand-hover: #1e40af;
   --color-brand-accent: #60a5fa;

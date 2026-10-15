@@ -345,6 +345,18 @@ export const buildActaAuditoriaPDF = async ({ tipo, fecha, dependencia, alcance,
 
 // --- GENERADOR DE ETIQUETA PROFESIONAL PNG CON QR DINMICO ---
 export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = false) => {
+    // La etiqueta también usa Open Sans (ya cargada en el documento).
+    try {
+      if (document.fonts?.load) {
+        await Promise.race([
+          Promise.all([
+            document.fonts.load('700 15px "Open Sans"'),
+            document.fonts.load('400 11px "Open Sans"')
+          ]),
+          new Promise(res => setTimeout(res, 1500))
+        ]);
+      }
+    } catch { /* si falla, se usa el fallback sans-serif */ }
     const canvas = document.createElement('canvas');
     canvas.width = 600;
     canvas.height = 400;
@@ -364,19 +376,19 @@ export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = f
     ctx.fillRect(14, 14, canvas.width - 28, 68);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 15px "Open Sans", Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('UNIVERSIDAD NACIONAL DE PILAR', canvas.width / 2, 40);
-    ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 11px "Open Sans", Helvetica, Arial, sans-serif';
     ctx.fillText('DEPARTAMENTO DE BIENES PATRIMONIALES', canvas.width / 2, 60);
 
     // Datos del bien
     ctx.fillStyle = '#0f172a';
     ctx.textAlign = 'left';
-    ctx.font = 'bold 13px Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 13px "Open Sans", Helvetica, Arial, sans-serif';
     ctx.fillText(`RÓTULO: ${bien.rotulo || 'S/RÓTULO'}`, 32, 118);
 
-    ctx.font = '11px Helvetica, Arial, sans-serif';
+    ctx.font = '11px "Open Sans", Helvetica, Arial, sans-serif';
     const descText = bien.descripcion || 'Sin descripción';
     ctx.fillText(`DESCRIPCIÓN: ${descText.length > 42 ? descText.substring(0, 42) + '...' : descText}`, 32, 148);
     ctx.fillText(`CUENTA: ${bien.cuenta || 'N/D'}`, 32, 178);
@@ -414,7 +426,7 @@ export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = f
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(14, 322, canvas.width - 28, 42);
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 11px Helvetica, Arial, sans-serif';
+    ctx.font = 'bold 11px "Open Sans", Helvetica, Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('SISTEMA INTEGRADO DE GESTIÓN PATRIMONIAL', canvas.width / 2, 348);
 
