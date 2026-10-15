@@ -100,6 +100,10 @@ export default function App() {
   const [mantenimiento, setMantenimiento] = useState(null);
   const [isMantenimientoModalOpen, setIsMantenimientoModalOpen] = useState(false);
   const [isSavingMant, setIsSavingMant] = useState(false);
+  // Puerta de acceso dev: si el muro te agarra sin sesión, este flag muestra
+  // el login en vez del muro. Solo una sesión con cargo 'desarrollador'
+  // levanta el bloqueo (misma validación de siempre, sin atajos nuevos).
+  const [mostrarLoginDev, setMostrarLoginDev] = useState(false);
   useEffect(() => {
     let alive = true;
     const cargar = async () => {
@@ -1435,7 +1439,9 @@ useEffect(() => {
         setLoginError(false); 
         setCurrentUser(userSession); 
         setIsAuthenticated(true); 
-        setDependenciaActual(userSession.dependencia); 
+        setDependenciaActual(userSession.dependencia);
+        // Cierra la puerta dev: el gate decide según el rol (dev entra, resto al muro).
+        setMostrarLoginDev(false); 
         
         addToast(`Bienvenido, ${perfil.nombre} (${userSession.dependencia})`, "success"); 
     } catch (error) {
@@ -3648,8 +3654,13 @@ const saveMantenimiento = async (data) => {
     setIsSavingMant(false);
   }
 };
-if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador) {
-  return <MaintenanceScreen config={mantenimiento} />;
+if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador && !mostrarLoginDev) {
+  return <MaintenanceScreen config={mantenimiento} onAccesoDesarrollador={() => setMostrarLoginDev(true)} />;
+}
+if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador && mostrarLoginDev) {
+  return (
+      <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} />
+  );
 }
 if (publicBienId) {
   return (

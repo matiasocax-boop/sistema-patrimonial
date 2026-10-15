@@ -1,7 +1,7 @@
 import React from 'react';
 import { APP_VERSION } from '../utils/helpers';
 
-export default function MaintenanceScreen({ config }) {
+export default function MaintenanceScreen({ config, onAccesoDesarrollador }) {
   const mejoras = Array.isArray(config?.mejoras)
     ? config.mejoras
     : String(config?.mejoras || '').split('\n').map(s => s.trim()).filter(Boolean);
@@ -60,6 +60,16 @@ export default function MaintenanceScreen({ config }) {
           <p className="text-xs text-slate-400 mt-8">
             Contacto: <span className="font-bold text-slate-300">patrimonio@unp.edu.py</span>
           </p>
+          {onAccesoDesarrollador && (
+            <button
+              onClick={onAccesoDesarrollador}
+              className="mt-4 text-[11px] font-semibold text-slate-500 hover:text-slate-300 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 rounded"
+              title="Acceso del desarrollador del sistema"
+            >
+              <i className="fa-solid fa-key text-[10px] mr-1.5"></i>
+              Acceso desarrollador
+            </button>
+          )}
         </div>
       </main>
 
