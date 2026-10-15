@@ -1,4 +1,5 @@
-import QRCode from 'qrcode';
+// Nota: 'qrcode' (npm) se importa dinámicamente dentro de cada función que lo
+// usa, para no inflar el bundle inicial.
 
 // Sanea texto con mojibake por doble codificación UTF-8 (p. ej. "NÂ°" en vez
 // de "N°", "Ã±" en vez de "ñ"). Viene de datos ya guardados así (importación
@@ -345,6 +346,8 @@ export const buildActaAuditoriaPDF = async ({ tipo, fecha, dependencia, alcance,
 
 // --- GENERADOR DE ETIQUETA PROFESIONAL PNG CON QR DINMICO ---
 export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = false) => {
+    // qrcode (npm) se carga bajo demanda: no entra al bundle inicial.
+    const { default: QRCode } = await import('qrcode');
     // La etiqueta también usa Open Sans (ya cargada en el documento).
     try {
       if (document.fonts?.load) {
@@ -442,6 +445,7 @@ export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = f
 
 // --- GENERADOR DE CÓDIGO QR PURO (SIN MARCOS NI TEXTO ADICIONAL) ---
 export const generateSimpleQR = async (bien, returnOnly = false) => {
+    const { default: QRCode } = await import('qrcode');
     const qrTargetValue = bien.id || bien.rotulo || 'UNP';
     const baseUrl = (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("localhost")) 
         ? window.location.origin 
