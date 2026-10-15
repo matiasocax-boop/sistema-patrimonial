@@ -4,7 +4,7 @@ export default function Header({
     setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen, pdfPaperSize, setPdfPaperSize,
     dependenciaActual, setDependenciaActual, todasDependencias, clearAllFilters,
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
-    misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout
+    misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout, onCambiarClave
 }) {
     const [filtroNotif, setFiltroNotif] = useState('todas');
     const notifsVisibles = filtroNotif === 'noleidas'
@@ -183,12 +183,15 @@ export default function Header({
                     <div className="flex-col text-right hidden xl:flex leading-tight">
                         <span className="text-[13px] font-bold text-zinc-900 dark:text-white truncate max-w-[140px]">{currentUser?.nombre ? currentUser.nombre.split(' ')[0] : 'Usuario'}</span>
                         <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.14em] mt-0.5">
-                            {isAdmin ? 'Administrador' : 'Funcionario'}
+                            {isAdmin ? (currentUser?.role === 'dev' ? 'Desarrollador' : 'Administrador') : 'Funcionario'}
                         </span>
                     </div>
                     <div title={currentUser?.nombre || 'Usuario'} className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold select-none">
                         {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                     </div>
+                    <button onClick={onCambiarClave} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Cambiar mi contraseña">
+                        <i className="fa-solid fa-key"></i>
+                    </button>
                     <button onClick={handleLogout} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Cerrar sesión">
                         <i className="fa-solid fa-power-off"></i>
                     </button>

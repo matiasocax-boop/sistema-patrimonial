@@ -1104,6 +1104,29 @@ export default function App() {
     setCurrentUser(null);
     setShowLogoutConfirm(false);
   }, []);
+  // Cambio de contraseña propio (sesión Auth, sin pasar por admin)
+  const [isClaveOpen, setIsClaveOpen] = useState(false);
+  const [claveNueva, setClaveNueva] = useState('');
+  const [claveConfirm, setClaveConfirm] = useState('');
+  const [savingClave, setSavingClave] = useState(false);
+  const guardarNuevaClave = async (e) => {
+    e.preventDefault();
+    if (claveNueva.length < 6) return addToast('La contraseña debe tener al menos 6 caracteres.', 'warning');
+    if (claveNueva !== claveConfirm) return addToast('Las contraseñas no coinciden.', 'warning');
+    setSavingClave(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: claveNueva });
+      if (error) throw error;
+      addToast('Contraseña actualizada correctamente.', 'success');
+      setIsClaveOpen(false);
+      setClaveNueva('');
+      setClaveConfirm('');
+    } catch (err) {
+      addToast('No se pudo actualizar. Vuelve a entrar e intenta de nuevo.', 'error');
+    } finally {
+      setSavingClave(false);
+    }
+  };
   // Sesión real: al arrancar, solo vale si Supabase confirma sesión activa.
   // Sin sesión no hay acceso aunque exista bandera local (cierra la puerta de DevTools).
   useEffect(() => {
@@ -3943,7 +3966,7 @@ if (publicBienId) {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} onCambiarClave={() => { setClaveNueva(''); setClaveConfirm(''); setIsClaveOpen(true); }} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -6146,6 +6169,35 @@ if (publicBienId) {
         isSaving={isSavingMant}
         STYLES={STYLES}
       />
+      {isClaveOpen && (
+        <div className={STYLES.modalOverlay} onClick={() => setIsClaveOpen(false)}>
+          <div className={STYLES.modalContent + " max-w-sm p-6 sm:p-8 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"} onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white mb-4">
+              <i className="fa-solid fa-key text-xl"></i>
+            </div>
+            <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-1 text-center">Cambiar mi contraseña</h3>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5 text-center">Se actualiza tu acceso ({currentUser?.username}@unp.edu.py).</p>
+            <form onSubmit={guardarNuevaClave} className="space-y-3">
+              <input
+                type="password" value={claveNueva} onChange={(e) => setClaveNueva(e.target.value)}
+                placeholder="Nueva contraseña (mín. 6 caracteres)" required minLength={6}
+                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 px-4 h-11 text-sm font-medium outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 placeholder:text-zinc-400"
+              />
+              <input
+                type="password" value={claveConfirm} onChange={(e) => setClaveConfirm(e.target.value)}
+                placeholder="Repetir nueva contraseña" required
+                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 px-4 h-11 text-sm font-medium outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 placeholder:text-zinc-400"
+              />
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setIsClaveOpen(false)} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer">Cancelar</button>
+                <button type="submit" disabled={savingClave} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-zinc-900 hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200 transition-all cursor-pointer disabled:opacity-50">
+                  {savingClave ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       <LogoutModal 
     isOpen={showLogoutConfirm} 
     onClose={() => setShowLogoutConfirm(false)} 

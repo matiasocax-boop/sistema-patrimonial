@@ -107,6 +107,13 @@ export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsua
                 </div>
               </div>
 
+              <div className="mx-6 sm:mx-8 mb-5 -mt-1 rounded-2xl bg-blue-500/[0.07] border border-blue-500/20 px-4 py-3 flex items-start gap-2.5">
+                <i className="fa-solid fa-circle-info text-blue-500 text-xs mt-0.5 shrink-0"></i>
+                <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300 font-medium">
+                  El acceso real se crea en Supabase → <strong>Authentication</strong> con el email <strong>usuario@unp.edu.py</strong> y su contraseña. Sin esa cuenta, este perfil no puede entrar aunque exista aquí.
+                </p>
+              </div>
+
               <div className="flex justify-end gap-2 px-6 py-4 border-t border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
                 <button type="button" onClick={onClose} className="inline-flex items-center justify-center h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">Cancelar</button>
                 <button type="submit" className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"><i className="fa-solid fa-check text-xs"></i> Guardar Usuario</button>
