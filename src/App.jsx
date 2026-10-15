@@ -8,7 +8,6 @@ import { SelectFilter, PeriodSelector } from './components/FilterComponents';
 import AnimatedNumber from './components/AnimatedNumber';
 import CommandPalette from './components/CommandPalette';
 import TourGuiado from './components/TourGuiado';
-import BienRow from './components/BienRow';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 // Modales de apertura bajo demanda: carga diferida para acelerar el arranque
