@@ -164,6 +164,7 @@ export default function App() {
   useEffect(() => {
     let alive = true;
     const cargar = async () => {
+      if (document.hidden) return;
       try {
         const { data, error } = await supabase.from('app_config').select('*').eq('id', 'global').limit(1);
         if (!error && data && data[0] && alive) setMantenimiento(data[0]);
@@ -1379,7 +1380,7 @@ useEffect(() => {
       if (isAuthenticated) {
           fetchData(false); 
           cargarNotificaciones();
-          const notifInterval = setInterval(() => { sondearNotificaciones(); }, 30000);
+          const notifInterval = setInterval(() => { if (!document.hidden) sondearNotificaciones(); }, 30000);
           const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, (payload) => { fusionarNotificacion(payload); }).subscribe();
           // Tiempo real en bienes: lo que cambia en un equipo (ej: foto desde el celular)
           // se refleja solo en los demás, sin refrescar
@@ -3694,33 +3695,33 @@ if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador) {
 }
 if (publicBienId) {
   return (
-    <div className="min-h-dvh bg-slate-100 flex flex-col items-center justify-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
-      <div className="bg-white border border-slate-200/80 rounded-[32px] p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden my-auto">
-        
+    <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      <div className="bg-white border border-slate-200/80 rounded-[28px] sm:rounded-[32px] p-4 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden my-auto">
+
         {/* Acento superior institucional */}
-        <div className="absolute top-0 inset-x-0 h-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500"></div>
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500"></div>
 
         {/* Header institucional */}
-        <div className="flex flex-col items-center text-center pb-5 border-b border-slate-100">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-3 border border-blue-100 shadow-sm">
-            <i className="fa-solid fa-shield-halved text-2xl"></i>
+        <div className="flex flex-col items-center text-center pb-4 border-b border-slate-100">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 mb-2 border border-blue-100 shadow-sm">
+            <i className="fa-solid fa-shield-halved text-xl"></i>
           </div>
 
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-700 mb-2 border border-blue-200/60">
             <i className="fa-solid fa-circle-check text-[10px] text-blue-600"></i> Verificación Oficial de Activo
           </span>
 
-          <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+          <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight">
             Universidad Nacional de Pilar
           </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-500 font-semibold mt-0.5">
             Sistema Integrado de Gestión Patrimonial
           </p>
         </div>
 
         {/* Contenido principal o Spinner */}
         {publicBienData ? (
-          <div className="py-5 space-y-3.5">
+          <div className="py-4 space-y-3">
 
             {publicBienData.fotos?.[0]?.url && (
               <div className="rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-50">
@@ -3729,18 +3730,18 @@ if (publicBienId) {
                   alt="Foto del activo"
                   loading="lazy"
                   decoding="async"
-                  className="w-full max-h-60 object-cover"
+                  className="w-full max-h-44 sm:max-h-56 object-cover"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               </div>
             )}
 
             {/* Tarjeta de Rótulo y Estado */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-xs">
+            <div className="bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 shadow-xs">
               <div className="flex justify-between items-center gap-2">
-                <div>
+                <div className="min-w-0">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Código / Rótulo</p>
-                  <p className="text-2xl font-black text-slate-900 font-mono tracking-tight mt-0.5">
+                  <p className="text-xl sm:text-2xl font-black text-slate-900 font-mono tracking-tight mt-0.5 truncate">
                     {publicBienData.rotulo || "S/Rótulo"}
                   </p>
                 </div>
