@@ -2,38 +2,40 @@ import React, { useState } from 'react';
 import rectoradoBg from '../assets/rectorado-pilar.webp';
 import { APP_VERSION } from '../utils/helpers';
 
-export default function LoginScreen({ 
-    handleLogin, 
-    loginUser, 
-    setLoginUser, 
-    loginPass, 
-    setLoginPass, 
-    showPassword, 
-    setShowPassword, 
-    loginError, 
-    darkMode, 
-    setDarkMode, 
-    appLogo, 
-    toasts 
+export default function LoginScreen({
+    handleLogin,
+    loginUser,
+    setLoginUser,
+    loginPass,
+    setLoginPass,
+    showPassword,
+    setShowPassword,
+    loginError,
+    darkMode,
+    setDarkMode,
+    appLogo,
+    toasts
 }) {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
 
   return (
     <div className={`${darkMode ? 'dark' : ''} min-h-dvh flex flex-col w-full bg-[#0a1c38] dark:bg-[#070f22] font-sans transition-colors duration-300 relative overflow-hidden`}>
-      
-      {/* Fondo institucional tenue */}
-      <div className="absolute inset-0 pointer-events-none">
-        <img
-          src={rectoradoBg}
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover object-center opacity-[0.10]"
-        />
+
+      {/* Fondo institucional animado */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        <div className="absolute inset-0 overflow-hidden">
+          <img
+            src={rectoradoBg}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="login-kenburns h-full w-full object-cover object-center opacity-[0.10] will-change-transform"
+          />
+        </div>
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/70 via-[#0a1c38]/50 to-[#0a1c38] dark:from-[#070f22]/70 dark:via-[#070f22]/50 dark:to-[#070f22]"></div>
-        <div className="absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-[44rem] rounded-full bg-blue-500/15 blur-3xl"></div>
-        <div className="absolute top-1/3 -right-40 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"></div>
+        {/* Orbes de acento a la deriva (brand-primary / violeta institucional) */}
+        <div className="login-orb-a absolute -top-48 left-1/2 -translate-x-1/2 h-96 w-[44rem] rounded-full bg-blue-500/15 blur-3xl will-change-transform"></div>
+        <div className="login-orb-b absolute top-1/3 -right-40 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl will-change-transform"></div>
         <div className="absolute -bottom-40 -left-24 h-72 w-72 rounded-full bg-violet-600/[0.07] blur-3xl"></div>
       </div>
 
@@ -48,7 +50,7 @@ export default function LoginScreen({
       </div>
 
       {/* Encabezado: marca + tema */}
-      <header className="relative z-10 flex items-center justify-between w-full px-6 sm:px-10 py-5">
+      <header className="animate-fade-in relative z-10 flex items-center justify-between w-full px-6 sm:px-10 py-5">
         <div className="flex items-center gap-3">
           <img
             src={appLogo || '/UNP-Site-Logo.webp'}
@@ -61,25 +63,28 @@ export default function LoginScreen({
             Dpto. Bienes Patrimoniales
           </span>
         </div>
-        <button 
+        <button
           onClick={() => {
             const newMode = !darkMode;
             setDarkMode(newMode);
             localStorage.setItem('theme', newMode ? 'dark' : 'light');
-          }} 
-          className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.06] border border-white/15 text-slate-200 hover:bg-white/[0.12] transition-all cursor-pointer active:scale-95" 
+          }}
+          className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.06] border border-white/15 text-slate-200 hover:bg-white/[0.12] hover:scale-105 active:scale-95 transition-all cursor-pointer"
           title="Alternar Tema"
         >
-          <i className={`fa-solid ${darkMode ? 'fa-sun text-amber-300' : 'fa-moon text-sky-300'} text-sm`}></i>
+          <i className={`fa-solid ${darkMode ? 'fa-sun text-amber-300' : 'fa-moon text-sky-300'} text-sm transition-transform duration-500 ${darkMode ? 'rotate-0' : '-rotate-12'}`}></i>
         </button>
       </header>
 
       {/* Tarjeta de acceso centrada */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-6">
         <div className="w-full max-w-md">
-          <div className="bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-black/20 animate-slide-up relative flex flex-col">
-            
-            <div className="flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6 text-left">
+          <div className={`bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-black/20 relative flex flex-col ${loginError ? 'animate-shake border-rose-300 dark:border-rose-900' : 'animate-slide-up'}`}>
+
+            {/* Acento superior animado */}
+            <div className="pointer-events-none absolute inset-x-10 -top-px h-px bg-gradient-to-r from-transparent via-brand-primary/70 to-transparent"></div>
+
+            <div className="login-rise login-rise-1 flex flex-col mb-8 border-b border-zinc-100 dark:border-darkbg-border pb-6 text-left">
               <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary dark:text-brand-accent mb-1.5">
                 Portal de Acceso
               </span>
@@ -99,51 +104,53 @@ export default function LoginScreen({
                 </div>
               )}
 
-              <div className="space-y-1.5 text-left">
+              <div className="login-rise login-rise-2 space-y-1.5 text-left">
                 <label htmlFor="user" className="block text-[11px] font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                   Usuario (ID)
                 </label>
-                <div className="relative">
-                  <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-                  <input 
-                    type="text" 
-                    id="user" 
-                    value={loginUser} 
-                    onChange={e => setLoginUser(e.target.value)} 
-                    required 
-                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-4 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal" 
-                    placeholder="ej. admin / funcionario" 
+                <div className="relative group">
+                  <i className="fa-solid fa-user absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-brand-primary text-xs transition-colors"></i>
+                  <input
+                    type="text"
+                    id="user"
+                    value={loginUser}
+                    onChange={e => setLoginUser(e.target.value)}
+                    required
+                    autoComplete="username"
+                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-4 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal"
+                    placeholder="ej. admin / funcionario"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5 text-left">
+              <div className="login-rise login-rise-3 space-y-1.5 text-left">
                 <div className="flex justify-between items-center">
                   <label htmlFor="pass" className="block text-[11px] font-black text-zinc-700 dark:text-zinc-300 uppercase tracking-wider">
                     Contraseña
                   </label>
-                  <button 
-                    type="button" 
-                    onClick={() => setShowRecoveryModal(true)} 
+                  <button
+                    type="button"
+                    onClick={() => setShowRecoveryModal(true)}
                     className="text-[11px] font-bold text-brand-primary dark:text-brand-accent hover:underline cursor-pointer"
                   >
                     ¿Olvidó su clave?
                   </button>
                 </div>
-                <div className="relative">
-                  <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs"></i>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    id="pass" 
-                    value={loginPass} 
-                    onChange={e => setLoginPass(e.target.value)} 
-                    required 
-                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-11 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal" 
-                    placeholder="••••••••" 
+                <div className="relative group">
+                  <i className="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-brand-primary text-xs transition-colors"></i>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    id="pass"
+                    value={loginPass}
+                    onChange={e => setLoginPass(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                    className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-11 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal"
+                    placeholder="••••••••"
                   />
-                  <button 
-                    type="button" 
-                    onClick={() => setShowPassword(!showPassword)} 
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-white transition-colors cursor-pointer"
                     title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                   >
@@ -152,14 +159,18 @@ export default function LoginScreen({
                 </div>
               </div>
 
-              <div className="pt-2">
-                <button 
-                  type="submit" 
-                  className="w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl active:scale-[0.98]"
+              <div className="login-rise login-rise-4 pt-2">
+                <button
+                  type="submit"
+                  className="group w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-px active:translate-y-0 active:scale-[0.98]"
                 >
-                  <span>Acceder a la Plataforma</span> 
-                  <i className="fa-solid fa-arrow-right-to-bracket text-xs ml-1"></i>
+                  <span>Acceder a la Plataforma</span>
+                  <i className="fa-solid fa-arrow-right-to-bracket text-xs ml-1 transition-transform duration-300 group-hover:translate-x-1"></i>
                 </button>
+                <p className="mt-4 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                  <i className="fa-solid fa-shield-halved text-[10px] text-emerald-500"></i>
+                  Acceso restringido · UNP
+                </p>
               </div>
             </form>
 
@@ -168,7 +179,7 @@ export default function LoginScreen({
       </main>
 
       {/* Footer inferior */}
-      <footer className="relative z-10 text-center pb-5 px-6">
+      <footer className="animate-fade-in relative z-10 text-center pb-5 px-6">
         <p className="text-[11px] font-medium text-slate-500">© {new Date().getFullYear()} Universidad Nacional de Pilar · Dpto. Bienes Patrimoniales <span className="text-slate-600">· v{APP_VERSION}</span></p>
       </footer>
 
@@ -176,7 +187,7 @@ export default function LoginScreen({
       {showRecoveryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-md animate-fade-in">
           <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-zinc-900 p-7 shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center animate-slide-up">
-            <div className="h-14 w-14 rounded-2xl bg-blue-500/10 text-brand-primary dark:text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
+            <div className="login-float h-14 w-14 rounded-2xl bg-blue-500/10 text-brand-primary dark:text-blue-400 border border-blue-500/20 flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-headset text-xl"></i>
             </div>
             <h3 className="text-lg font-black text-zinc-900 dark:text-white tracking-tight">
@@ -190,7 +201,7 @@ export default function LoginScreen({
             </div>
             <button
               onClick={() => setShowRecoveryModal(false)}
-              className="mt-6 w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 text-xs font-black transition-all cursor-pointer shadow-md"
+              className="mt-6 w-full py-3 rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100 text-xs font-black transition-all cursor-pointer shadow-md active:scale-[0.98]"
             >
               Entendido
             </button>

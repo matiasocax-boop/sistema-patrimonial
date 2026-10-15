@@ -114,3 +114,85 @@ select:focus {
   background-color: #ffffff;
   color: #09090b;
 }
+
+/* ============================================================================
+ * ANIMACIONES DEL SISTEMA (definición real de las clases animate-*)
+ * ----------------------------------------------------------------------------
+ * Estas clases se usan en todo el frontend (modales, vistas, toasts) pero no
+ * tenían keyframes: eran no-ops. Se definen aquí de forma centralizada para
+ * que el login animado y el resto del sistema compartan el mismo lenguaje.
+ * Todas respetan prefers-reduced-motion.
+ * ========================================================================== */
+
+@keyframes app-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes app-slide-up {
+  from { opacity: 0; transform: translateY(18px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes app-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+
+@keyframes app-kenburns {
+  from { transform: scale(1) translateY(0); }
+  to { transform: scale(1.12) translateY(-1.5%); }
+}
+
+@keyframes app-drift-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4rem, 2.5rem) scale(1.15); }
+}
+
+@keyframes app-drift-b {
+  0%, 100% { transform: translate(0, 0) scale(1.1); }
+  50% { transform: translate(-3.5rem, -2rem) scale(0.95); }
+}
+
+@keyframes app-float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-fade-in { animation: app-fade-in 0.45s ease both; }
+.animate-slide-up { animation: app-slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-shake { animation: app-shake 0.45s ease both; }
+
+/* Fondo del login: zoom lento institucional + orbes a la deriva */
+.login-kenburns { animation: app-kenburns 36s ease-in-out infinite alternate; }
+.login-orb-a { animation: app-drift-a 18s ease-in-out infinite; }
+.login-orb-b { animation: app-drift-b 22s ease-in-out infinite; }
+.login-float { animation: app-float-y 7s ease-in-out infinite; }
+
+/* Entrada escalonada de los campos del login */
+@keyframes app-rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.login-rise { opacity: 0; animation: app-rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.login-rise-1 { animation-delay: 0.08s; }
+.login-rise-2 { animation-delay: 0.16s; }
+.login-rise-3 { animation-delay: 0.24s; }
+.login-rise-4 { animation-delay: 0.32s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-slide-up,
+  .animate-shake,
+  .login-kenburns,
+  .login-orb-a,
+  .login-orb-b,
+  .login-float,
+  .login-rise {
+    animation: none;
+    opacity: 1;
+  }
+}
