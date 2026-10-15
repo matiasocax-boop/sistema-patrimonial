@@ -5,6 +5,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Modo ciego: oculta valores sensibles durante conteos de verificación */
+html.modo-ciego .dato-sensible {
+  filter: blur(7px);
+  user-select: none;
+  pointer-events: none;
+}
+
 @theme {
   --font-sans: "Open Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --color-brand-primary: #1d4ed8;

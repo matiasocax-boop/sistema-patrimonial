@@ -13,10 +13,10 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
   if (!isOpen || !bien) return null;
   const st = TIPO_STYLE.otro;
 
-  const Dato = ({ label, value }) => (
+  const Dato = ({ label, value, sensible }) => (
     <div className="rounded-xl bg-zinc-50 dark:bg-white/5 border border-zinc-200/60 dark:border-white/10 px-3 py-2.5">
       <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{label}</p>
-      <p className="text-xs font-bold text-zinc-900 dark:text-white mt-0.5 truncate" title={String(value ?? '')}>{value || '-'}</p>
+      <p className={`text-xs font-bold text-zinc-900 dark:text-white mt-0.5 truncate ${sensible ? 'dato-sensible' : ''}`} title={String(value ?? '')}>{value || '-'}</p>
     </div>
   );
 
@@ -43,7 +43,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <Dato label="Cuenta" value={[bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('.')} />
-            <Dato label="Valor" value={`Gs. ${formatCurrency(bien.valorUnitario || '0')}`} />
+            <Dato label="Valor" value={`Gs. ${formatCurrency(bien.valorUnitario || '0')}`} sensible />
             <Dato label="Estado" value={bien.estadoConservacion || '-'} />
             <Dato label="Ubicación" value={bien.ubicacion} />
             <Dato label="Responsable" value={bien.funcionario} />

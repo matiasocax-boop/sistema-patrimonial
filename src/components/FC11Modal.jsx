@@ -73,7 +73,7 @@ export default function FC11Modal({
                             </div>
                             <div className="sm:text-right pl-3 sm:pl-0">
                                 <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1.5">Valor Patrimonial</p>
-                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Gs. {formatCurrency(fc11TargetBien.valorUnitario)}</p>
+                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm tabular-nums dato-sensible">Gs. {formatCurrency(fc11TargetBien.valorUnitario)}</p>
                             </div>
                         </div>
 

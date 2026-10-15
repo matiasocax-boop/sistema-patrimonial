@@ -117,6 +117,14 @@ export default function App() {
   const [loginError, setLoginError] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
+  // Modo ciego (conteo imparcial): difumina valores sensibles en toda la app
+  const [modoCiego, setModoCiego] = useState(() => { try { return localStorage.getItem('modo_ciego') === '1'; } catch (e) { return false; } });
+  useEffect(() => {
+    try {
+      localStorage.setItem('modo_ciego', modoCiego ? '1' : '0');
+      document.documentElement.classList.toggle('modo-ciego', modoCiego);
+    } catch (e) {}
+  }, [modoCiego]);
   // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
@@ -379,7 +387,7 @@ export default function App() {
     setTourPaso(-1);
     try { localStorage.setItem('tour_visto_v1', '1'); } catch (e) {}
   };
-  const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
+  const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida', porVencer: 'Vida útil por vencer' };
   // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);
   const [isLoadingAud, setIsLoadingAud] = useState(false);
@@ -644,6 +652,46 @@ export default function App() {
     filtroMes || filtroSubcuenta || filtroAnalitico1 || filtroAnalitico2 || 
     filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || filtroPendiente
   );
+  // Vistas guardadas por usuario (foto de filtros con nombre)
+  const [vistasGuardadas, setVistasGuardadas] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`vistas_${currentUser?.username || 'anon'}`) || '[]'); } catch (e) { return []; }
+  });
+  const [nombreVista, setNombreVista] = useState('');
+  const [mostrarGuardarVista, setMostrarGuardarVista] = useState(false);
+  const guardarVistaActual = () => {
+    const nombre = nombreVista.trim();
+    if (!nombre) return;
+    const foto = {
+      nombre,
+      f: {
+        funcionario: filtroFuncionario, ubicacion: filtroUbicacion, anio: filtroAnio, mes: filtroMes,
+        subcuenta: filtroSubcuenta, analitico1: filtroAnalitico1, analitico2: filtroAnalitico2,
+        estado: filtroEstado, qr: filtroQR, fc10: filtroFC10, pendiente: filtroPendiente, q: searchTerm
+      }
+    };
+    const nuevas = [...vistasGuardadas.filter(v => v.nombre !== nombre), foto].slice(-8);
+    setVistasGuardadas(nuevas);
+    try { localStorage.setItem(`vistas_${currentUser?.username || 'anon'}`, JSON.stringify(nuevas)); } catch (e) {}
+    setNombreVista('');
+    setMostrarGuardarVista(false);
+    addToast(`Vista "${nombre}" guardada.`, 'success');
+  };
+  const aplicarVista = (v) => {
+    clearAllFilters();
+    const f = v.f || {};
+    setFiltroFuncionario(f.funcionario || ''); setFiltroUbicacion(f.ubicacion || '');
+    setFiltroAnio(f.anio || ''); setFiltroMes(f.mes || '');
+    setFiltroSubcuenta(f.subcuenta || ''); setFiltroAnalitico1(f.analitico1 || ''); setFiltroAnalitico2(f.analitico2 || '');
+    setFiltroEstado(f.estado || 'ALL'); setFiltroQR(f.qr || 'ALL'); setFiltroFC10(f.fc10 || 'ALL');
+    setFiltroPendiente(f.pendiente || '');
+    setSearchTerm(f.q || ''); setSearchInput(f.q || '');
+    setCurrentPage(1);
+  };
+  const eliminarVista = (nombre) => {
+    const nuevas = vistasGuardadas.filter(v => v.nombre !== nombre);
+    setVistasGuardadas(nuevas);
+    try { localStorage.setItem(`vistas_${currentUser?.username || 'anon'}`, JSON.stringify(nuevas)); } catch (e) {}
+  };
 
   const fc10Map = useMemo(() => {
     const map = new Map();
@@ -1122,6 +1170,14 @@ useEffect(() => {
   const pendientes = useMemo(() => {
       const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
       const anioActual = new Date().getFullYear();
+      const ahora = new Date();
+      const mesesRestantes = (b) => {
+        const { year, month } = parseDateInfo(b.fechaAdquisicion);
+        const vu = parseInt(b.vidaUtil, 10);
+        if (!year || !month || !(vu > 0)) return null;
+        const transcurridos = (ahora.getFullYear() - parseInt(year, 10)) * 12 + (ahora.getMonth() + 1 - parseInt(month, 10));
+        return vu * 12 - transcurridos;
+      };
       const esVidaVencida = (b) => {
         const { year } = parseDateInfo(b.fechaAdquisicion);
         const vu = parseInt(b.vidaUtil, 10);
@@ -1133,6 +1189,7 @@ useEffect(() => {
         { id: 'sinUbicacion', label: 'Sin ubicación', count: base.filter(b => !String(b.ubicacion || '').trim()).length, icon: 'fa-location-dot', box: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
         { id: 'sinFuncionario', label: 'Sin responsable', count: base.filter(b => !String(b.funcionario || '').trim()).length, icon: 'fa-user-tie', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
         { id: 'vidaVencida', label: 'Vida útil vencida', count: base.filter(esVidaVencida).length, icon: 'fa-hourglass-end', box: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+        { id: 'porVencer', label: 'Por vencer (12 m.)', count: base.filter(b => { const r = mesesRestantes(b); return r !== null && r > 0 && r <= 12; }).length, icon: 'fa-hourglass-half', box: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' },
       ];
   }, [bienes, dependenciaActual]);
 
@@ -1163,6 +1220,15 @@ useEffect(() => {
       const { year } = parseDateInfo(b.fechaAdquisicion);
       const vu = parseInt(b.vidaUtil, 10);
       return year && vu > 0 && (new Date().getFullYear() - parseInt(year, 10)) > vu;
+    });
+    else if (filtroPendiente === 'porVencer') filtered = filtered.filter(b => {
+      const { year, month } = parseDateInfo(b.fechaAdquisicion);
+      const vu = parseInt(b.vidaUtil, 10);
+      if (!year || !month || !(vu > 0)) return false;
+      const ahora = new Date();
+      const transcurridos = (ahora.getFullYear() - parseInt(year, 10)) * 12 + (ahora.getMonth() + 1 - parseInt(month, 10));
+      const restantes = vu * 12 - transcurridos;
+      return restantes > 0 && restantes <= 12;
     });
     
     // Búsqueda robusta: tildes, multi-palabra (AND), rótulo sin ceros/guiones, más campos.
@@ -2153,26 +2219,45 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
         const validos = [];
         const duplicados = [];
         const errores = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = String(lines[i]).trim(); 
+
+        // Mapeo automático de columnas por alias (acepta otros nombres, orden y sin tildes)
+        const ALIAS_FUNC = {
+          cedula: ['CÉDULA', 'CEDULA', 'CI', 'C.I.', 'DOCUMENTO', 'NRO DOCUMENTO', 'NÚMERO DE DOCUMENTO'],
+          nombre: ['NOMBRE COMPLETO', 'NOMBRE', 'FUNCIONARIO', 'APELLIDO Y NOMBRE', 'NOMBRE Y APELLIDO', 'PERSONA'],
+          cargo: ['CARGO', 'PUESTO', 'FUNCIÓN', 'FUNCION', 'ROL', 'CARGO INSTITUCIONAL'],
+        };
+        const normH = (s) => normalizeStr(s || '');
+        let idx = { cedula: 0, nombre: 1, cargo: 2 };
+        let startLine = 0;
+        const primeraLinea = lines.findIndex(l => String(l).trim() !== '');
+        if (primeraLinea !== -1) {
+          const sep0 = lines[primeraLinea].includes(';') ? ';' : ',';
+          const celdas0 = lines[primeraLinea].split(sep0).map(p => p.replace(/"/g, '').trim());
+          const esCabecera = celdas0.some(c => Object.values(ALIAS_FUNC).flat().map(normH).includes(normH(c)));
+          if (esCabecera) {
+            ['cedula', 'nombre', 'cargo'].forEach(k => {
+              const pos = celdas0.findIndex(c => ALIAS_FUNC[k].map(normH).includes(normH(c)));
+              if (pos !== -1) idx[k] = pos;
+            });
+            startLine = primeraLinea + 1;
+          }
+        }
+
+        for (let i = startLine; i < lines.length; i++) {
+          const line = String(lines[i]).trim();
           if (!line) continue;
-          
+
           const separator = line.includes(';') ? ';' : ',';
           const parts = line.split(separator).map(p => p.replace(/"/g, '').trim());
-          
-          if (i === 0 && (parts[0].toLowerCase().includes('cedula') || parts[0].toLowerCase().includes('c.i.'))) {
-              continue;
-          }
-          
-          if (parts.length < 2) {
+
+          if (parts.filter(p => p !== '').length < 2) {
               errores.push({ linea: i + 1, motivo: 'Estructura insuficiente (faltan columnas)' });
               continue;
           }
 
-          const cedulaCSV = parts[0].replace(/\./g, '');
-          const nombreCSV = parts[1]; // Aquí ya se leerá correctamente "Delcy Maximina Amarilla Fernández"
-          const cargoCSV = parts[2] || '';
+          const cedulaCSV = String(parts[idx.cedula] || '').replace(/\./g, '').trim();
+          const nombreCSV = String(parts[idx.nombre] || '').trim();
+          const cargoCSV = String(parts[idx.cargo] || '').trim();
 
           if (!cedulaCSV || !nombreCSV) {
               errores.push({ linea: i + 1, motivo: 'Cédula o Nombre vacíos' });
@@ -3494,7 +3579,7 @@ if (publicBienId) {
                                 </span>
                             )}
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2.5">
                             {pendientes.map(p => (
                                 <button
                                     key={p.id}
@@ -3902,17 +3987,59 @@ if (publicBienId) {
 
       </div>
 
-      {/* Botón para Limpiar Filtros */}
-      {hasFilters && (
-        <div className="flex justify-end pt-1">
-          <button 
-            onClick={clearAllFilters}
-            className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <i className="fa-solid fa-xmark text-xs"></i> Restablecer filtros
-          </button>
+      {/* Vistas guardadas + Restablecer */}
+      <div className="flex flex-wrap items-center gap-2 pt-1">
+        {vistasGuardadas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 mr-auto">
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Vistas:</span>
+            {vistasGuardadas.map(v => (
+              <span key={v.nombre} className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-white/10">
+                <button onClick={() => aplicarVista(v)} title={`Aplicar vista "${v.nombre}"`} className="hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer">
+                  {v.nombre}
+                </button>
+                <button onClick={() => eliminarVista(v.nombre)} title="Eliminar vista" className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-400 transition-colors cursor-pointer">
+                  <i className="fa-solid fa-xmark text-[9px]"></i>
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2 ml-auto">
+          {hasFilters && !mostrarGuardarVista && (
+            <button
+              onClick={() => setMostrarGuardarVista(true)}
+              className="text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Guardar los filtros actuales como vista"
+            >
+              <i className="fa-solid fa-bookmark text-xs"></i> Guardar vista
+            </button>
+          )}
+          {mostrarGuardarVista && (
+            <span className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={nombreVista}
+                onChange={(e) => setNombreVista(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') guardarVistaActual(); if (e.key === 'Escape') setMostrarGuardarVista(false); }}
+                placeholder="Nombre de la vista..."
+                autoFocus
+                className="h-8 w-40 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-xs font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
+              />
+              <button onClick={guardarVistaActual} title="Guardar" className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer">
+                <i className="fa-solid fa-check text-[11px]"></i>
+              </button>
+            </span>
+          )}
+          {hasFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <i className="fa-solid fa-xmark text-xs"></i> Restablecer filtros
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
     </div>
 
@@ -4234,9 +4361,18 @@ if (publicBienId) {
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Trazabilidad, conciliación física y verificación por muestreo</p>
                         </div>
                       </div>
+                      <div className="flex flex-wrap items-center gap-2">
                       <button onClick={fetchAuditoria} title="Recargar libro de auditoría" className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                         <i className={`fa-solid fa-rotate ${isLoadingAud ? 'fa-spin' : ''}`}></i> Actualizar
                       </button>
+                      <button
+                        onClick={() => setModoCiego(v => !v)}
+                        title={modoCiego ? 'Mostrar valores (desactivar modo ciego)' : 'Ocultar valores para conteo imparcial'}
+                        className={`inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-bold transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none ${modoCiego ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10'}`}
+                      >
+                        <i className={`fa-solid ${modoCiego ? 'fa-eye-slash' : 'fa-eye'}`}></i> {modoCiego ? 'Modo ciego ON' : 'Modo ciego'}
+                      </button>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="aud-kpis">
