@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import rectoradoBg from '../assets/rectorado-pilar.jpg';
+import rectoradoBg from '../assets/rectorado-pilar.webp';
 import { APP_VERSION } from '../utils/helpers';
 
 export default function LoginScreen({ 
@@ -27,6 +27,8 @@ export default function LoginScreen({
           src={rectoradoBg}
           alt=""
           aria-hidden="true"
+          loading="lazy"
+          decoding="async"
           className="h-full w-full object-cover object-center opacity-[0.10]"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[#0a1c38]/70 via-[#0a1c38]/50 to-[#0a1c38] dark:from-[#070f22]/70 dark:via-[#070f22]/50 dark:to-[#070f22]"></div>
@@ -49,10 +51,10 @@ export default function LoginScreen({
       <header className="relative z-10 flex items-center justify-between w-full px-6 sm:px-10 py-5">
         <div className="flex items-center gap-3">
           <img
-            src={appLogo || '/UNP-Site-Logo.png'}
+            src={appLogo || '/UNP-Site-Logo.webp'}
             alt="Universidad Nacional de Pilar"
             className="h-9 w-auto max-w-[220px] object-contain object-left drop-shadow-md"
-            onError={(e) => { e.target.onerror = null; e.target.src = '/publiclogo_unp.png'; }}
+            onError={(e) => { e.target.onerror = null; e.target.src = '/UNP-Site-Logo.png'; }}
           />
           <span className="hidden sm:block h-6 w-px bg-white/15"></span>
           <span className="hidden sm:block text-[11px] font-bold tracking-[0.2em] uppercase text-slate-300/80">

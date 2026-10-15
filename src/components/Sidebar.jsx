@@ -6,9 +6,11 @@ export default function Sidebar({
     mantenimiento, onOpenMantenimiento
 }) {
     // Logo oficial del sistema (blanco para modo oscuro, negro para modo claro) + sello (respaldo).
-    const LOGO_SISTEMA = '/UNP-Site-Logo.png';
-    const LOGO_SISTEMA_NEGRO = '/UNP-Site-Logo-negro.png';
-    const logoDep = getLogoPorDependencia(dependenciaActual);
+    // WebP en UI (liviano); los PDF siguen usando PNG.
+    const LOGO_SISTEMA = '/UNP-Site-Logo.webp';
+    const LOGO_SISTEMA_NEGRO = '/UNP-Site-Logo-negro.webp';
+    const LOGO_SISTEMA_PNG = '/UNP-Site-Logo.png';
+    const logoDep = getLogoPorDependencia(dependenciaActual, 'webp');
     const closeBtn = (
         <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden flex shrink-0 items-center justify-center h-8 w-8 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:bg-darkbg-main dark:text-zinc-400 dark:hover:bg-darkbg-hover dark:hover:text-white transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
             <i className="fa-solid fa-xmark"></i>
@@ -55,7 +57,7 @@ export default function Sidebar({
                             src={LOGO_SISTEMA}
                             alt="Universidad Nacional de Pilar"
                             className="hidden dark:block h-12 w-auto max-w-[195px] object-contain object-left"
-                            onError={(e) => { e.target.style.display = 'none'; }}
+                            onError={(e) => { e.target.onerror = null; e.target.src = LOGO_SISTEMA_PNG; }}
                         />
                         {/* Modo claro: lockup oficial negro */}
                         <img
@@ -96,6 +98,7 @@ export default function Sidebar({
                                 onClick={() => { setActiveTab(tab.id); setIsSidebarOpen(false); }} 
                                 aria-current={isActive ? 'page' : undefined}
                                 title={tab.label}
+                                data-tour={`nav-${tab.id}`}
                                 className={`group flex w-full items-center gap-3 rounded-xl px-3 h-11 text-[13px] transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
                                     isActive 
                                         ? 'bg-brand-primary text-white font-bold shadow-sm' 

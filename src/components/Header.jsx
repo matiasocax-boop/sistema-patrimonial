@@ -1,11 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 export default function Header({
     setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen, pdfPaperSize, setPdfPaperSize,
     dependenciaActual, setDependenciaActual, todasDependencias, clearAllFilters,
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
-    misNotificaciones, markAsRead, currentUser, isAdmin, handleLogout
+    misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout
 }) {
+    const [filtroNotif, setFiltroNotif] = useState('todas');
+    const notifsVisibles = filtroNotif === 'noleidas'
+        ? misNotificaciones.filter(n => !n.leido)
+        : misNotificaciones;
     const TITULOS = {
         dashboard: 'Panel Principal',
         resumen: 'Mi Dependencia',
@@ -39,6 +43,7 @@ export default function Header({
                 <button 
                     onClick={() => setIsScannerOpen(true)} 
                     title="Escanear código QR"
+                    data-tour="scan"
                     className="hidden md:inline-flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 px-4 h-10 rounded-xl text-[13px] font-bold transition-all cursor-pointer active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                 >
                     <i className="fa-solid fa-qrcode text-xs"></i> Escanear QR
@@ -96,18 +101,40 @@ export default function Header({
                         
                         {isNotifOpen && (
                             <div className="absolute right-0 top-14 w-80 sm:w-96 bg-white dark:bg-darkbg-card shadow-2xl border border-zinc-200/80 dark:border-darkbg-border rounded-[24px] z-50 overflow-hidden flex flex-col animate-slide-up origin-top-right">
-                                <div className="px-6 py-4 border-b border-zinc-100 dark:border-darkbg-border flex justify-between items-center bg-zinc-50/80 dark:bg-darkbg-main/80 backdrop-blur-sm">
-                                    <h3 className="text-[13px] font-black tracking-tight text-zinc-900 dark:text-white uppercase">Notificaciones</h3>
-                                    {unreadCount > 0 && <span className="bg-red-50 text-red-600 dark:bg-red-500/20 dark:text-red-400 text-[10px] px-2.5 py-1 rounded-lg font-black border border-red-100 dark:border-red-900/30 shadow-sm">{unreadCount} nuevas</span>}
+                                <div className="px-5 py-4 border-b border-zinc-100 dark:border-darkbg-border bg-zinc-50/80 dark:bg-darkbg-main/80 backdrop-blur-sm">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="text-[13px] font-black tracking-tight text-zinc-900 dark:text-white uppercase">Notificaciones</h3>
+                                        {unreadCount > 0 ? (
+                                            <button onClick={() => onMarkAllRead && onMarkAllRead()} className="text-[11px] font-bold text-brand-primary dark:text-brand-accent hover:underline cursor-pointer">
+                                                Marcar leídas
+                                            </button>
+                                        ) : (
+                                            <span className="text-[11px] font-semibold text-zinc-400">Al día</span>
+                                        )}
+                                    </div>
+                                    <div className="flex gap-1.5 rounded-xl bg-zinc-100 dark:bg-white/5 p-1">
+                                        {[
+                                            { id: 'todas', label: `Todas (${misNotificaciones.length})` },
+                                            { id: 'noleidas', label: `No leídas (${unreadCount})` }
+                                        ].map(t => (
+                                            <button
+                                                key={t.id}
+                                                onClick={() => setFiltroNotif(t.id)}
+                                                className={`flex-1 h-8 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${filtroNotif === t.id ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+                                            >
+                                                {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                                 <div className="overflow-y-auto max-h-[350px] custom-scrollbar bg-white dark:bg-darkbg-card">
-                                    {misNotificaciones.length === 0 ? (
+                                    {notifsVisibles.length === 0 ? (
                                         <div className="p-8 text-center flex flex-col items-center justify-center opacity-50">
                                             <i className="fa-regular fa-bell-slash text-3xl mb-3 text-zinc-400"></i> 
-                                            <span className="text-xs font-bold text-zinc-500">Bandeja vacía</span>
+                                            <span className="text-xs font-bold text-zinc-500">{filtroNotif === 'noleidas' ? 'Sin notificaciones pendientes' : 'Bandeja vacía'}</span>
                                         </div>
                                     ) : (
-                                        misNotificaciones.map(n => (
+                                        notifsVisibles.map(n => (
                                             <div 
                                                 key={n.id} 
                                                 onClick={() => {

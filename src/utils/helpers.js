@@ -113,17 +113,17 @@ export const convertirImagenABase64 = async (url) => {
         return null;
     }
 };
-export const getLogoPorDependencia = (dependencia) => {
-    if (!dependencia) return '/publiclogo_unp.png';
+export const getLogoPorDependencia = (dependencia, ext = 'png') => {
+    if (!dependencia) return `/publiclogo_unp.${ext}`;
     const dep = dependencia.toLowerCase();
-    
-    if (dep.includes('agropecuarias')) return '/publiclogo_agro.png';
-    if (dep.includes('aplicadas')) return '/publiclogo_aplicadas.png';
-    if (dep.includes('biomédicas') || dep.includes('biomedicas')) return '/publiclogo_biomedicas.png';
-    if (dep.includes('derecho')) return '/publiclogo_derecho.png';
-    if (dep.includes('económicas') || dep.includes('economicas') || dep.includes('contables')) return '/publiclogo_contables.png';
-    if (dep.includes('tecnolog')) return '/publiclogo_cta.png';
-    if (dep.includes('humanidades')) return '/publiclogo_humanidades.png';
-    
-    return '/publiclogo_unp.png';
+
+    if (dep.includes('agropecuarias')) return `/publiclogo_agro.${ext}`;
+    if (dep.includes('aplicadas')) return `/publiclogo_aplicadas.${ext}`;
+    if (dep.includes('biomédicas') || dep.includes('biomedicas')) return `/publiclogo_biomedicas.${ext}`;
+    if (dep.includes('derecho')) return `/publiclogo_derecho.${ext}`;
+    if (dep.includes('económicas') || dep.includes('economicas') || dep.includes('contables')) return `/publiclogo_contables.${ext}`;
+    if (dep.includes('tecnolog')) return `/publiclogo_cta.${ext}`;
+    if (dep.includes('humanidades')) return `/publiclogo_humanidades.${ext}`;
+
+    return `/publiclogo_unp.${ext}`;
 };

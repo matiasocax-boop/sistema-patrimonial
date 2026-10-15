@@ -18,10 +18,10 @@ export default function MaintenanceScreen({ config }) {
       <main className="relative z-10 flex-1 flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-lg text-center">
           <img
-            src="/UNP-Site-Logo.png"
+            src="/UNP-Site-Logo.webp"
             alt="Universidad Nacional de Pilar"
             className="h-14 w-auto mx-auto object-contain drop-shadow-md mb-6"
-            onError={(e) => { e.target.style.display = 'none'; }}
+            onError={(e) => { e.target.onerror = null; e.target.src = '/UNP-Site-Logo.png'; }}
           />
 
           <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-[0.18em] bg-amber-500/15 text-amber-300 border border-amber-500/25 mb-5">

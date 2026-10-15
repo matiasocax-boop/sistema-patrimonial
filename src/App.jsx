@@ -6,6 +6,8 @@ import DonutChart from './components/DonutChart';
 import SimpleBar from './components/SimpleBar';
 import { SelectFilter, PeriodSelector } from './components/FilterComponents';
 import AnimatedNumber from './components/AnimatedNumber';
+import CommandPalette from './components/CommandPalette';
+import TourGuiado from './components/TourGuiado';
 import BienRow from './components/BienRow';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -319,10 +321,16 @@ export default function App() {
     () => funcionariosPadron.filter(f => f.dependencia === dependenciaActual),
     [funcionariosPadron, dependenciaActual]
   );
-  // Atajo "/": enfoca el buscador del inventario
+  // Atajo "/": enfoca el buscador del inventario · Ctrl/Cmd+K: paleta global
   const searchRef = useRef(null);
+  const [cmdOpen, setCmdOpen] = useState(false);
   useEffect(() => {
     const onKey = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen(v => !v);
+        return;
+      }
       if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
       if (activeTab !== 'inventario') return;
       const t = e.target;
@@ -333,6 +341,44 @@ export default function App() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [activeTab]);
+  const irTabGlobal = (tab, texto) => {
+    if (tab === 'funcionarios' && texto) setSearchFuncionarioInput(texto);
+    setActiveTab(tab);
+  };
+  // Tour guiado: pasos según rol, auto-inicio solo la primera vez
+  const [tourPaso, setTourPaso] = useState(-1);
+  const pasosTour = useMemo(() => {
+    const base = [
+      { tab: 'dashboard', selector: null, titulo: 'Bienvenido al sistema', texto: 'Recorrido rápido de lo más importante. Puedes omitirlo y retomarlo cuando quieras desde Centro de Ayuda.' },
+      { tab: 'dashboard', selector: '[data-tour="dash-stats"]', titulo: 'Métricas accionables', texto: 'Cada tarjeta filtra el inventario al hacer clic: activos, con QR, sin FC-10 y pendientes de QR.' },
+      { tab: 'dashboard', selector: '[data-tour="dash-pendientes"]', titulo: 'Atención requerida', texto: 'Tu lista de trabajo: lo que falta por etiquetar, asignar, ubicar o regularizar, con acceso directo.' },
+      { tab: 'inventario', selector: '[data-tour="inv-search"]', titulo: 'Búsqueda robusta', texto: 'Ignora tildes y entiende varias palabras. Atajos: "/" enfoca aquí y Ctrl+K abre la búsqueda global.' },
+      { tab: 'inventario', selector: '[data-tour="inv-table"]', titulo: 'Acciones por fila', texto: 'Desde cada bien: ficha 360 con trazabilidad, QR, acta FC-10, traslado, edición y duplicado.' },
+      { tab: null, selector: '[data-tour="scan"]', titulo: 'Escáner QR', texto: 'Con la cámara del celular o una lectora USB localizas cualquier bien al instante.' },
+    ];
+    if (isAdmin) {
+      base.push(
+        { tab: 'auditoria', selector: '[data-tour="aud-kpis"]', titulo: 'Módulo de Auditoría', texto: 'Solo administradores: libro de eventos, conciliación física, muestreo aleatorio y salud de datos.' },
+        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. Encontrarás esta guía y las novedades de cada versión en el Centro de Ayuda.' }
+      );
+    } else {
+      base.push(
+        { tab: 'resumen', selector: '[data-tour="nav-resumen"]', titulo: 'Mi Dependencia', texto: 'Tu vista de solo lectura: números, pendientes y últimas asignaciones sin riesgo de romper nada.' },
+        { tab: 'ayuda', selector: null, titulo: 'Listo para trabajar', texto: 'Eso fue lo esencial. Encontrarás esta guía y las novedades de cada versión en el Centro de Ayuda.' }
+      );
+    }
+    return base;
+  }, [isAdmin]);
+  useEffect(() => {
+    if (isAuthenticated && localStorage.getItem('tour_visto_v1') !== '1') {
+      const t = setTimeout(() => setTourPaso(0), 900);
+      return () => clearTimeout(t);
+    }
+  }, [isAuthenticated]);
+  const cerrarTour = (completado) => {
+    setTourPaso(-1);
+    try { localStorage.setItem('tour_visto_v1', '1'); } catch (e) {}
+  };
   const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida' };
   // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);
@@ -444,6 +490,25 @@ export default function App() {
     if (v >= 1000) return `${Math.round(v / 1000)} mil`;
     return String(v);
   };
+  // Salud de datos: solo lectura (cero riesgo), detecta inconsistencias sin modificar nada
+  const saludDatos = useMemo(() => {
+    const idsBienes = new Set(bienes.map(b => b.id));
+    const vistos = new Map();
+    const duplicados = [];
+    bienes.forEach(b => {
+      const k = `${normalizeStr(b.dependencia)}||${normalizeStr(b.rotulo)}`;
+      if (!b.rotulo || String(b.rotulo).trim() === '' || String(b.rotulo).trim() === 'S/R') return;
+      if (vistos.has(k)) duplicados.push(b);
+      else vistos.set(k, b.id);
+    });
+    return [
+      { id: 'dup', label: 'Rótulos duplicados', count: duplicados.length, detalle: duplicados.slice(0, 20), icon: 'fa-clone', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+      { id: 'fc10', label: 'FC-10 sin bien asociado', count: fc10List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-file-signature', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+      { id: 'fc11', label: 'FC-11 sin bien asociado', count: fc11List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-truck-fast', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+      { id: 'sindep', label: 'Bienes sin dependencia', count: bienes.filter(b => !String(b.dependencia || '').trim()).length, detalle: [], icon: 'fa-building-columns', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border-zinc-500/20' },
+      { id: 'sinfecha', label: 'Bienes sin fecha de adquisición', count: bienes.filter(b => !String(b.fechaAdquisicion || '').trim()).length, detalle: [], icon: 'fa-calendar-xmark', box: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20' },
+    ];
+  }, [bienes, fc10List, fc11List]);
   const resultadoConteo = useMemo(() => {
     const base = bienes.filter(b =>
       normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) &&
@@ -1850,7 +1915,12 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           try {
             const payload = newBienes.map(b => ({ id: b.id, data: b }));
             await supabase.from('bens').insert(payload);
-            await fetchData();
+            // Actualización local dirigida (evita recargar todo el inventario)
+            setBienes(prev => [...newBienes, ...prev.filter(b => !newBienes.some(n => n.id === b.id))]);
+            try {
+              const cacheActual = await localforage.getItem(`bienes_cache_${dependenciaActual}`) || [];
+              await localforage.setItem(`bienes_cache_${dependenciaActual}`, [...newBienes, ...cacheActual.filter(b => !newBienes.some(n => n.id === b.id))]);
+            } catch (e) {}
             addToast(`¡0xito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
           } catch (error) {
             addToast("Error al guardar registros en la base de datos.", "error");
@@ -2044,7 +2114,6 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
         await localforage.setItem(`bienes_cache_${dependenciaActual}`, nuevosBienes);
         addToast(`¡Sincronización exitosa! Se actualizaron ${actualizados} registros con sus datos oficiales.`, "success");
-        await fetchData(true);
       } else {
         addToast("Los activos de esta dependencia ya coinciden exactamente con el padrón oficial.", "info");
       }
@@ -2157,7 +2226,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
       try {
           const { error } = await supabase.from('funcionarios').insert([nuevoFunc]);
           if (error) throw error;
-          await fetchData();
+          setFuncionariosPadron(prev => [...prev, nuevoFunc]);
           addToast("Funcionario registrado exitosamente", "success");
           setIsNewFuncionarioModalOpen(false);
       } catch (err) {
@@ -2193,7 +2262,15 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
             if (errUpd) throw errUpd;
         }
         
-        await fetchData();
+        // Actualización local dirigida (mismo efecto que la recarga, sin transferencia extra)
+        setFuncionariosPadron(prev => {
+            let lista = [...prev];
+            porActualizar.forEach(act => {
+                lista = lista.map(f => f.id === act.id ? { ...f, cedula: act.cedula, cargo: act.cargo, nombre: act.nombre } : f);
+            });
+            const nuevos = porInsertar.map(({ esActualizacion, ...rest }) => rest);
+            return [...nuevos, ...lista];
+        });
         addToast(`¡0xito! Procesados ${pendingFuncionariosToImport.length} registros (${porActualizar.length} actualizados).`, "success");
     } catch (error) {
         console.error(error);
@@ -2225,7 +2302,7 @@ const handleEditFuncionario = (funcionario) => {
           .eq('id', funcionarioToEdit.id);
         
         if (error) throw error;
-        await fetchData();
+        setFuncionariosPadron(prev => prev.map(f => f.id === funcionarioToEdit.id ? { ...f, nombre: nuevoNombre, cargo: nuevoCargo } : f));
         addToast("Funcionario actualizado exitosamente", "success");
         setIsFuncionarioModalOpen(false);
     } catch (err) {
@@ -2252,7 +2329,11 @@ const handleEditFuncionario = (funcionario) => {
         if (!res.error) {
             addToast(usuarioEditing ? "Usuario actualizado" : "Usuario creado", "success");
             setIsUsuarioModalOpen(false);
-            fetchData();
+            if (usuarioEditing) {
+                setUsuariosList(prev => prev.map(u => u.username === usuarioEditing.username ? { ...u, nombre: userData.nombre, cargo: userData.cargo, dependencia: userData.dependencia } : u));
+            } else {
+                setUsuariosList(prev => [...prev, userData]);
+            }
         } else {
             addToast(res.error.message || "Error al procesar la solicitud", "error");
         }
@@ -2432,7 +2513,6 @@ const handleEditFuncionario = (funcionario) => {
       
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
       if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); addToast(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); addToast(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
-      fetchData();
     } catch (error) { console.error(error); addToast("Error al registrar FC-11.", "error"); }
   };
 
@@ -2479,7 +2559,6 @@ const handleEditFuncionario = (funcionario) => {
           }
       }
       if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
-      fetchData();
       addToast("Expediente FC-04 guardado", "success");
     } catch (error) { console.error(error); addToast("Error guardando FC-04.", "error"); }
   };
@@ -2524,7 +2603,6 @@ const handleEditFuncionario = (funcionario) => {
         setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
         setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
         setIsFC10ModalOpen(false); 
-        fetchData();
         addToast(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
     } catch (error) { console.error(error); addToast("Error al guardar.", "error"); }
   };
@@ -2535,6 +2613,16 @@ const handleEditFuncionario = (funcionario) => {
       try { 
           await supabase.from('notificaciones').update({ data: updated }).eq('id', notif.id);
       } catch(e) {}
+  };
+  const markAllAsRead = async () => {
+      const pendientes = misNotificaciones.filter(n => !n.leido);
+      if (pendientes.length === 0) return;
+      setNotificaciones(prev => prev.map(n => ({ ...n, leido: true })));
+      try {
+          await Promise.all(pendientes.map(n =>
+              supabase.from('notificaciones').update({ data: { ...n, leido: true } }).eq('id', n.id)
+          ));
+      } catch (e) {}
   };
 
   const openResolucionModal = (bien, accion, notifOrigen = null) => { setResolucionBaja({ bien, accion, notifOrigen }); setMotivoResolucion(""); };
@@ -2913,7 +3001,18 @@ const handleEditFuncionario = (funcionario) => {
 
               if (!res.error) addToast("Acción completada", "success");
           }
-          fetchData(false);
+          // Actualización local dirigida (evita una recarga total y ahorra transferencia)
+          if (res && !res.error) {
+              if (type === 'bien') {
+                  if (item.estadoConservacion === 'De Baja') setBienes(prev => prev.filter(b => b.id !== id));
+                  else setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
+              }
+              else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id));
+              else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id));
+              else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id));
+              else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
+              else if (type === 'funcionario') setFuncionariosPadron(prev => prev.filter(f => f.id !== id));
+          }
       } catch (e) { 
         addToast("Error de red.", "error"); 
       } finally { 
@@ -3250,7 +3349,7 @@ if (publicBienId) {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} pdfPaperSize={pdfPaperSize} setPdfPaperSize={setPdfPaperSize} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar">
             <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -3286,7 +3385,7 @@ if (publicBienId) {
                     </div>
 
                     {/* 2. TARJETAS DE MÉTRICAS ACCIONABLES */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" data-tour="dash-stats">
 
                       {/* Bienes Activos */}
                       <button
@@ -3384,7 +3483,7 @@ if (publicBienId) {
                     </div>
 
                     {/* 2B. BANDEJA DE PENDIENTES */}
-                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm" data-tour="dash-pendientes">
                         <div className="flex items-center justify-between gap-3 mb-4">
                             <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
                                 <i className="fa-solid fa-list-check text-zinc-400"></i> Atención requerida
@@ -3700,6 +3799,7 @@ if (publicBienId) {
           type="text"
           ref={searchRef}
           title="Buscar (atajo: /)"
+          data-tour="inv-search"
           placeholder="Buscar por rótulo, descripción, funcionario... Ej: 1045 silla"
           value={searchTerm}
           onChange={(e) => { setSearchTerm(e.target.value); setSearchInput(e.target.value); setCurrentPage(1); }}
@@ -3830,7 +3930,7 @@ if (publicBienId) {
           </button>
         </div>
       )}
-                    <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden">
+                    <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden" data-tour="inv-table">
                       <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[900px]">
                           
@@ -4139,7 +4239,7 @@ if (publicBienId) {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="aud-kpis">
                       {kpisAuditor.map(k => (
                         <div key={k.label} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
                           <div className={`flex h-10 w-10 items-center justify-center rounded-2xl mb-4 ${k.box}`}>
@@ -4178,6 +4278,39 @@ if (publicBienId) {
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                            <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                <i className="fa-solid fa-heart-pulse text-rose-500"></i> Salud de datos
+                            </h3>
+                            <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Solo lectura</span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Detecta inconsistencias sin modificar nada. Toca un duplicado para revisarlo.</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
+                            {saludDatos.map(s => (
+                                <div key={s.id} className="rounded-2xl border border-zinc-200/70 dark:border-white/10 px-3 py-3 text-center">
+                                    <p className="text-xl font-bold tabular-nums text-zinc-900 dark:text-white">{s.count}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-0.5 leading-tight">{s.label}</p>
+                                </div>
+                            ))}
+                        </div>
+                        {saludDatos[0].detalle.length > 0 && (
+                            <div className="max-h-40 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200/60 dark:border-white/10 divide-y divide-zinc-100 dark:divide-white/5">
+                                {saludDatos[0].detalle.map(b => (
+                                    <button
+                                        key={b.id}
+                                        onClick={() => { clearAllFilters(); setSearchTerm(b.rotulo || ''); setSearchInput(b.rotulo || ''); setCurrentPage(1); setActiveTab('inventario'); }}
+                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                                        title="Revisar en inventario"
+                                    >
+                                        <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300 truncate">{b.rotulo}</span>
+                                        <span className="text-zinc-400 truncate">{b.descripcion}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -4883,6 +5016,13 @@ if (publicBienId) {
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Guía operativa y documentación oficial del ciclo de vida de los bienes</p>
                         </div>
                       </div>
+                      <button
+                        onClick={() => setTourPaso(0)}
+                        title="Recorrer la guía interactiva"
+                        className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none shrink-0"
+                      >
+                        <i className="fa-solid fa-route"></i> Hacer tour guiado
+                      </button>
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
                         <div className="lg:col-span-5 flex flex-col">
@@ -5198,6 +5338,27 @@ if (publicBienId) {
         formatCurrency={formatCurrency}
         formatDateText={formatDateText}
         STYLES={STYLES}
+      />
+      {tourPaso >= 0 && (
+        <TourGuiado
+          pasos={pasosTour}
+          paso={tourPaso}
+          setPaso={setTourPaso}
+          onClose={cerrarTour}
+          irTab={(tab) => { if (tab) setActiveTab(tab); }}
+        />
+      )}
+      <CommandPalette
+        isOpen={cmdOpen}
+        onClose={() => setCmdOpen(false)}
+        bienes={bienes}
+        funcionarios={funcionariosPadron}
+        dependenciaActual={dependenciaActual}
+        irInventario={(rotulo) => { clearAllFilters(); setSearchTerm(rotulo); setSearchInput(rotulo); setCurrentPage(1); setActiveTab('inventario'); }}
+        abrirNuevoBien={() => { setBienEditing(null); setIsBienModalOpen(true); }}
+        abrirEscaner={() => setIsScannerOpen(true)}
+        abrirFC03={() => openFC03Modal()}
+        irTab={irTabGlobal}
       />
       <MantenimientoModal
         isOpen={isMantenimientoModalOpen}
