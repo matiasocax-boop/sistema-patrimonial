@@ -1082,9 +1082,32 @@ useEffect(() => {
           cargarNotificaciones();
           const notifInterval = setInterval(() => { cargarNotificaciones(); }, 12000);
           const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, () => { cargarNotificaciones(); }).subscribe();
+          // Tiempo real en bienes: lo que cambia en un equipo (ej: foto desde el celular)
+          // se refleja solo en los demás, sin refrescar
+          const bensChannel = supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
+              try {
+                  if (payload.eventType === 'DELETE') {
+                      if (payload.old?.id) setBienes(prev => prev.filter(b => b.id !== payload.old.id));
+                      return;
+                  }
+                  const row = payload.new;
+                  if (!row) return;
+                  const d = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+                  const bien = { id: row.id, ...d };
+                  setBienes(prev => {
+                      const i = prev.findIndex(b => b.id === bien.id);
+                      if (i === -1) return [...prev, bien];
+                      const copia = [...prev];
+                      copia[i] = bien;
+                      return copia;
+                  });
+                  setFichaBien(prev => (prev && prev.id === bien.id ? bien : prev));
+              } catch (e) {}
+          }).subscribe();
           return () => {
               clearInterval(notifInterval);
               supabase.removeChannel(notifChannel);
+              supabase.removeChannel(bensChannel);
           };
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
