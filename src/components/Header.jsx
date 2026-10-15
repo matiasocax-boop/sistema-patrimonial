@@ -8,6 +8,7 @@ export default function Header({
 }) {
     const TITULOS = {
         dashboard: 'Panel Principal',
+        resumen: 'Mi Dependencia',
         inventario: 'Inventario General',
         funcionarios: 'Plantel de Funcionarios',
         fc04: 'Registro FC-04',

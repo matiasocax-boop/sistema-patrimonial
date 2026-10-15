@@ -415,6 +415,35 @@ export default function App() {
       { label: 'Bajas y eliminaciones', valor: cuenta(/BAJA|ELIMINA/), icon: 'fa-flag', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' },
     ];
   }, [auditoriaList]);
+  // Evolución del valor patrimonial: incorporado por mes (últimos 12 meses)
+  const evolucionValor = useMemo(() => {
+    const porMes = {};
+    bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual)).forEach(b => {
+      const { year, month } = parseDateInfo(b.fechaAdquisicion);
+      if (!year || !month) return;
+      const k = `${year}-${month}`;
+      porMes[k] = (porMes[k] || 0) + (parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0);
+    });
+    const nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const ahora = new Date();
+    const out = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      out.push({
+        key: k, etiqueta: `${nombres[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`,
+        year: String(d.getFullYear()), month: String(d.getMonth() + 1).padStart(2, '0'),
+        valor: porMes[k] || 0
+      });
+    }
+    return out;
+  }, [bienes, dependenciaActual]);
+  const maxEvolucion = Math.max(1, ...evolucionValor.map(e => e.valor));
+  const formatoCortoGs = (v) => {
+    if (v >= 1000000) return `${(v / 1000000).toLocaleString('es-PY', { maximumFractionDigits: 1 })} M`;
+    if (v >= 1000) return `${Math.round(v / 1000)} mil`;
+    return String(v);
+  };
   const resultadoConteo = useMemo(() => {
     const base = bienes.filter(b =>
       normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) &&
@@ -1932,6 +1961,52 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           addToast("Reporte Excel descargado exitosamente", "success");
       }, 100);
   };
+  const handleExportInventarioExcel = () => {
+      if (filteredBienes.length === 0) return addToast("No hay bienes para exportar", "warning");
+      if (!window.XLSX) return addToast("Cargando librería Excel, intenta de nuevo...", "warning");
+      setIsProcessing({ active: true, text: 'Generando Excel...' });
+      setTimeout(() => {
+          try {
+              const filas = filteredBienes.map(b => ({
+                  'Cuenta': b.cuenta || '-', 'Subcuenta': b.subcuenta || '-',
+                  'Analítico 1': b.analitico1 || '-', 'Analítico 2': b.analitico2 || '-',
+                  'Rótulo': b.rotulo || '-', 'Descripción': b.descripcion || '-',
+                  'Dependencia': b.dependencia || '-', 'Ubicación': b.ubicacion || '-',
+                  'Funcionario': b.funcionario || '-',
+                  'Fecha Adquisición': formatDateText(b.fechaAdquisicion) || '-',
+                  'Valor Unitario (Gs.)': parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0,
+                  'Estado': b.estadoConservacion || '-', 'Vida Útil': b.vidaUtil || '-',
+                  'FC-10': b.hasFC10 ? 'SÍ' : 'NO', 'QR': b.hasQR ? 'SÍ' : 'NO'
+              }));
+              const wb = window.XLSX.utils.book_new();
+              const ws = window.XLSX.utils.json_to_sheet(filas);
+              ws['!cols'] = [{ wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 55 }, { wch: 22 }, { wch: 28 }, { wch: 30 }, { wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 10 }, { wch: 8 }, { wch: 8 }];
+              ws['!autofilter'] = { ref: ws['!ref'] };
+              const totalValor = filas.reduce((a, r) => a + (r['Valor Unitario (Gs.)'] || 0), 0);
+              const porEstado = {};
+              filas.forEach(r => { porEstado[r['Estado']] = porEstado[r['Estado']] || { cant: 0, valor: 0 }; porEstado[r['Estado']].cant++; porEstado[r['Estado']].valor += r['Valor Unitario (Gs.)'] || 0; });
+              const resumen = [
+                  { 'Concepto': 'Dependencia', 'Valor': dependenciaActual },
+                  { 'Concepto': 'Fecha de generación', 'Valor': new Date().toLocaleDateString('es-PY') },
+                  { 'Concepto': 'Total de bienes', 'Valor': filas.length },
+                  { 'Concepto': 'Valor total (Gs.)', 'Valor': totalValor },
+                  { 'Concepto': '', 'Valor': '' },
+                  { 'Concepto': 'Estado', 'Valor': 'Cantidad / Valor (Gs.)' },
+                  ...Object.keys(porEstado).map(k => ({ 'Concepto': k, 'Valor': `${porEstado[k].cant} / ${porEstado[k].valor.toLocaleString('es-PY')}` }))
+              ];
+              const ws2 = window.XLSX.utils.json_to_sheet(resumen);
+              ws2['!cols'] = [{ wch: 28 }, { wch: 34 }];
+              window.XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+              window.XLSX.utils.book_append_sheet(wb, ws2, 'Resumen');
+              window.XLSX.writeFile(wb, `Inventario_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+              addToast("Excel generado exitosamente", "success");
+          } catch (e) {
+              addToast("Error al generar el Excel.", "error");
+          } finally {
+              setIsProcessing({ active: false, text: '' });
+          }
+      }, 100);
+  };
   const sincronizarBienesConPadron = async () => {
     setIsProcessing({ active: true, text: 'Sincronizando activos con el Padrón de Funcionarios...' });
 
@@ -3446,6 +3521,80 @@ if (publicBienId) {
                   </div>
                 )}
 
+                {activeTab === 'resumen' && (
+                  <div className="space-y-6 animate-fade-in pb-12">
+                    <div className="bg-white dark:bg-white/[0.04] p-5 sm:p-6 rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm">
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                          <i className="fa-solid fa-house-user text-lg"></i>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Vista de solo lectura</p>
+                          <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight mt-0.5">Mi Dependencia · {dependenciaActual}</h2>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
+                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.totalItems} /></p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Bienes activos</p>
+                      </div>
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
+                        <p className="text-2xl sm:text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400 tracking-tight">Gs. {formatCurrency(stats.totalValue)}</p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Valor patrimonial</p>
+                      </div>
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
+                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.withoutQR} /></p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Pendientes de QR</p>
+                      </div>
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
+                        <p className="text-3xl font-bold tabular-nums text-zinc-900 dark:text-white tracking-tight"><AnimatedNumber value={stats.withoutFc10} /></p>
+                        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">Sin acta FC-10</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
+                          <i className="fa-solid fa-list-check text-zinc-400"></i> Estado de regularización
+                        </h3>
+                        <div className="space-y-3">
+                          {pendientes.map(p => (
+                            <div key={p.id} className="flex items-center gap-3">
+                              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${p.box}`}>
+                                <i className={`fa-solid ${p.icon} text-xs`}></i>
+                              </span>
+                              <span className="flex-1 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300">{p.label}</span>
+                              <span className="text-sm font-bold tabular-nums text-zinc-900 dark:text-white">{p.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-4">
+                          <i className="fa-solid fa-clock-rotate-left text-zinc-400"></i> Últimas asignaciones
+                        </h3>
+                        <div className="space-y-1">
+                          {fc10List.filter(fc => fc.dependencia === dependenciaActual).sort((a, b) => String(b.fechaGeneracion || b.entregadoFecha || '').localeCompare(String(a.fechaGeneracion || a.entregadoFecha || ''))).slice(0, 5).map(fc => (
+                            <div key={fc.id} className="flex items-center gap-3 py-2 border-b border-zinc-100 dark:border-white/5 last:border-0">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400 text-xs font-bold">
+                                {(fc.funcionarioNombre || '?').charAt(0)}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate">{fc.funcionarioNombre || 'Sin responsable'}</span>
+                                <span className="block text-[11px] text-zinc-400 truncate">{fc.entregadoFecha ? formatDateText(fc.entregadoFecha) : (fc.fechaGeneracion ? formatDateText(fc.fechaGeneracion) : '')}</span>
+                              </span>
+                            </div>
+                          ))}
+                          {fc10List.filter(fc => fc.dependencia === dependenciaActual).length === 0 && (
+                            <p className="text-xs font-semibold text-zinc-400 py-4 text-center">Sin asignaciones registradas.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 {activeTab === 'inventario' && (
   <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
     
@@ -3499,6 +3648,15 @@ if (publicBienId) {
         >
           <i className="fa-solid fa-file-export text-sky-600"></i>
           <span>Exportar</span>
+        </button>
+
+        <button 
+          onClick={handleExportInventarioExcel} 
+          className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+          title="Exportar Excel real (.xlsx)"
+        >
+          <i className="fa-solid fa-file-excel text-emerald-600 dark:text-emerald-400"></i>
+          <span>Excel</span>
         </button>
 
         <button 
@@ -3991,6 +4149,35 @@ if (publicBienId) {
                           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400 mt-1">{k.label}</p>
                         </div>
                       ))}
+                    </div>
+
+                    <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm">
+                        <div className="flex items-center justify-between gap-3 mb-1">
+                            <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                                <i className="fa-solid fa-chart-line text-emerald-500"></i> Evolución del valor patrimonial
+                            </h3>
+                            <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Últimos 12 meses</span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-5">Valor incorporado por mes · clic en una barra para filtrar el inventario.</p>
+                        <div className="flex items-end gap-1.5 sm:gap-2 h-40">
+                            {evolucionValor.map(e => (
+                                <button
+                                    key={e.key}
+                                    onClick={() => { clearAllFilters(); setFiltroAnio(e.year); setFiltroMes(e.month); setActiveTab('inventario'); }}
+                                    title={`${e.etiqueta}: Gs. ${Number(e.valor).toLocaleString('es-PY')} — clic para filtrar`}
+                                    className="flex-1 h-full flex flex-col items-center justify-end gap-1.5 rounded-lg group/bar focus-visible:ring-2 focus-visible:ring-brand-primary outline-none cursor-pointer"
+                                >
+                                    <span className="text-[10px] font-bold tabular-nums text-zinc-400 opacity-0 group-hover/bar:opacity-100 transition-opacity whitespace-nowrap">
+                                        {e.valor > 0 ? formatoCortoGs(e.valor) : ''}
+                                    </span>
+                                    <span
+                                        className={`w-full rounded-t-lg transition-all ${e.valor > 0 ? 'bg-emerald-500 group-hover/bar:bg-emerald-400' : 'bg-zinc-100 dark:bg-white/10'}`}
+                                        style={{ height: e.valor > 0 ? `${Math.max(6, (e.valor / maxEvolucion) * 100)}%` : '4px' }}
+                                    ></span>
+                                    <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase">{e.etiqueta}</span>
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

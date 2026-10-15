@@ -74,8 +74,9 @@ export default function Sidebar({
                 <nav className="flex-1 overflow-y-auto px-3 py-5 space-y-1 custom-scrollbar" aria-label="Navegación principal">
                     <p className="px-3 pb-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.18em]">Navegación</p>
 
-                    {[ 
+                    {[
                         { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie' },
+                        { id: 'resumen', label: 'Mi Dependencia', icon: 'fa-house-user' },
                         { id: 'inventario', label: 'Inventario General', icon: 'fa-boxes-stacked' },
                         { id: 'funcionarios', label: 'Plantel de Funcionarios', icon: 'fa-address-book' },
                         { id: 'fc04', label: 'Altas y Bajas (FC-04)', icon: 'fa-file-invoice' },
