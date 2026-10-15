@@ -24,7 +24,7 @@ import {
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
     convertirImagenABase64, getLogoPorDependencia 
 } from './utils/helpers';
-import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc } from './utils/pdfGenerators';
+import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
@@ -342,6 +342,8 @@ export default function App() {
   const [conteoCodigos, setConteoCodigos] = useState([]);
   const [conteoInput, setConteoInput] = useState('');
   const [muestraN, setMuestraN] = useState(10);
+  const [muestraUbicacion, setMuestraUbicacion] = useState('');
+  const [conteoUbicacion, setConteoUbicacion] = useState('');
   const [muestra, setMuestra] = useState([]);
   const [verificadosMuestra, setVerificadosMuestra] = useState({});
   const fetchAuditoria = async () => {
@@ -414,7 +416,11 @@ export default function App() {
     ];
   }, [auditoriaList]);
   const resultadoConteo = useMemo(() => {
-    const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
+    const base = bienes.filter(b =>
+      normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) &&
+      b.estadoConservacion !== 'De Baja' &&
+      (!conteoUbicacion || String(b.ubicacion || '').trim() === conteoUbicacion)
+    );
     const hallados = new Set();
     const noReg = [];
     conteoCodigos.forEach(code => {
@@ -422,12 +428,72 @@ export default function App() {
       if (f) hallados.add(f.id); else noReg.push(code);
     });
     return { total: base.length, hallados: hallados.size, faltantes: base.filter(b => !hallados.has(b.id)), noRegistrados: noReg };
-  }, [conteoCodigos, bienes, dependenciaActual]);
+  }, [conteoCodigos, bienes, dependenciaActual, conteoUbicacion]);
   const agregarCodigoConteo = (raw) => {
     const code = extraerCodigoQR(raw);
     if (!code) return;
     setConteoCodigos(prev => (prev.includes(code) ? prev : [...prev, code]));
     setConteoInput('');
+  };
+  const descargarActaConteoPDF = async () => {
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerías PDF...', 'warning');
+    setIsProcessing({ active: true, text: 'Generando acta de conciliación...' });
+    try {
+      const logo = await resolveLogoImg(dependenciaActual);
+      const porId = new Map(bienes.map(b => [b.id, b]));
+      const filas = [
+        ...[...new Set(conteoCodigos)].map(code => {
+          const b = [...porId.values()].find(x => x.id === code || normalizeStr(x.rotulo) === normalizeStr(code));
+          return b
+            ? { rotulo: b.rotulo, descripcion: b.descripcion, ubicacion: b.ubicacion, resultado: 'HALLADO' }
+            : { rotulo: '-', descripcion: `Código no registrado: ${code}`, ubicacion: '-', resultado: 'NO REGISTRADO' };
+        }),
+        ...resultadoConteo.faltantes.map(b => ({ rotulo: b.rotulo, descripcion: b.descripcion, ubicacion: b.ubicacion, resultado: 'FALTANTE' }))
+      ];
+      const doc = await buildActaAuditoriaPDF({
+        tipo: 'CONCILIACION',
+        fecha: new Date().toISOString().split('T')[0],
+        dependencia: dependenciaActual,
+        alcance: conteoUbicacion || 'Toda la dependencia',
+        auditor: currentUser?.nombre || currentUser?.username || '',
+        resumen: `${resultadoConteo.hallados} hallados de ${resultadoConteo.total} · ${resultadoConteo.faltantes.length} faltantes · ${resultadoConteo.noRegistrados.length} no registrados`,
+        filas, logoDataUrl: logo
+      });
+      doc.save(`Acta_Conciliacion_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast('Acta de conciliación generada.', 'success');
+    } catch (e) {
+      addToast('Error al generar el acta: ' + (e.message || 'desconocido'), 'error');
+    } finally {
+      setIsProcessing({ active: false, text: '' });
+    }
+  };
+  const descargarActaMuestreoPDF = async () => {
+    if (muestra.length === 0) return addToast('Genera primero la muestra.', 'warning');
+    if (!window.jspdf || typeof window.jspdf.jsPDF.API.autoTable !== 'function') return addToast('Cargando librerías PDF...', 'warning');
+    setIsProcessing({ active: true, text: 'Generando acta de muestreo...' });
+    try {
+      const logo = await resolveLogoImg(dependenciaActual);
+      const verif = Object.values(verificadosMuestra).filter(Boolean).length;
+      const doc = await buildActaAuditoriaPDF({
+        tipo: 'MUESTREO',
+        fecha: new Date().toISOString().split('T')[0],
+        dependencia: dependenciaActual,
+        alcance: muestraUbicacion || 'Toda la dependencia',
+        auditor: currentUser?.nombre || currentUser?.username || '',
+        resumen: `${verif} verificados de ${muestra.length} muestreados`,
+        filas: muestra.map(b => ({
+          rotulo: b.rotulo, descripcion: b.descripcion, ubicacion: b.ubicacion,
+          resultado: verificadosMuestra[b.id] ? 'VERIFICADO' : 'PENDIENTE'
+        })),
+        logoDataUrl: logo
+      });
+      doc.save(`Acta_Muestreo_${dependenciaActual.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`);
+      addToast('Acta de muestreo generada.', 'success');
+    } catch (e) {
+      addToast('Error al generar el acta: ' + (e.message || 'desconocido'), 'error');
+    } finally {
+      setIsProcessing({ active: false, text: '' });
+    }
   };
   const exportarConteoCSV = () => {
     const rows = [['Estado', 'Rotulo', 'Descripcion', 'Codigo detectado']];
@@ -449,7 +515,15 @@ export default function App() {
     fetchAuditoria();
   };
   const generarMuestra = () => {
-    const base = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja');
+    const base = bienes.filter(b =>
+      normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) &&
+      b.estadoConservacion !== 'De Baja' &&
+      (!muestraUbicacion || String(b.ubicacion || '').trim() === muestraUbicacion)
+    );
+    if (base.length === 0) {
+      addToast('No hay bienes activos en ese alcance para muestrear.', 'warning');
+      return;
+    }
     const n = Math.max(1, Math.min(parseInt(muestraN, 10) || 10, base.length));
     const barajada = [...base].sort(() => Math.random() - 0.5);
     setMuestra(barajada.slice(0, n));
@@ -3924,7 +3998,17 @@ if (publicBienId) {
                         <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-1">
                           <i className="fa-solid fa-clipboard-check text-emerald-500"></i> Conciliación física
                         </h3>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rótulos y compara contra el inventario activo.</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rótulos y compara contra el inventario activo del alcance elegido.</p>
+                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                          <select
+                            value={conteoUbicacion} onChange={(e) => setConteoUbicacion(e.target.value)}
+                            title="Alcance de la conciliación"
+                            className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary max-w-[220px] truncate"
+                          >
+                            <option value="">Toda la dependencia ({bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja').length})</option>
+                            {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        </div>
                         <div className="relative mb-4">
                           <i className="fa-solid fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
                           <input
@@ -3971,6 +4055,9 @@ if (publicBienId) {
                           </button>
                           <button onClick={() => { setConteoCodigos([]); setConteoInput(''); }} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">Limpiar</button>
                           <button onClick={exportarConteoCSV} disabled={conteoCodigos.length === 0} className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Exportar CSV</button>
+                          <button onClick={descargarActaConteoPDF} disabled={conteoCodigos.length === 0} title="Descargar acta en PDF con estructura oficial" className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">
+                            <i className="fa-solid fa-file-pdf mr-1.5 text-rose-500"></i>Acta PDF
+                          </button>
                           <button onClick={guardarActaConteo} disabled={conteoCodigos.length === 0} className="h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none disabled:opacity-40">Guardar acta</button>
                         </div>
                       </div>
@@ -3980,13 +4067,22 @@ if (publicBienId) {
                           <i className="fa-solid fa-shuffle text-violet-500"></i> Muestreo aleatorio
                         </h3>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Selección al azar para verificación física y acta del resultado.</p>
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex flex-wrap items-center gap-2 mb-4">
                           <input
                             type="number" min="1" max="200"
                             value={muestraN}
                             onChange={(e) => setMuestraN(e.target.value)}
-                            className="w-24 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-sm font-bold tabular-nums text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10"
+                            title="Cantidad a muestrear"
+                            className="w-20 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-sm font-bold tabular-nums text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10"
                           />
+                          <select
+                            value={muestraUbicacion} onChange={(e) => setMuestraUbicacion(e.target.value)}
+                            title="Alcance del muestreo"
+                            className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary max-w-[220px] truncate"
+                          >
+                            <option value="">Toda la dependencia</option>
+                            {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
                           <button onClick={generarMuestra} className="h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                             Generar muestra
                           </button>
@@ -4017,6 +4113,9 @@ if (publicBienId) {
                             </div>
                             <button onClick={guardarActaMuestreo} className="h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                               Guardar acta de muestreo
+                            </button>
+                            <button onClick={descargarActaMuestreoPDF} title="Descargar acta en PDF con estructura oficial" className="h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                              <i className="fa-solid fa-file-pdf mr-1.5 text-rose-500"></i>Acta PDF
                             </button>
                           </>
                         )}

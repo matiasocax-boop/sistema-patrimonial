@@ -235,6 +235,113 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
     return { doc, fechaDocumento: dateStr, fc };
 };
 
+// --- ACTA DE AUDITORÍA (CONCILIACIÓN / MUESTREO): sigue la estructura de los PDFs oficiales ---
+// filas: [{ rotulo, descripcion, ubicacion, resultado }]
+export const buildActaAuditoriaPDF = async ({ tipo, fecha, dependencia, alcance, auditor, resumen, filas, logoDataUrl }) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    const tituloDoc = tipo === 'MUESTREO' ? 'ACTA DE MUESTREO ALEATORIO' : 'ACTA DE CONCILIACIÓN FÍSICA';
+    let finalY = 12;
+
+    if (logoDataUrl) {
+        try { doc.addImage(logoDataUrl, 'PNG', 14, 10, 24, 24); } catch (e) {}
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.text("UNIVERSIDAD NACIONAL DE PILAR", pageWidth / 2, finalY + 2, { align: 'center' });
+    finalY += 7;
+    doc.setFontSize(10);
+    doc.text("DEPARTAMENTO DE BIENES PATRIMONIALES", pageWidth / 2, finalY, { align: 'center' });
+    finalY += 7;
+    doc.setFontSize(11);
+    doc.text(tituloDoc, pageWidth / 2, finalY, { align: 'center' });
+    finalY += 8;
+
+    doc.autoTable({
+        startY: finalY,
+        head: [[{ content: "1. DATOS DEL PROCEDIMIENTO", colSpan: 2, styles: { halign: 'left' } }]],
+        body: [
+            ["Fecha:", fecha || new Date().toISOString().split('T')[0]],
+            ["Dependencia:", dependencia || ''],
+            ["Alcance:", alcance || 'Toda la dependencia'],
+            ["Auditor responsable:", auditor || ''],
+            ["Resultado:", resumen || '']
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [0, 0, 0], lineWidth: 0.2 },
+        bodyStyles: { fontSize: 8, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, cellPadding: 2.5 },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 55 } },
+        margin: { left: 14, right: 14, bottom: 25 }
+    });
+    finalY = doc.lastAutoTable.finalY + 4;
+
+    doc.autoTable({
+        startY: finalY,
+        head: [[
+            { content: "N°", styles: { halign: 'center' } },
+            { content: "Rótulo", styles: { halign: 'center' } },
+            { content: "Descripción del Bien", styles: { halign: 'center' } },
+            { content: "Ubicación", styles: { halign: 'center' } },
+            { content: "Resultado", styles: { halign: 'center' } }
+        ]],
+        body: (filas || []).map((f, i) => [String(i + 1), f.rotulo || '-', f.descripcion || '-', f.ubicacion || '-', f.resultado || '-']),
+        theme: 'grid',
+        headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 7, lineColor: [0, 0, 0], lineWidth: 0.2, valign: 'middle' },
+        bodyStyles: { fontSize: 7, textColor: [0, 0, 0], lineColor: [0, 0, 0], lineWidth: 0.2, valign: 'middle' },
+        columnStyles: {
+            0: { halign: 'center', cellWidth: 10 },
+            1: { halign: 'center', cellWidth: 30 },
+            2: { halign: 'left', cellWidth: 'auto' },
+            3: { halign: 'center', cellWidth: 40 },
+            4: { halign: 'center', cellWidth: 28, fontStyle: 'bold' }
+        },
+        margin: { left: 14, right: 14, bottom: 25 }
+    });
+    finalY = doc.lastAutoTable.finalY + 6;
+
+    const disclaimer = "El presente acta deja constancia del procedimiento de verificación física realizado. Los bienes detallados fueron contrastados contra los registros del Sistema Integrado de Gestión Patrimonial. Las diferencias detectadas deberán ser analizadas por el Departamento de Bienes Patrimoniales conforme a la normativa vigente.";
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    const disclaimerLines = doc.splitTextToSize(disclaimer, pageWidth - 28);
+    const bloqueAltura = (disclaimerLines.length * 3.5) + 14 + 22;
+    if (finalY + bloqueAltura > pageHeight - 20) {
+        doc.addPage();
+        finalY = 20;
+    }
+    doc.text(disclaimerLines, 14, finalY);
+    finalY += (disclaimerLines.length * 3.5) + 14;
+
+    doc.setLineWidth(0.3);
+    const leftX = 25;
+    doc.line(leftX, finalY, leftX + 70, finalY);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("Auditor Responsable", leftX + 35, finalY + 4, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.text(`Aclaración: ${auditor || ''}`, leftX, finalY + 9);
+    const rightX = pageWidth - 95;
+    doc.line(rightX, finalY, rightX + 70, finalY);
+    doc.setFont("helvetica", "bold");
+    doc.text("Jefe de Dependencia", rightX + 35, finalY + 4, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.text("Aclaración:", rightX, finalY + 9);
+
+    const totalPagesDoc = doc.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPagesDoc; p++) {
+        doc.setPage(p);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7);
+        doc.setTextColor(130, 130, 130);
+        doc.text(`Página ${p} de ${totalPagesDoc}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        doc.setTextColor(0, 0, 0);
+    }
+
+    return doc;
+};
+
 // --- GENERADOR DE ETIQUETA PROFESIONAL PNG CON QR DINMICO ---
 export const generateProfessionalLabelPNG = async (bien, logoUrl, returnOnly = false) => {
     const canvas = document.createElement('canvas');
