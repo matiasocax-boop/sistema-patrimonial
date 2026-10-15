@@ -4356,7 +4356,8 @@ if (publicBienId) {
         </div>
       </div>
 
-      {/* Barra de Acciones Rápidas: una sola fila con scroll horizontal en vez de salto feo */}
+      {/* Barra de Acciones Rápidas: secundarias con scroll, CTA primario siempre visible */}
+      <div className="flex items-center gap-2 min-w-0">
       <div className="flex items-center gap-2 min-w-0 overflow-x-auto hide-scrollbar py-0.5 -my-0.5">
         <button 
           onClick={handleDownloadTemplateCSV} 
@@ -4411,6 +4412,7 @@ if (publicBienId) {
           <i className="fa-solid fa-print text-amber-600"></i>
           <span>FC-03</span>
         </button>
+      </div>
 
         <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block shrink-0"></div>
 
@@ -4419,7 +4421,7 @@ if (publicBienId) {
           className="inline-flex shrink-0 items-center gap-2 px-5 h-10 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-700 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-bold shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
         >
           <i className="fa-solid fa-plus text-xs"></i>
-          <span>Añadir Registro</span>
+          <span className="whitespace-nowrap">Añadir Registro</span>
         </button>
       </div>
 
