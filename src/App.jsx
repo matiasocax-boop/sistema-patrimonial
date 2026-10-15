@@ -74,7 +74,6 @@ const STYLES = {
 
 const DEPENDENCIAS_UNP = ["Rectorado", "Facultad de Ciencias Aplicadas", "Facultad de Humanidades y Ciencias de la Educación", "Facultad de Ciencias Contables, Administrativas y Económicas", "Facultad de Derecho, Ciencias Políticas y Sociales", "Facultad de Ciencias Agropecuarias y Desarrollo Rural", "Facultad de Ciencias Biomédicas", "Facultad de Ciencias, Tecnologías y Artes"];
 const ESTADOS_CONSERVACION = ["Muy bueno", "Bueno", "Regular", "Malo", "Inutilizable", "De Baja"];
-const MOTIVOS_FC11 = ["Traspaso", "Préstamo", "Inservible", "Faltante"];
 const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "Baja" }, { id: "T", nombre: "Traspaso" }, { id: "C/D", nombre: "Compra o Donación" }];
 
 function SkeletonLoader() { 
@@ -3185,29 +3184,6 @@ const handleEditFuncionario = (funcionario) => {
     setFc04Items(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
-  const handleRowAction = (action, item, extraData) => { 
-      switch(action) { 
-          case 'toggleQR': toggleQR(item); break; 
-          case 'openQRDownload': setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); break; 
-          case 'openFC10': openFC10Modal(item); break; 
-          case 'openFC11': openFC11Modal(item); break; 
-          case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
-          case 'fichaBien': openFichaBien(item); break;
-          case 'deleteBien': 
-              if (isAdmin) {
-                  setItemToDelete({ type: 'bien', id: item.id, item }); 
-              } else {
-                  setItemToDelete({ type: 'requestBaja', id: item.id, item });
-              }
-              break; 
-          case 'requestBaja': 
-              setItemToDelete({ type: 'requestBaja', id: item.id, item });
-              break;
-          case 'printFC10': handleGenerateFC10PDF([extraData], [item]); break; 
-          default: break; 
-      } 
-  };
-
   const extraerCodigoQR = (decodedText) => {
     let targetId = String(decodedText || '').trim();
     if (targetId.startsWith('http://') || targetId.startsWith('https://')) {
@@ -3491,13 +3467,6 @@ const handleEditFuncionario = (funcionario) => {
               return copia;
           });
       } catch (e) {}
-  };
-
-  const solicitarBajaBien = async (bien) => {
-      const solicitudId = generateId();
-      const nuevaSolicitud = { id: solicitudId, bienId: bien.id, rotulo: bien.rotulo, descripcion: bien.descripcion, ubicacion: bien.ubicacion, funcionario: bien.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: bien.dependencia, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', created_at: new Date().toISOString() };
-      const { error } = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
-      if (!error) { addToast("Solicitud enviada.", "success"); cargarNotificaciones(); }
   };
 
   const confirmDeleteAction = async () => {
