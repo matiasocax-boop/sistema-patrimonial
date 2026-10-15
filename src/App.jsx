@@ -1,4 +1,19 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react';
+// Carga diferida con auto-recuperación: si un chunk viejo falla (deploy intermedio),
+// recarga una vez para traer el HTML y los chunks consistentes.
+const lazyConReintento = (importador) => lazy(async () => {
+  try {
+    return await importador();
+  } catch (e) {
+    try {
+      if (!sessionStorage.getItem('chunk_reintentado')) {
+        sessionStorage.setItem('chunk_reintentado', '1');
+        window.location.reload();
+      }
+    } catch (err) {}
+    throw e;
+  }
+});
 import StatCard from './components/StatCard';
 import FaqItem from './components/FaqItem';
 import WorkflowStep from './components/WorkflowStep';
@@ -11,15 +26,15 @@ import TourGuiado from './components/TourGuiado';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 // Modales de apertura bajo demanda: carga diferida para acelerar el arranque
-const BienModal = lazy(() => import('./components/BienModal'));
-const FC04Modal = lazy(() => import('./components/FC04Modal'));
-const FC10Modal = lazy(() => import('./components/FC10Modal'));
-const FC11Modal = lazy(() => import('./components/FC11Modal'));
+const BienModal = lazyConReintento(() => import('./components/BienModal'));
+const FC04Modal = lazyConReintento(() => import('./components/FC04Modal'));
+const FC10Modal = lazyConReintento(() => import('./components/FC10Modal'));
+const FC11Modal = lazyConReintento(() => import('./components/FC11Modal'));
 import localforage from 'localforage';
 import LoginScreen from './components/LoginScreen';
 import { supabase } from './supabaseClient';
 // Modales pesados: carga diferida para acelerar el arranque
-const CSVPreviewModal = lazy(() => import('./components/CSVPreviewModal'));
+const CSVPreviewModal = lazyConReintento(() => import('./components/CSVPreviewModal'));
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, decodeText, getPlaceholderLogo,
@@ -31,17 +46,17 @@ import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
 import UbicacionesModal from './components/modals/UbicacionesModal';
 import FichaBienModal from './components/FichaBienModal';
-const LogoutModal = lazy(() => import('./components/modals/LogoutModal'));
-const ResolucionBajaModal = lazy(() => import('./components/modals/ResolucionBajaModal'));
-const DeleteConfirmModal = lazy(() => import('./components/modals/DeleteConfirmModal'));
-const DependenciaConfirmModal = lazy(() => import('./components/modals/DependenciaConfirmModal'));
-const QRModal = lazy(() => import('./components/modals/QRModal'));
-const ConsolidadoFC10Modal = lazy(() => import('./components/modals/ConsolidadoFC10Modal'));
-const UsuarioModal = lazy(() => import('./components/modals/UsuarioModal'));
-const NuevoFuncionarioModal = lazy(() => import('./components/modals/NuevoFuncionarioModal'));
-const FuncionarioModal = lazy(() => import('./components/modals/FuncionarioModal'));
-const ScannerModal = lazy(() => import('./components/modals/ScannerModal'));
-const UnsavedChangesModal = lazy(() => import('./components/modals/UnsavedChangesModal'));
+const LogoutModal = lazyConReintento(() => import('./components/modals/LogoutModal'));
+const ResolucionBajaModal = lazyConReintento(() => import('./components/modals/ResolucionBajaModal'));
+const DeleteConfirmModal = lazyConReintento(() => import('./components/modals/DeleteConfirmModal'));
+const DependenciaConfirmModal = lazyConReintento(() => import('./components/modals/DependenciaConfirmModal'));
+const QRModal = lazyConReintento(() => import('./components/modals/QRModal'));
+const ConsolidadoFC10Modal = lazyConReintento(() => import('./components/modals/ConsolidadoFC10Modal'));
+const UsuarioModal = lazyConReintento(() => import('./components/modals/UsuarioModal'));
+const NuevoFuncionarioModal = lazyConReintento(() => import('./components/modals/NuevoFuncionarioModal'));
+const FuncionarioModal = lazyConReintento(() => import('./components/modals/FuncionarioModal'));
+const ScannerModal = lazyConReintento(() => import('./components/modals/ScannerModal'));
+const UnsavedChangesModal = lazyConReintento(() => import('./components/modals/UnsavedChangesModal'));
 import { processOfflineQueue, enqueueOfflineAction } from './services/offlineSyncService';
 import { registrarAuditoria } from './services/auditService';
 import Papa from 'papaparse';
@@ -129,6 +144,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+  // Arranque limpio: permite un futuro auto-reintento de chunks ante deploys intermedios
+  useEffect(() => {
+    try { sessionStorage.removeItem('chunk_reintentado'); } catch (e) {}
+  }, []);
   const [pdfPaperSize, setPdfPaperSize] = useState(() => localStorage.getItem('pdf_size') || 'a4');
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
