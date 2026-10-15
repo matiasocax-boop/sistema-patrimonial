@@ -37,7 +37,7 @@ export const normalizeStr = (str) =>
     .replace(/\s+/g, ' ');
 
 // Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
-export const APP_VERSION = '2.10.0';
+export const APP_VERSION = '2.11.0';
 
 // Comprime una imagen al mínimo peso razonable (objetivo ≤120KB):
 // 1024px/q0.70, y si sigue pesada reintenta más agresivo. Quita metadatos EXIF.
