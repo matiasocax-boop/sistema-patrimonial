@@ -4214,7 +4214,16 @@ if (publicBienId) {
                                   {/* Columna 4: Matriz Completa de Acciones Restaurada */}
                                   <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
                                     <div className="flex items-center justify-end gap-1.5">
-                                      
+
+                                      {/* Ficha 360 y trazabilidad */}
+                                      <button
+                                        onClick={() => openFichaBien(item)}
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
+                                        title="Ficha 360 y trazabilidad"
+                                      >
+                                        <i className="fa-solid fa-timeline text-xs"></i>
+                                      </button>
+
                                       {/* Generar QR */}
                                       <button 
                                         onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
@@ -4249,6 +4258,15 @@ if (publicBienId) {
                                         title="Editar Bien"
                                       >
                                         <i className="fa-solid fa-pen-to-square text-xs"></i>
+                                      </button>
+
+                                      {/* Duplicar Bien */}
+                                      <button
+                                        onClick={() => handleRowAction('duplicateBien', item)}
+                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-500/10 dark:hover:text-violet-400 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500 outline-none"
+                                        title="Duplicar Registro"
+                                      >
+                                        <i className="fa-solid fa-copy text-xs"></i>
                                       </button>
 
                                       {/* Eliminar o Solicitar Baja */}
