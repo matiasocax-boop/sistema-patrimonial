@@ -116,6 +116,8 @@ export default function App() {
   const publicBienId = urlParams.get('id') || urlParams.get('bienId');
   
   const [publicBienData, setPublicBienData] = useState(null);
+  const [publicFotoAmpliada, setPublicFotoAmpliada] = useState(null);
+  const [publicDescExpandida, setPublicDescExpandida] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
@@ -721,17 +723,55 @@ export default function App() {
   const [conteoUbicacion, setConteoUbicacion] = useState('');
   const [muestra, setMuestra] = useState([]);
   const [verificadosMuestra, setVerificadosMuestra] = useState({});
-  const fetchAuditoria = async () => {
+  const PAGE_AUD = 50;
+  const [paginaAud, setPaginaAud] = useState(1);
+  const [totalAud, setTotalAud] = useState(0);
+  const [alcanceAud, setAlcanceAud] = useState('dep');
+  const [kpisAud, setKpisAud] = useState({ total: 0, altas: 0, mods: 0, bajas: 0 });
+  const [accionesUnicasAud, setAccionesUnicasAud] = useState([]);
+  const limpiarBusquedaAud = (texto) => String(texto || '').replace(/[%(),.]/g, ' ').replace(/\s+/g, ' ').trim();
+  const fetchAuditoria = async (pagina = 1) => {
     setIsLoadingAud(true);
     try {
-      const { data, error } = await supabase.from('auditoria').select('*').order('fecha', { ascending: false }).limit(500);
-      if (!error && data) setAuditoriaList(data);
+      let q = supabase.from('auditoria').select('*', { count: 'exact' }).order('fecha', { ascending: false });
+      if (alcanceAud === 'dep') q = q.eq('dependencia', dependenciaActual);
+      if (filtroAccionAud) q = q.eq('accion', filtroAccionAud);
+      if (searchAud.trim()) {
+        const t = `%${limpiarBusquedaAud(searchAud).split(' ').filter(Boolean).join('%')}%`;
+        q = q.or(`titulo.ilike.${t},mensaje.ilike.${t}`);
+      }
+      const from = (pagina - 1) * PAGE_AUD;
+      const { data, error, count } = await q.range(from, from + PAGE_AUD - 1);
+      if (!error && data) {
+        setAuditoriaList(data);
+        setTotalAud(count || 0);
+        setPaginaAud(pagina);
+      }
+      // KPIs livianos del período (solo 2 columnas)
+      try {
+        const hace30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+        let qk = supabase.from('auditoria').select('accion,fecha').gte('fecha', hace30).limit(2000);
+        if (alcanceAud === 'dep') qk = qk.eq('dependencia', dependenciaActual);
+        const { data: kd } = await qk;
+        const cuenta = (re) => (kd || []).filter(r => re.test(String(r.accion || ''))).length;
+        setKpisAud({ total: (kd || []).length, altas: cuenta(/CREA|ALTA/), mods: cuenta(/MODIF/), bajas: cuenta(/BAJA|ELIMINA/) });
+      } catch (e) {}
+      // Acciones distintas para el filtro
+      try {
+        const { data: ad } = await supabase.from('auditoria').select('accion').limit(1000);
+        setAccionesUnicasAud([...new Set((ad || []).map(r => String(r.accion || 'OTROS')))].sort());
+      } catch (e) {}
     } catch (e) {}
     finally { setIsLoadingAud(false); }
   };
   useEffect(() => {
-    if (activeTab === 'auditoria' && isAdmin) fetchAuditoria();
-  }, [activeTab]);
+    if (activeTab === 'auditoria' && isAdmin) fetchAuditoria(1);
+  }, [activeTab, alcanceAud]);
+  useEffect(() => {
+    if (activeTab !== 'auditoria' || !isAdmin) return;
+    const t = setTimeout(() => fetchAuditoria(1), 450);
+    return () => clearTimeout(t);
+  }, [searchAud, filtroAccionAud]);
   const actorAud = (row) => {
     if (row.usuario) return row.usuario;
     try {
@@ -766,30 +806,6 @@ export default function App() {
     if (a.includes('MUESTREO') || a.includes('CONCILIA')) return 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20';
     return 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20';
   };
-  const auditoriaFiltrada = useMemo(() => {
-    let lista = auditoriaList;
-    if (filtroAccionAud) lista = lista.filter(r => String(r.accion || '') === filtroAccionAud);
-    if (searchAud.trim()) {
-      const tokens = normalizeStr(searchAud).split(' ').filter(Boolean);
-      lista = lista.filter(r => {
-        const hay = normalizeStr(`${r.titulo || ''} ${r.accion || ''} ${typeof r.mensaje === 'string' ? r.mensaje.slice(0, 300) : ''}`);
-        return tokens.every(t => hay.includes(t));
-      });
-    }
-    return lista;
-  }, [auditoriaList, searchAud, filtroAccionAud]);
-  const accionesUnicasAud = useMemo(() => [...new Set(auditoriaList.map(r => String(r.accion || 'OTROS')))].sort(), [auditoriaList]);
-  const kpisAuditor = useMemo(() => {
-    const hace30 = Date.now() - 30 * 24 * 3600 * 1000;
-    const rec = auditoriaList.filter(r => r.fecha && new Date(r.fecha).getTime() >= hace30);
-    const cuenta = (re) => rec.filter(r => re.test(String(r.accion || ''))).length;
-    return [
-      { label: 'Eventos (30 días)', valor: rec.length, icon: 'fa-bolt', box: 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' },
-      { label: 'Altas registradas', valor: cuenta(/CREA|ALTA/), icon: 'fa-plus', box: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
-      { label: 'Modificaciones', valor: cuenta(/MODIF/), icon: 'fa-pen-to-square', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/20' },
-      { label: 'Bajas y eliminaciones', valor: cuenta(/BAJA|ELIMINA/), icon: 'fa-flag', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' },
-    ];
-  }, [auditoriaList]);
   // Evolución del valor patrimonial: incorporado por mes (últimos 12 meses)
   const evolucionValor = useMemo(() => {
     const porMes = {};
@@ -3695,8 +3711,8 @@ if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador) {
 }
 if (publicBienId) {
   return (
-    <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
-      <div className="bg-white border border-slate-200/80 rounded-[28px] sm:rounded-[32px] p-4 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden my-auto">
+    <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white overflow-y-auto custom-scrollbar">
+      <div className="bg-white border border-slate-200/80 rounded-[28px] sm:rounded-[32px] p-4 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden m-auto">
 
         {/* Acento superior institucional */}
         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500"></div>
@@ -3724,16 +3740,20 @@ if (publicBienId) {
           <div className="py-4 space-y-3">
 
             {publicBienData.fotos?.[0]?.url && (
-              <div className="rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-50">
+              <button
+                onClick={() => setPublicFotoAmpliada(publicBienData.fotos[0].url)}
+                title="Ampliar foto"
+                className="block w-full rounded-2xl overflow-hidden border border-slate-200/80 shadow-xs bg-slate-50 cursor-pointer focus-visible:ring-2 focus-visible:ring-blue-500 outline-none"
+              >
                 <img
                   src={publicBienData.fotos[0].url}
-                  alt="Foto del activo"
+                  alt="Foto del activo (toca para ampliar)"
                   loading="lazy"
                   decoding="async"
-                  className="w-full max-h-44 sm:max-h-56 object-cover"
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                  className="w-full max-h-44 sm:max-h-56 object-cover pointer-events-none"
+                  onError={(e) => { e.currentTarget.closest('div').style.display = 'none'; }}
                 />
-              </div>
+              </button>
             )}
 
             {/* Tarjeta de Rótulo y Estado */}
@@ -3758,9 +3778,14 @@ if (publicBienId) {
 
               <div className="mt-3 pt-3 border-t border-slate-200/60">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Descripción General</p>
-                <p className="text-xs sm:text-sm font-bold text-slate-800 mt-1 leading-relaxed">
+                <p className={`text-xs sm:text-sm font-bold text-slate-800 mt-1 leading-relaxed ${!publicDescExpandida && (publicBienData.descripcion || '').length > 140 ? 'line-clamp-3' : ''}`}>
                   {publicBienData.descripcion || "Sin descripción asignada"}
                 </p>
+                {(publicBienData.descripcion || '').length > 140 && (
+                  <button onClick={() => setPublicDescExpandida(v => !v)} className="mt-1.5 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer">
+                    {publicDescExpandida ? 'Ver menos' : 'Ver más'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -3874,6 +3899,14 @@ if (publicBienId) {
         </div>
 
       </div>
+      {publicFotoAmpliada && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-sm" onClick={() => setPublicFotoAmpliada(null)}>
+          <img src={publicFotoAmpliada} alt="Foto ampliada del activo" className="max-h-[90dvh] max-w-full rounded-2xl shadow-2xl object-contain" />
+          <span className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white">
+            <i className="fa-solid fa-xmark"></i>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -4940,7 +4973,12 @@ if (publicBienId) {
                     </div>
 
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4" data-tour="aud-kpis">
-                      {kpisAuditor.map(k => (
+                      {[
+                        { label: 'Eventos (30 días)', valor: kpisAud.total, icon: 'fa-bolt', box: 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' },
+                        { label: 'Altas registradas', valor: kpisAud.altas, icon: 'fa-plus', box: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' },
+                        { label: 'Modificaciones', valor: kpisAud.mods, icon: 'fa-pen-to-square', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border border-zinc-500/20' },
+                        { label: 'Bajas y eliminaciones', valor: kpisAud.bajas, icon: 'fa-flag', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20' },
+                      ].map(k => (
                         <div key={k.label} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 shadow-sm">
                           <div className={`flex h-10 w-10 items-center justify-center rounded-2xl mb-4 ${k.box}`}>
                             <i className={`fa-solid ${k.icon}`}></i>
@@ -5161,8 +5199,23 @@ if (publicBienId) {
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-5 border-b border-zinc-100 dark:border-white/10">
                         <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2 mr-auto">
                           <i className="fa-solid fa-book-open text-zinc-400"></i> Libro de auditoría
-                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">{auditoriaFiltrada.length}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-400">{totalAud} eventos</span>
                         </h3>
+                        <div className="flex rounded-xl bg-zinc-100 dark:bg-white/5 p-1 gap-1" role="tablist" aria-label="Alcance del libro">
+                          {[
+                            { id: 'dep', label: dependenciaActual },
+                            { id: 'todas', label: 'Todas' }
+                          ].map(o => (
+                            <button
+                              key={o.id}
+                              onClick={() => setAlcanceAud(o.id)}
+                              className={`h-8 px-3 rounded-lg text-[11px] font-bold transition-all cursor-pointer truncate max-w-[160px] ${alcanceAud === o.id ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200'}`}
+                              title={o.id === 'dep' ? 'Solo eventos de esta dependencia' : 'Eventos de todas las dependencias'}
+                            >
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
                         <div className="relative">
                           <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
                           <input
@@ -5192,10 +5245,10 @@ if (publicBienId) {
                           <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
                             {isLoadingAud ? (
                               <tr><td colSpan="5" className="p-10 text-center text-xs font-semibold text-zinc-400">Cargando libro...</td></tr>
-                            ) : auditoriaFiltrada.length === 0 ? (
+                            ) : auditoriaList.length === 0 ? (
                               <tr><td colSpan="5" className="p-10 text-center text-xs font-semibold text-zinc-400">Sin eventos para los filtros aplicados.</td></tr>
                             ) : (
-                              auditoriaFiltrada.slice(0, 100).map(r => (
+                              auditoriaList.map(r => (
                                 <tr key={r.id} className="hover:bg-zinc-50/70 dark:hover:bg-white/[0.03] transition-colors">
                                   <td className="py-3 pl-6 pr-4 align-top text-xs tabular-nums text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
                                     {r.fecha ? new Date(r.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' }) : '-'}
@@ -5213,6 +5266,27 @@ if (publicBienId) {
                             )}
                           </tbody>
                         </table>
+                      </div>
+                      <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-3.5 border-t border-zinc-100 dark:border-white/10">
+                        <span className="text-xs text-zinc-500 font-medium">
+                          Página <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{totalAud === 0 ? 0 : paginaAud}</span> de <span className="font-bold text-zinc-900 dark:text-white tabular-nums">{Math.max(1, Math.ceil(totalAud / 50))}</span>
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            disabled={paginaAud <= 1 || isLoadingAud}
+                            onClick={() => fetchAuditoria(paginaAud - 1)}
+                            className="rounded-xl bg-white dark:bg-white/5 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-50 transition-all cursor-pointer"
+                          >
+                            Anterior
+                          </button>
+                          <button
+                            disabled={paginaAud >= Math.ceil(totalAud / 50) || isLoadingAud}
+                            onClick={() => fetchAuditoria(paginaAud + 1)}
+                            className="rounded-xl bg-white dark:bg-white/5 px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-white/10 hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-50 transition-all cursor-pointer"
+                          >
+                            Siguiente
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
