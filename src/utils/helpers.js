@@ -37,7 +37,7 @@ export const normalizeStr = (str) =>
     .replace(/\s+/g, ' ');
 
 // Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
-export const APP_VERSION = '2.8.1';
+export const APP_VERSION = '2.9.0';
 
 // Comprime una imagen en el navegador (JPEG, máx. 1280px) para subirla liviana.
 export const comprimirImagen = (file, maxLado = 1280, calidad = 0.78) => {
