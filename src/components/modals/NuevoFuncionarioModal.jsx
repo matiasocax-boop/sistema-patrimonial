@@ -1,7 +1,8 @@
 // src/components/modals/NuevoFuncionarioModal.jsx
 import React from 'react';
+import { formatearMiles } from '../../utils/helpers';
 
-export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, dependenciaActual, STYLES }) {
+export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, dependenciaActual, ubicaciones = [], STYLES }) {
     if (!isOpen) return null;
 
     return (
@@ -27,7 +28,7 @@ export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, depende
                                 <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
                                 <div className="relative">
                                     <i className="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                                    <input type="text" name="cedula" required className={`${STYLES.input} pl-11 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 1.234.567" />
+                                    <input type="text" name="cedula" required inputMode="numeric" onInput={(e) => { e.target.value = formatearMiles(e.target.value); }} className={`${STYLES.input} pl-11 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 1.234.567" />
                                 </div>
                             </div>
                             <div>
@@ -42,6 +43,16 @@ export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, depende
                                 <div className="relative">
                                     <i className="fa-solid fa-briefcase absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
                                     <input type="text" name="cargo" className={`${STYLES.input} pl-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. Administrador" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Ubicación asignada</label>
+                                <div className="relative">
+                                    <i className="fa-solid fa-location-dot absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
+                                    <select name="ubicacion" className={`${STYLES.input} pl-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`} defaultValue="">
+                                        <option value="">Sin ubicación asignada</option>
+                                        {ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}
+                                    </select>
                                 </div>
                             </div>
                         </div>

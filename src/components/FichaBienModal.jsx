@@ -26,14 +26,29 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
       <div className={STYLES.modalContent + " max-w-2xl"} onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-              <i className="fa-solid fa-id-card text-base"></i>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900">
+              <i className="fa-solid fa-id-card text-lg"></i>
             </div>
-            <div className="min-w-0">
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight truncate">
-                Ficha del bien <span className="font-mono">{bien.rotulo || 'S/R'}</span>
-              </h2>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight font-mono">
+                  {bien.rotulo || 'S/R'}
+                </h2>
+                {bien.estadoConservacion && (
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
+                    bien.estadoConservacion === 'De Baja'
+                      ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                      : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20'
+                  }`}>
+                    {bien.estadoConservacion}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate" title={bien.descripcion}>{bien.descripcion || 'Sin descripción'}</p>
+            </div>
+            <div className="text-right shrink-0 hidden sm:block">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Valor</p>
+              <p className="text-base font-black tabular-nums text-zinc-900 dark:text-white dato-sensible">Gs. {formatCurrency(bien.valorUnitario || '0')}</p>
             </div>
           </div>
           <button onClick={onClose} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
@@ -44,11 +59,11 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             <Dato label="Cuenta" value={[bien.cuenta, bien.subcuenta, bien.analitico1, bien.analitico2].filter(Boolean).join('.')} />
-            <Dato label="Valor" value={`Gs. ${formatCurrency(bien.valorUnitario || '0')}`} sensible />
-            <Dato label="Estado" value={bien.estadoConservacion || '-'} />
+            <Dato label="Adquisición" value={bien.fechaAdquisicion ? formatDateText(bien.fechaAdquisicion) : null} />
+            <Dato label="Vida útil" value={bien.vidaUtil ? `${bien.vidaUtil} años` : null} />
             <Dato label="Ubicación" value={bien.ubicacion} />
             <Dato label="Responsable" value={bien.funcionario} />
-            <Dato label="Adquisición" value={bien.fechaAdquisicion ? formatDateText(bien.fechaAdquisicion) : null} />
+            <Dato label="Dependencia" value={bien.dependencia} />
           </div>
 
           <div>
@@ -100,25 +115,28 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
               Trazabilidad · {eventos.length} evento{eventos.length === 1 ? '' : 's'}
             </p>
             {eventos.length === 0 ? (
-              <p className="text-xs text-zinc-400 font-medium rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-5 text-center">
-                Sin movimientos registrados para este bien.
-              </p>
+              <div className="text-center rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800 p-6">
+                <i className="fa-solid fa-timeline text-xl text-zinc-300 dark:text-zinc-600 mb-2"></i>
+                <p className="text-xs text-zinc-400 font-semibold">Sin movimientos registrados para este bien.</p>
+              </div>
             ) : (
-              <ol className="relative space-y-0 border-l-2 border-zinc-100 dark:border-white/10 ml-2">
+              <ol className="relative ml-2 border-l-2 border-zinc-100 dark:border-white/10">
                 {eventos.map((ev, i) => {
                   const s = TIPO_STYLE[ev.tipo] || st;
                   return (
-                    <li key={i} className="relative pl-6 pb-5 last:pb-0">
-                      <span className={`absolute -left-[7px] top-1 h-3 w-3 rounded-full ${s.dot} ring-4 ring-white dark:ring-zinc-900`}></span>
-                      <div className="flex items-start gap-3">
-                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border ${s.box}`}>
-                          <i className={`fa-solid ${s.icon} text-xs`}></i>
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[13px] font-bold text-zinc-900 dark:text-white leading-tight">{ev.titulo}</p>
-                          {ev.detalle && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">{ev.detalle}</p>}
-                          <p className="text-[11px] font-semibold tabular-nums text-zinc-400 dark:text-zinc-500 mt-1">{ev.fechaFmt || ev.fecha}</p>
+                    <li key={i} className="relative pl-6 pb-5 last:pb-1">
+                      <span className={`absolute -left-[7px] top-2 h-3 w-3 rounded-full ${s.dot} ring-4 ring-white dark:ring-zinc-900`}></span>
+                      <div className="rounded-2xl border border-zinc-100 dark:border-white/10 bg-zinc-50/60 dark:bg-white/[0.03] px-3.5 py-3 hover:border-zinc-200 dark:hover:border-white/20 transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${s.box}`}>
+                            <i className={`fa-solid ${s.icon} text-[11px]`}></i>
+                          </span>
+                          <p className="text-[13px] font-bold text-zinc-900 dark:text-white leading-tight flex-1 min-w-0 truncate" title={ev.titulo}>{ev.titulo}</p>
+                          <span className="shrink-0 text-[10px] font-bold tabular-nums uppercase tracking-wider text-zinc-400 dark:text-zinc-500 bg-white dark:bg-white/5 border border-zinc-200/70 dark:border-white/10 rounded-lg px-2 py-0.5">
+                            {ev.fechaFmt || ev.fecha || ''}
+                          </span>
                         </div>
+                        {ev.detalle && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed pl-[38px]">{ev.detalle}</p>}
                       </div>
                     </li>
                   );

@@ -29,6 +29,7 @@ import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildA
 import { fetchAllRows } from './services/patrimonioService';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import MantenimientoModal from './components/modals/MantenimientoModal';
+import UbicacionesModal from './components/modals/UbicacionesModal';
 import FichaBienModal from './components/FichaBienModal';
 const LogoutModal = lazy(() => import('./components/modals/LogoutModal'));
 const ResolucionBajaModal = lazy(() => import('./components/modals/ResolucionBajaModal'));
@@ -200,11 +201,6 @@ export default function App() {
   
   const [isBienModalOpen, setIsBienModalOpen] = useState(false);
   const [bienEditing, setBienEditing] = useState(null);
-  // Prefill para duplicar: abre el modal en modo creación con datos copiados
-  const [prefillBien, setPrefillBien] = useState(null);
-  useEffect(() => {
-    if (!isBienModalOpen) setPrefillBien(null);
-  }, [isBienModalOpen]);
   const bienFormRef = useRef(null);
 
   const [isFC10ModalOpen, setIsFC10ModalOpen] = useState(false);
@@ -384,6 +380,91 @@ export default function App() {
     () => funcionariosPadron.filter(f => f.dependencia === dependenciaActual),
     [funcionariosPadron, dependenciaActual]
   );
+  // Catálogo de ubicaciones por dependencia (del organigrama oficial)
+  const [ubicacionesList, setUbicacionesList] = useState([]);
+  const [isUbicacionesModalOpen, setIsUbicacionesModalOpen] = useState(false);
+  const [isSavingUbicacion, setIsSavingUbicacion] = useState(false);
+  const fetchUbicaciones = async () => {
+    try {
+      const { data, error } = await supabase.from('ubicaciones').select('*').order('nombre');
+      if (!error && data) setUbicacionesList(data);
+    } catch (e) {}
+  };
+  useEffect(() => { if (isAuthenticated) fetchUbicaciones(); }, [isAuthenticated]);
+  const ubicacionesDep = useMemo(
+    () => ubicacionesList.filter(u => u.dependencia === dependenciaActual).map(u => u.nombre),
+    [ubicacionesList, dependenciaActual]
+  );
+  const conteosUbicacion = useMemo(() => {
+    const mapa = {};
+    ubicacionesDep.forEach(n => { mapa[n] = { bienes: 0, funcionarios: 0 }; });
+    bienes.filter(b => b.dependencia === dependenciaActual).forEach(b => {
+      const hit = ubicacionesDep.find(n => normalizeStr(n) === normalizeStr(b.ubicacion || ''));
+      if (hit) mapa[hit].bienes++;
+    });
+    funcionariosPadron.filter(f => f.dependencia === dependenciaActual).forEach(f => {
+      const hit = ubicacionesDep.find(n => normalizeStr(n) === normalizeStr(f.ubicacion || ''));
+      if (hit) mapa[hit].funcionarios++;
+    });
+    return mapa;
+  }, [ubicacionesDep, bienes, funcionariosPadron, dependenciaActual]);
+  const guardarUbicacion = async (id, nombre) => {
+    setIsSavingUbicacion(true);
+    try {
+      if (!id) {
+        const row = { id: generateId(), nombre, dependencia: dependenciaActual };
+        const { error } = await supabase.from('ubicaciones').insert([row]);
+        if (error) throw error;
+        setUbicacionesList(prev => [...prev, row].sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
+        addToast(`Ubicación "${nombre}" agregada.`, 'success');
+      } else {
+        const anterior = ubicacionesList.find(u => u.id === id);
+        if (!anterior || normalizeStr(anterior.nombre) === normalizeStr(nombre)) return;
+        const { error } = await supabase.from('ubicaciones').update({ nombre }).eq('id', id);
+        if (error) throw error;
+        // Cascada: renombrar también en bienes y funcionarios que usaban el nombre anterior
+        const bienesAfectados = bienes.filter(b => normalizeStr(b.ubicacion || '') === normalizeStr(anterior.nombre));
+        for (let i = 0; i < bienesAfectados.length; i += 10) {
+          const chunk = bienesAfectados.slice(i, i + 10);
+          await Promise.all(chunk.map(b => supabase.from('bens').update({ data: { ...b, ubicacion: nombre } }).eq('id', b.id)));
+        }
+        if (bienesAfectados.length > 0) {
+          const ids = new Set(bienesAfectados.map(b => b.id));
+          setBienes(prev => prev.map(b => (ids.has(b.id) ? { ...b, ubicacion: nombre } : b)));
+        }
+        const funcAfectados = funcionariosPadron.filter(f => normalizeStr(f.ubicacion || '') === normalizeStr(anterior.nombre));
+        for (const f of funcAfectados) {
+          await supabase.from('funcionarios').update({ ubicacion: nombre }).eq('id', f.id);
+        }
+        if (funcAfectados.length > 0) {
+          const ids = new Set(funcAfectados.map(f => f.id));
+          setFuncionariosPadron(prev => prev.map(f => (ids.has(f.id) ? { ...f, ubicacion: nombre } : f)));
+        }
+        setUbicacionesList(prev => prev.map(u => (u.id === id ? { ...u, nombre } : u)).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
+        addToast(`Ubicación actualizada en ${bienesAfectados.length} bienes y ${funcAfectados.length} funcionarios.`, 'success');
+      }
+    } catch (e) {
+      addToast('No se pudo guardar. Verifica la tabla ubicaciones en Supabase.', 'error');
+    } finally {
+      setIsSavingUbicacion(false);
+    }
+  };
+  const eliminarUbicacion = async (id, nombre) => {
+    const enBienes = bienes.filter(b => b.dependencia === dependenciaActual && normalizeStr(b.ubicacion || '') === normalizeStr(nombre)).length;
+    const enFunc = funcionariosPadron.filter(f => f.dependencia === dependenciaActual && normalizeStr(f.ubicacion || '') === normalizeStr(nombre)).length;
+    if (enBienes > 0 || enFunc > 0) {
+      addToast(`En uso: ${enBienes} bienes y ${enFunc} funcionarios. Reasigna primero.`, 'warning');
+      return;
+    }
+    try {
+      const { error } = await supabase.from('ubicaciones').delete().eq('id', id);
+      if (error) throw error;
+      setUbicacionesList(prev => prev.filter(u => u.id !== id));
+      addToast('Ubicación eliminada.', 'success');
+    } catch (e) {
+      addToast('No se pudo eliminar.', 'error');
+    }
+  };
   // Atajo "/": enfoca el buscador del inventario · Ctrl/Cmd+K: paleta global
   const searchRef = useRef(null);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -2381,6 +2462,7 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
           cedula: f.get('cedula').replace(/\./g, '').trim(),
           nombre: f.get('nombre').trim(),
           cargo: f.get('cargo').trim(),
+          ubicacion: String(f.get('ubicacion') || '').trim(),
           dependencia: dependenciaActual
       };
 
@@ -2457,15 +2539,16 @@ const handleEditFuncionario = (funcionario) => {
     const formData = new FormData(e.target);
     const nuevoNombre = formData.get('nombre').trim();
     const nuevoCargo = formData.get('cargo').trim();
+    const nuevaUbicacion = String(formData.get('ubicacion') || '').trim();
 
     try {
         const { error } = await supabase
           .from('funcionarios')
-          .update({ nombre: nuevoNombre, cargo: nuevoCargo })
+          .update({ nombre: nuevoNombre, cargo: nuevoCargo, ubicacion: nuevaUbicacion })
           .eq('id', funcionarioToEdit.id);
-        
+
         if (error) throw error;
-        setFuncionariosPadron(prev => prev.map(f => f.id === funcionarioToEdit.id ? { ...f, nombre: nuevoNombre, cargo: nuevoCargo } : f));
+        setFuncionariosPadron(prev => prev.map(f => f.id === funcionarioToEdit.id ? { ...f, nombre: nuevoNombre, cargo: nuevoCargo, ubicacion: nuevaUbicacion } : f));
         addToast("Funcionario actualizado exitosamente", "success");
         setIsFuncionarioModalOpen(false);
     } catch (err) {
@@ -2820,15 +2903,6 @@ const handleEditFuncionario = (funcionario) => {
           case 'openFC11': openFC11Modal(item); break; 
           case 'editBien': setBienEditing(item); setIsBienModalOpen(true); break; 
           case 'fichaBien': openFichaBien(item); break;
-          case 'duplicateBien': {
-              // Duplicar sin identidad, asignación ni fotos (evita archivos compartidos)
-              const { id, rotulo, hasQR, hasFC10, funcionario, funcionarioDoc, funcionarioCargo, fotos, ...resto } = item;
-              setBienEditing(null);
-              setPrefillBien({ ...resto, rotulo: '' });
-              setIsBienModalOpen(true);
-              addToast('Completa el rótulo para guardar la copia.', 'info');
-              break;
-          }
           case 'deleteBien': 
               if (isAdmin) {
                   setItemToDelete({ type: 'bien', id: item.id, item }); 
@@ -4295,15 +4369,6 @@ if (publicBienId) {
                                         <i className="fa-solid fa-pen-to-square text-xs"></i>
                                       </button>
 
-                                      {/* Duplicar Bien */}
-                                      <button
-                                        onClick={() => handleRowAction('duplicateBien', item)}
-                                        className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-violet-50 hover:text-violet-600 dark:hover:bg-violet-500/10 dark:hover:text-violet-400 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-violet-500 outline-none"
-                                        title="Duplicar Registro"
-                                      >
-                                        <i className="fa-solid fa-copy text-xs"></i>
-                                      </button>
-
                                       {/* Eliminar o Solicitar Baja */}
                                       <button 
                                         onClick={() => {
@@ -4882,6 +4947,17 @@ if (publicBienId) {
                             <span>Importar CSV</span>
                           </button>
 
+                          {isAdmin && (
+                          <button
+                            onClick={() => setIsUbicacionesModalOpen(true)}
+                            className="inline-flex items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                            title="Gestionar catálogo de ubicaciones"
+                          >
+                            <i className="fa-solid fa-location-dot text-sky-600 dark:text-sky-400"></i>
+                            <span>Ubicaciones</span>
+                          </button>
+                          )}
+
                           <span className="hidden sm:block h-6 w-px bg-zinc-200 dark:bg-white/10 mx-1"></span>
 
                           <button
@@ -5323,6 +5399,7 @@ if (publicBienId) {
     onClose={() => setIsFuncionarioModalOpen(false)}
     funcionarioToEdit={funcionarioToEdit}
     saveFuncionarioEdit={saveFuncionarioEdit}
+    ubicaciones={ubicacionesDep}
     STYLES={STYLES}
 />
       <ScannerModal 
@@ -5563,8 +5640,7 @@ if (publicBienId) {
       {isBienModalOpen && (
     <BienModal 
         setIsBienModalOpen={setIsBienModalOpen}
-        bienEditing={bienEditing || prefillBien}
-        esDuplicado={Boolean(!bienEditing && prefillBien)}
+        bienEditing={bienEditing}
         setBienEditing={setBienEditing}
         bienFormRef={bienFormRef}
         saveBien={saveBien}
@@ -5575,6 +5651,7 @@ if (publicBienId) {
         ubicacionesUnicas={ubicacionesUnicas}
         STYLES={STYLES}
         funcionariosPadron={padronDep}
+        ubicaciones={ubicacionesDep}
         sugerenciasBienes={sugerenciasBienesDep}
     />
 )}
@@ -5611,6 +5688,17 @@ if (publicBienId) {
         abrirEscaner={() => setIsScannerOpen(true)}
         abrirFC03={() => openFC03Modal()}
         irTab={irTabGlobal}
+      />
+      <UbicacionesModal
+        isOpen={isUbicacionesModalOpen}
+        onClose={() => setIsUbicacionesModalOpen(false)}
+        ubicaciones={ubicacionesList.filter(u => u.dependencia === dependenciaActual)}
+        conteos={conteosUbicacion}
+        onSave={guardarUbicacion}
+        onDelete={eliminarUbicacion}
+        isSaving={isSavingUbicacion}
+        dependenciaActual={dependenciaActual}
+        STYLES={STYLES}
       />
       <MantenimientoModal
         isOpen={isMantenimientoModalOpen}
@@ -5824,6 +5912,7 @@ if (publicBienId) {
     onClose={() => setIsNewFuncionarioModalOpen(false)}
     onSave={handleSaveManualFuncionario}
     dependenciaActual={dependenciaActual}
+    ubicaciones={ubicacionesDep}
     STYLES={STYLES}
 />
       <UnsavedChangesModal 

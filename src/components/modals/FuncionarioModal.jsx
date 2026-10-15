@@ -2,7 +2,7 @@
 import React from 'react';
 import { formatCI } from '../../utils/helpers';
 
-export default function FuncionarioModal({ isOpen, onClose, funcionarioToEdit, saveFuncionarioEdit, STYLES }) {
+export default function FuncionarioModal({ isOpen, onClose, funcionarioToEdit, saveFuncionarioEdit, ubicaciones = [], STYLES }) {
     if (!isOpen || !funcionarioToEdit) return null;
 
     return (
@@ -44,6 +44,21 @@ export default function FuncionarioModal({ isOpen, onClose, funcionarioToEdit, s
                                 required
                                 className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all"
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="block text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Ubicación asignada</label>
+                            <select
+                                name="ubicacion"
+                                defaultValue={funcionarioToEdit.ubicacion || ''}
+                                className="block w-full rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3 text-sm font-bold text-zinc-900 dark:text-white outline-none cursor-pointer focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all"
+                            >
+                                <option value="">Sin ubicación asignada</option>
+                                {ubicaciones.map(u => <option key={u} value={u}>{u}</option>)}
+                                {funcionarioToEdit.ubicacion && !ubicaciones.includes(funcionarioToEdit.ubicacion) && (
+                                    <option value={funcionarioToEdit.ubicacion}>{funcionarioToEdit.ubicacion} (actual)</option>
+                                )}
+                            </select>
                         </div>
 
                         <div className="space-y-2">

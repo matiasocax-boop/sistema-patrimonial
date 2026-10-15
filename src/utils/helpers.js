@@ -101,7 +101,13 @@ export const matchSearchWords = (text, query) => {
   return tokens.every(token => target.includes(token));
 };
 
-// Versión visible del sistema (mostrar en esquinas; subir en cada lote de mejoras)
+// Formatea dígitos con separador de miles (1.234.567). Para CI y montos en vivo.
+export const formatearMiles = (valor) => {
+  const digitos = String(valor ?? '').replace(/\D/g, '').slice(0, 12).replace(/^0+(?=\d)/, '');
+  if (!digitos) return '';
+  return digitos.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
 // Búsqueda robusta de bienes: insensible a tildes/mayúsculas, multi-palabra (AND),
 // tolerante a ceros/guiones en rótulos y ampliada a más campos.
 export const matchBienSearch = (bien, query) => {

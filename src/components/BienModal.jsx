@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { toInputDateFormat } from '../utils/helpers';
+import { toInputDateFormat, formatearMiles } from '../utils/helpers';
 
 export default function BienModal({
     setIsBienModalOpen,
     bienEditing,
-    esDuplicado = false,
     setBienEditing,
     bienFormRef,
     saveBien,
@@ -14,6 +13,7 @@ export default function BienModal({
     funcionariosConDatos,
     ubicacionesUnicas,
     funcionariosPadron = [],
+    ubicaciones = [],
     sugerenciasBienes = [],
     STYLES
 }) {
@@ -65,7 +65,7 @@ export default function BienModal({
             set('subcuenta', b.subcuenta);
             set('analitico1', b.analitico1);
             set('analitico2', b.analitico2);
-            set('valorUnitario', b.valorUnitario);
+            set('valorUnitario', b.valorUnitario ? formatearMiles(b.valorUnitario) : '');
             set('vidaUtil', b.vidaUtil);
         }
     };
@@ -87,28 +87,47 @@ export default function BienModal({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Catálogo oficial de ubicaciones (con respaldo a las detectadas en datos)
+    const catalogoUbicaciones = ubicaciones.length > 0 ? ubicaciones : (ubicacionesUnicas || []);
+    // Ubicación actualmente escrita: si coincide con el catálogo, priorizar sus funcionarios
+    const ubicacionCatalogada = catalogoUbicaciones.find(u => normalizeStr(u) === normalizeStr(ubicacionTexto));
+
     const filteredCustodios = funcionariosPadron.filter(f => {
         if (!custodioTexto) return true;
         const query = normalizeStr(custodioTexto);
         return normalizeStr(f.nombre).includes(query) || String(f.cedula || '').includes(query);
+    }).sort((a, b) => {
+        if (!ubicacionCatalogada) return 0;
+        const am = normalizeStr(a.ubicacion || '') === normalizeStr(ubicacionCatalogada) ? 0 : 1;
+        const bm = normalizeStr(b.ubicacion || '') === normalizeStr(ubicacionCatalogada) ? 0 : 1;
+        return am - bm;
     }).slice(0, 10);
 
-    const filteredUbicaciones = (ubicacionesUnicas || []).filter(u => {
+    const filteredUbicaciones = catalogoUbicaciones.filter(u => {
         if (!ubicacionTexto) return true;
         return normalizeStr(u).includes(normalizeStr(ubicacionTexto));
     }).slice(0, 10);
 
+    const autocompletarDesdeFuncionario = (f) => {
+        if (!bienFormRef.current || !f) return;
+        const inputFunc = bienFormRef.current.elements['funcionario'];
+        const inputCargo = bienFormRef.current.elements['funcionarioCargo'];
+        const inputDoc = bienFormRef.current.elements['funcionarioDoc'];
+        const inputUb = bienFormRef.current.elements['ubicacion'];
+        if (inputFunc) inputFunc.value = f.nombre;
+        if (inputCargo) inputCargo.value = f.cargo || '';
+        if (inputDoc) inputDoc.value = f.cedula || '';
+        // Ubicación del funcionario: se autocompleta pero queda editable sin tocar el padrón
+        if (inputUb && f.ubicacion) {
+            inputUb.value = f.ubicacion;
+            setUbicacionTexto(f.ubicacion);
+        }
+    };
+
     const handleSelectCustodio = (f) => {
         setCustodioTexto(f.nombre);
         setShowCustodioDropdown(false);
-        if (bienFormRef.current) {
-            const inputFunc = bienFormRef.current.elements['funcionario'];
-            const inputCargo = bienFormRef.current.elements['funcionarioCargo'];
-            const inputDoc = bienFormRef.current.elements['funcionarioDoc'];
-            if (inputFunc) inputFunc.value = f.nombre;
-            if (inputCargo) inputCargo.value = f.cargo || '';
-            if (inputDoc) inputDoc.value = f.cedula || '';
-        }
+        autocompletarDesdeFuncionario(f);
     };
 
     const handleSelectUbicacion = (ub) => {
@@ -126,9 +145,9 @@ export default function BienModal({
         setShowCustodioDropdown(true);
 
         if (!bienFormRef.current) return;
-        
-        const match = funcionariosPadron.find(f => 
-            normalizeStr(f.nombre) === normalizeStr(valorInput) || 
+
+        const match = funcionariosPadron.find(f =>
+            normalizeStr(f.nombre) === normalizeStr(valorInput) ||
             String(f.cedula).trim() === String(valorInput).trim()
         );
 
@@ -136,8 +155,7 @@ export default function BienModal({
         const inputDoc = bienFormRef.current.elements['funcionarioDoc'];
 
         if (match) {
-            if (inputCargo) inputCargo.value = match.cargo || '';
-            if (inputDoc) inputDoc.value = match.cedula || '';
+            autocompletarDesdeFuncionario(match);
         } else {
             if (inputCargo) inputCargo.value = '';
             if (inputDoc) inputDoc.value = '';
@@ -152,11 +170,11 @@ export default function BienModal({
             <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                   <i className={`fa-solid ${esDuplicado ? 'fa-copy' : bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
+                   <i className={`fa-solid ${bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                    {esDuplicado ? 'Duplicar Bien Patrimonial' : bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
+                    {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Complete la información requerida para el inventario</p>
                 </div>
@@ -263,7 +281,7 @@ export default function BienModal({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Valor de Adquisición (Gs.)</label>
-                        <input type="number" step="any" name="valorUnitario" defaultValue={bienEditing?.valorUnitario} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 1500000" />
+                        <input type="text" inputMode="numeric" name="valorUnitario" defaultValue={bienEditing?.valorUnitario ? formatearMiles(bienEditing.valorUnitario) : ''} onInput={(e) => { e.target.value = formatearMiles(e.target.value); }} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 1.500.000" />
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha de Adquisición</label>
@@ -322,7 +340,7 @@ export default function BienModal({
                                                 {f.nombre}
                                             </p>
                                             <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
-                                                {f.cargo || 'Funcionario'}
+                                                {f.cargo || 'Funcionario'}{f.ubicacion ? ` · ${f.ubicacion}` : ''}
                                             </p>
                                         </div>
                                         {f.cedula && (
@@ -407,7 +425,7 @@ export default function BienModal({
                   disabled={isSaving}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                 >
-                  {isSaving ? 'Guardando...' : (esDuplicado ? '+ Guardar Copia' : bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
+                  {isSaving ? 'Guardando...' : (bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
                 </button>
               </div>
 
