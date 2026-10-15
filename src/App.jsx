@@ -125,7 +125,10 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
-  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.cargo === 'cargo', [currentUser]);
+  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.role === 'dev' || currentUser?.cargo === 'cargo', [currentUser]);
+  // Desarrollador: mismas capacidades que admin, pero nunca bloqueado por mantenimiento
+  // y único con acceso al módulo de mantenimiento.
+  const esDesarrollador = useMemo(() => currentUser?.role === 'dev', [currentUser]);
   
   const [loginUser, setLoginUser] = useState(''); 
   const [loginPass, setLoginPass] = useState(''); 
@@ -834,8 +837,18 @@ export default function App() {
       if (vistos.has(k)) duplicados.push(b);
       else vistos.set(k, b.id);
     });
+    // Posibles duplicados del padrón: mismo nombre normalizado, distinto registro
+    const vistosFunc = new Map();
+    const duplicadosFunc = [];
+    funcionariosPadron.forEach(f => {
+      const k = normalizeStr(f.nombre || '');
+      if (!k) return;
+      if (vistosFunc.has(k)) duplicadosFunc.push(f);
+      else vistosFunc.set(k, f.id);
+    });
     return [
       { id: 'dup', label: 'Rótulos duplicados', count: duplicados.length, detalle: duplicados.slice(0, 20), icon: 'fa-clone', box: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' },
+      { id: 'dupfunc', label: 'Posibles duplicados en padrón', count: duplicadosFunc.length, detalle: duplicadosFunc.slice(0, 20), icon: 'fa-user-group', box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20', esPadron: true },
       { id: 'fc10', label: 'FC-10 sin bien asociado', count: fc10List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-file-signature', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
       { id: 'fc11', label: 'FC-11 sin bien asociado', count: fc11List.filter(fc => fc.bienId && !idsBienes.has(fc.bienId)).length, detalle: [], icon: 'fa-truck-fast', box: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
       { id: 'sindep', label: 'Bienes sin dependencia', count: bienes.filter(b => !String(b.dependencia || '').trim()).length, detalle: [], icon: 'fa-building-columns', box: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300 border-zinc-500/20' },
@@ -1405,7 +1418,7 @@ useEffect(() => {
 
         const userSession = {
             ...usuario,
-            role: usuario.cargo === 'admin' ? 'admin' : 'user',
+            role: usuario.cargo === 'admin' ? 'admin' : usuario.cargo === 'desarrollador' ? 'dev' : 'user',
             dependencia: usuario.dependencia || 'Rectorado' 
         };
 
@@ -1604,12 +1617,49 @@ useEffect(() => {
   const filteredFC04 = useMemo(() => { return fc04List.filter(fc => { return fc.dependencia === dependenciaActual && fc.anio === fc10Year && fc.mes === fc10Month; }).sort((a, b) => new Date(b.fechaRegistro).getTime() - new Date(a.fechaRegistro).getTime()); }, [fc04List, dependenciaActual, fc10Year, fc10Month]);
   const solicitudesBaja = useMemo(() => { 
       return notificaciones.filter(n => {
-          if (n.tipo !== 'BAJA_BIEN' || n.estado !== 'PENDIENTE') return false;
+          if ((n.tipo !== 'BAJA_BIEN' && n.tipo !== 'BAJA_FUNCIONARIO') || n.estado !== 'PENDIENTE') return false;
           if (isAdmin) return true;
           if (!n.dependencia || !dependenciaActual) return true;
           return normalizeStr(n.dependencia) === normalizeStr(dependenciaActual);
       });
   }, [notificaciones, dependenciaActual, isAdmin]);
+  // Resolver solicitud de eliminación del padrón (solo admin, desde Aprobaciones)
+  const resolverSolicitudFuncionario = async (notif, aprobar) => {
+      try {
+          setIsProcessing({ active: true, text: aprobar ? 'Aprobando eliminación...' : 'Rechazando solicitud...' });
+          const estadoNuevo = aprobar ? 'APROBADO' : 'RECHAZADO';
+          const notifActualizada = { ...notif, estado: estadoNuevo, resueltoPor: currentUser?.username || 'Admin', resueltoFecha: new Date().toISOString() };
+          setNotificaciones(prev => prev.map(n => n.id === notif.id ? notifActualizada : n));
+          await supabase.from('notificaciones').update({ data: notifActualizada }).eq('id', notif.id);
+          if (aprobar && notif.funcionarioId) {
+              await supabase.from('funcionarios').delete().eq('id', notif.funcionarioId);
+              setFuncionariosPadron(prev => prev.filter(f => f.id !== notif.funcionarioId));
+          }
+          const solicitanteUsername = notif.solicitante || 'Usuario';
+          const notifId = generateId();
+          const notifUsuario = {
+              id: notifId, tipoRegistro: 'NOTIFICACION', usuarioDestino: solicitanteUsername,
+              titulo: aprobar ? `Eliminación aprobada: ${notif.nombre || ''}` : `Eliminación rechazada: ${notif.nombre || ''}`,
+              mensaje: aprobar
+                  ? `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrón fue APROBADA.`
+                  : `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrón fue RECHAZADA.`,
+              leido: false, fecha: new Date().toISOString()
+          };
+          setNotificaciones(prev => [notifUsuario, ...prev]);
+          await supabase.from('notificaciones').insert([{ id: notifId, data: notifUsuario }]);
+          await registrarAuditoria({
+              usuario: currentUser?.username || 'Admin', dependencia: dependenciaActual,
+              accion: aprobar ? 'APROBAR_BAJA_FUNCIONARIO' : 'RECHAZAR_BAJA_FUNCIONARIO',
+              entidad: 'FUNCIONARIO', entidadId: notif.funcionarioId || null,
+              detalles: { nombre: notif.nombre, cedula: notif.cedula, motivo: notif.motivo, solicitante: solicitanteUsername }
+          });
+          addToast(aprobar ? 'Funcionario eliminado y notificado.' : 'Solicitud rechazada y notificada.', 'success');
+      } catch (e) {
+          addToast('Error al procesar la resolución.', 'error');
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+      }
+  };
 
   // --- EN App_2.jsx ---
 
@@ -2612,8 +2662,8 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
               continue;
           }
 
-          const isDuplicateDB = funcionariosPadron.some(f => String(f.cedula).trim() === cedulaCSV && f.dependencia === dependenciaActual);
-          const isDuplicateBatch = validos.some(f => String(f.cedula).trim() === cedulaCSV);
+          const isDuplicateDB = funcionariosPadron.some(f => String(f.cedula || '').replace(/\D/g, '') === cedulaCSV.replace(/\D/g, '') && f.dependencia === dependenciaActual);
+          const isDuplicateBatch = validos.some(f => String(f.cedula || '').replace(/\D/g, '') === cedulaCSV.replace(/\D/g, ''));
           const huerfanoExistente = funcionariosPadron.find(f => f.cedula === 'S/C' && normalizeStr(f.nombre) === normalizeStr(nombreCSV) && f.dependencia === dependenciaActual);
 
           const nuevoFunc = { 
@@ -2716,7 +2766,12 @@ const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
     }
   };
   const handleDeleteFuncionario = (id) => {
-    setItemToDelete({ type: 'funcionario', id });
+    const f = funcionariosPadron.find(x => x.id === id);
+    if (isAdmin) {
+      setItemToDelete({ type: 'funcionario', id, item: f });
+    } else {
+      setItemToDelete({ type: 'requestBajaFuncionario', id, item: f });
+    }
   };
 const handleEditFuncionario = (funcionario) => {
     setFuncionarioToEdit(funcionario);
@@ -2750,6 +2805,14 @@ const handleEditFuncionario = (funcionario) => {
     e.preventDefault();
     const f = new FormData(e.target);
     const userData = Object.fromEntries(f.entries());
+    // Solo el desarrollador puede otorgar rol de desarrollador
+    if (userData.cargo === 'desarrollador' && !esDesarrollador) {
+      return addToast('Solo el Desarrollador del Sistema puede otorgar ese rol.', 'error');
+    }
+    // Proteger cuentas de desarrollador existentes
+    if (usuarioEditing?.cargo === 'desarrollador' && !esDesarrollador) {
+      return addToast('Solo el Desarrollador del Sistema gestiona esa cuenta.', 'error');
+    }
     
     try {
         let res;
@@ -3209,14 +3272,18 @@ const handleEditFuncionario = (funcionario) => {
 
     if (isAdmin) {
       const solicitudesComoNotif = notificaciones
-        .filter(n => n.tipo === 'BAJA_BIEN' && n.estado === 'PENDIENTE')
+        .filter(n => (n.tipo === 'BAJA_BIEN' || n.tipo === 'BAJA_FUNCIONARIO') && n.estado === 'PENDIENTE')
         .map(n => ({
           id: n.id,
           tipoRegistro: 'NOTIFICACION',
           esSolicitud: true,
           accion: 'solicitud',
-          titulo: `Solicitud de Baja: #${n.rotulo || 'S/R'}`,
-          mensaje: `${n.solicitante || 'Un funcionario'} solicita la baja de "${n.descripcion || 'Bien'}". Motivo: ${n.motivo || 'No especificado'}.`,
+          titulo: n.tipo === 'BAJA_FUNCIONARIO'
+            ? `Solicitud de padrón: ${n.nombre || 'S/N'}`
+            : `Solicitud de Baja: #${n.rotulo || 'S/R'}`,
+          mensaje: n.tipo === 'BAJA_FUNCIONARIO'
+            ? `${n.solicitante || 'Un funcionario'} solicita eliminar a "${n.nombre || ''}" del padrón. Motivo: ${n.motivo || 'No especificado'}.`
+            : `${n.solicitante || 'Un funcionario'} solicita la baja de "${n.descripcion || 'Bien'}". Motivo: ${n.motivo || 'No especificado'}.`,
           fecha: n.created_at || new Date().toISOString(),
           leido: false,
           notifOrigen: n
@@ -3369,6 +3436,42 @@ const handleEditFuncionario = (funcionario) => {
       const { type, id, username, item } = itemToDelete;
       try { 
           let res = { error: null };
+          if (type === 'requestBajaFuncionario') {
+              if (!motivoSolicitudBaja.trim()) {
+                  return addToast('Debe ingresar el motivo de la solicitud.', 'warning');
+              }
+              const solicitudId = generateId();
+              const nuevaSolicitud = {
+                  id: solicitudId,
+                  funcionarioId: item.id || id,
+                  nombre: item.nombre,
+                  cedula: item.cedula,
+                  solicitante: currentUser?.username || 'Usuario',
+                  dependencia: item.dependencia || dependenciaActual,
+                  tipo: 'BAJA_FUNCIONARIO',
+                  estado: 'PENDIENTE',
+                  motivo: motivoSolicitudBaja.trim(),
+                  created_at: new Date().toISOString()
+              };
+              res = await supabase.from('notificaciones').insert([{ id: solicitudId, data: nuevaSolicitud }]);
+
+              if (!res.error) {
+                addToast('Solicitud enviada con éxito al administrador.', 'success');
+                setMotivoSolicitudBaja('');
+                setItemToDelete(null);
+                cargarNotificaciones();
+
+                await registrarAuditoria({
+                  usuario: currentUser?.username || 'Usuario',
+                  dependencia: dependenciaActual,
+                  accion: 'SOLICITUD_BAJA_FUNCIONARIO',
+                  entidad: 'FUNCIONARIO',
+                  entidadId: item.id || id,
+                  detalles: { nombre: item?.nombre, cedula: item?.cedula, motivo: motivoSolicitudBaja.trim() }
+                });
+              }
+              return;
+          }
           if (type === 'requestBaja') {
               if (!motivoSolicitudBaja.trim()) {
                   return addToast("Debe ingresar el motivo de la baja.", "warning");
@@ -3425,7 +3528,12 @@ const handleEditFuncionario = (funcionario) => {
               else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
               else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
               else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
-              else if (type === 'usuario') res = await supabase.from('usuarios').delete().eq('username', username);
+              else if (type === 'usuario') {
+                  if (itemToDelete.cargo === 'desarrollador' && !esDesarrollador) {
+                      return addToast('Solo el Desarrollador del Sistema gestiona esa cuenta.', 'error');
+                  }
+                  res = await supabase.from('usuarios').delete().eq('username', username);
+              }
               else if (type === 'funcionario') res = await supabase.from('funcionarios').delete().eq('id', id);
 
               if (!res.error) addToast("Acción completada", "success");
@@ -3521,7 +3629,7 @@ const saveMantenimiento = async (data) => {
     setIsSavingMant(false);
   }
 };
-if (mantenimiento?.en_mantenimiento && !mantBypass) {
+if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador) {
   return <MaintenanceScreen config={mantenimiento} />;
 }
 if (publicBienId) {
@@ -3780,7 +3888,7 @@ if (publicBienId) {
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} esDesarrollador={esDesarrollador} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
@@ -4628,7 +4736,7 @@ if (publicBienId) {
                         <table className="w-full text-left border-collapse min-w-[700px]">
                           <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                             <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                              <th className="py-4 pl-6 sm:pl-8 pr-4">Bien Solicitado</th>
+                              <th className="py-4 pl-6 sm:pl-8 pr-4">Registro Solicitado</th>
                               <th className="px-4 py-4">Solicitante</th>
                               <th className="px-4 py-4">Fecha</th>
                               <th className="py-4 pl-4 pr-6 sm:pr-8 text-right">Decisión</th>
@@ -4636,6 +4744,57 @@ if (publicBienId) {
                           </thead>
                           <tbody className="divide-y divide-zinc-100/80 dark:divide-zinc-800/30">
                             {solicitudesBaja.map((notif) => {
+                              // Solicitud de padrón: fila adaptada a funcionario
+                              if (notif.tipo === 'BAJA_FUNCIONARIO') {
+                                return (
+                                  <tr key={notif.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                                    <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-700 dark:text-zinc-200 font-bold text-xs">
+                                          {(notif.nombre || '?').charAt(0).toUpperCase()}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-zinc-900 dark:text-white text-sm truncate">{notif.nombre || 'Sin nombre'}</p>
+                                          <p className="text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400 mt-0.5">CI {notif.cedula || 'S/C'} · Padrón</p>
+                                        </div>
+                                      </div>
+                                      {notif.motivo && (
+                                        <div className="mt-2 flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                                          <i className="fa-solid fa-comment-dots text-xs mt-0.5 shrink-0 text-amber-600"></i>
+                                          <div className="flex-1">
+                                            <span className="font-bold">Motivo:</span> {notif.motivo}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-4 align-top text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                      <div className="flex items-center gap-2">
+                                        <i className="fa-solid fa-user text-zinc-400"></i>
+                                        <span>{notif.solicitante || 'Funcionario'}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-4 align-top text-xs text-zinc-500 tabular-nums">
+                                      {notif.created_at ? new Date(notif.created_at).toLocaleDateString() : 'Reciente'}
+                                    </td>
+                                    <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
+                                      <div className="flex items-center justify-end gap-2">
+                                        <button
+                                          onClick={() => resolverSolicitudFuncionario(notif, false)}
+                                          className="px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+                                        >
+                                          Rechazar
+                                        </button>
+                                        <button
+                                          onClick={() => resolverSolicitudFuncionario(notif, true)}
+                                          className="px-4 h-10 rounded-xl text-[13px] font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
+                                        >
+                                          Aprobar Baja
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              }
                               const bienAsociado = bienes.find(b => b.id === (notif.bienId || notif.bien_id)) || {
                                 id: notif.bienId || notif.bien_id,
                                 rotulo: notif.rotulo || 'S/R',
@@ -4809,6 +4968,21 @@ if (publicBienId) {
                                     >
                                         <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300 truncate">{b.rotulo}</span>
                                         <span className="text-zinc-400 truncate">{b.descripcion}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {saludDatos[1].detalle.length > 0 && (
+                            <div className="mt-2 max-h-40 overflow-y-auto custom-scrollbar rounded-2xl border border-violet-500/20 divide-y divide-zinc-100 dark:divide-white/5">
+                                {saludDatos[1].detalle.map(f => (
+                                    <button
+                                        key={f.id}
+                                        onClick={() => { setSearchFuncionarioInput(f.nombre || ''); setCurrentPaginaFuncionarios(1); setActiveTab('funcionarios'); }}
+                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-xs hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                                        title="Revisar en el padrón"
+                                    >
+                                        <span className="font-bold text-zinc-700 dark:text-zinc-300 truncate">{f.nombre}</span>
+                                        <span className="text-zinc-400 tabular-nums truncate">CI {f.cedula} · {f.cargo}</span>
                                     </button>
                                 ))}
                             </div>
@@ -5052,13 +5226,21 @@ if (publicBienId) {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 align-middle">
-                                        {u.cargo === 'admin' 
+                                        {u.cargo === 'desarrollador'
+                                            ? <span className="inline-flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 ring-1 ring-inset ring-violet-500/20 shadow-sm"><i className="fa-solid fa-code text-[10px]"></i> Desarrollador</span>
+                                            : u.cargo === 'admin'
                                             ? <span className="inline-flex items-center gap-1.5 rounded-md bg-indigo-50 px-2 py-1 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:bg-indigo-900/20 dark:text-indigo-400 shadow-sm"><i className="fa-solid fa-shield-halved text-[10px]"></i> Administrador</span>
                                             : <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-500/20 dark:bg-zinc-800 dark:text-zinc-400 shadow-sm"><i className="fa-solid fa-user text-[10px]"></i> Funcionario</span>
                                         }
                                     </td>
                                     <td className="relative py-3 pl-4 pr-6 align-middle text-right">
                                         <div className="flex items-center justify-end gap-1">
+                                          {u.cargo === 'desarrollador' && !esDesarrollador ? (
+                                              <span title="Solo el Desarrollador gestiona esta cuenta" className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-300 dark:text-zinc-600">
+                                                  <i className="fa-solid fa-lock text-[13px]"></i>
+                                              </span>
+                                          ) : (
+                                          <>
                                           <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar usuario">
                                               <i className="fa-solid fa-pen-to-square text-[13px]"></i>
                                           </button>
@@ -5066,6 +5248,8 @@ if (publicBienId) {
                                               <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
                                                   <i className="fa-solid fa-trash-can text-[13px]"></i>
                                               </button>
+                                          )}
+                                          </>
                                           )}
                                         </div>
                                     </td>
@@ -5238,9 +5422,9 @@ if (publicBienId) {
                                               <button
                                                   onClick={() => handleDeleteFuncionario(f.id)}
                                                   className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none"
-                                                  title="Eliminar funcionario"
+                                                  title={isAdmin ? 'Eliminar funcionario' : 'Solicitar eliminación al administrador'}
                                               >
-                                                  <i className="fa-solid fa-trash-can text-xs"></i>
+                                                  <i className={`fa-solid ${isAdmin ? 'fa-trash-can' : 'fa-paper-plane'} text-xs`}></i>
                                               </button>
                                           </div>
                                       </td>
@@ -5824,6 +6008,7 @@ if (publicBienId) {
     usuarioEditing={usuarioEditing}
     saveUsuario={saveUsuario}
     todasDependencias={todasDependencias}
+    esDesarrollador={esDesarrollador}
     STYLES={STYLES}
 />
       {isBienModalOpen && (
@@ -5932,36 +6117,46 @@ if (publicBienId) {
     STYLES={STYLES}
 />
       {/* MODAL DE AVISO PARA ELIMINACIÓN O SOLICITUD DE BAJA */}
-      {itemToDelete && (
+      {itemToDelete && (() => {
+        const esFunc = itemToDelete.type === 'funcionario' || itemToDelete.type === 'requestBajaFuncionario';
+        const esSolicitud = itemToDelete.type === 'requestBaja' || itemToDelete.type === 'requestBajaFuncionario';
+        const titulo = esFunc
+          ? (esSolicitud ? 'Solicitar eliminación del funcionario' : '¿Eliminar del padrón?')
+          : (esSolicitud ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?');
+        const descripcion = esFunc
+          ? (esSolicitud
+            ? `Se enviará una notificación formal al administrador para evaluar la exclusión de "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón.`
+            : `Se eliminará a "${itemToDelete.item?.nombre || 'este funcionario'}" (CI ${itemToDelete.item?.cedula || 'S/C'}) del padrón de forma permanente. Esta acción no se puede deshacer.`)
+          : (esSolicitud
+            ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
+            : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || ''}" a De Baja o lo removerá del inventario activo.`);
+        return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
 
-                <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl mb-4 ${itemToDelete.type === 'requestBaja' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
-                    <i className={`fa-solid ${itemToDelete.type === 'requestBaja' ? 'fa-paper-plane' : 'fa-triangle-exclamation'} text-xl`}></i>
+                <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-2xl mb-4 ${esSolicitud ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                    <i className={`fa-solid ${esSolicitud ? 'fa-paper-plane' : 'fa-triangle-exclamation'} text-xl`}></i>
                 </div>
 
                 <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-2">
-                    {itemToDelete.type === 'requestBaja' ? 'Solicitud de Baja / Eliminación' : '¿Eliminar o dar de baja el registro?'}
+                    {titulo}
                 </h3>
 
                 <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
-                    {itemToDelete.type === 'requestBaja' 
-                        ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
-                        : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || ''}" a De Baja o lo removerá del inventario activo.`
-                    }
+                    {descripcion}
                 </p>
 
-                {itemToDelete.type === 'requestBaja' && (
+                {esSolicitud && (
                   <div className="text-left mb-6 space-y-1.5">
                     <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
-                      Motivo de la Baja <span className="text-rose-500">*</span>
+                      Motivo de la solicitud <span className="text-rose-500">*</span>
                     </label>
                     <textarea
                       required
                       rows={3}
                       value={motivoSolicitudBaja}
                       onChange={(e) => setMotivoSolicitudBaja(e.target.value)}
-                      placeholder="Ej: Avería irreparable, rotura física, obsolescencia, desuso..."
+                      placeholder={esFunc ? 'Ej: Renuncia, traslado definitivo, jubilación...' : 'Ej: Avería irreparable, rotura física, obsolescencia, desuso...'}
                       className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 p-3.5 text-xs font-bold text-zinc-900 dark:text-white placeholder:text-zinc-400 placeholder:font-normal focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all shadow-inner resize-none"
                     />
                   </div>
@@ -5976,16 +6171,17 @@ if (publicBienId) {
                     </button>
                     <button
                         onClick={confirmDeleteAction}
-                        disabled={itemToDelete.type === 'requestBaja' && !motivoSolicitudBaja.trim()}
+                        disabled={esSolicitud && !motivoSolicitudBaja.trim()}
                         className="flex-1 h-10 px-4 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                        {itemToDelete.type === 'requestBaja' ? 'Enviar Solicitud' : 'Confirmar Acción'}
+                        {esSolicitud ? 'Enviar Solicitud' : 'Confirmar Acción'}
                     </button>
                 </div>
 
             </div>
         </div>
-      )}
+        );
+      })()}
       {/* MODAL DE CONFIRMACIÓN DE BACKUP GENERAL */}
       {confirmBackupModal && (
         <div className={STYLES.modalOverlay}>

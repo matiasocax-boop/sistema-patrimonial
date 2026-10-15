@@ -60,17 +60,6 @@ export default function MaintenanceScreen({ config }) {
           <p className="text-xs text-slate-400 mt-8">
             Contacto: <span className="font-bold text-slate-300">patrimonio@unp.edu.py</span>
           </p>
-          <button
-            onClick={() => {
-              if (window.confirm('¿Desactivar la vista de mantenimiento en este navegador para administrar el aviso?')) {
-                try { sessionStorage.setItem('mant_bypass', '1'); } catch (e) {}
-                window.location.href = window.location.pathname;
-              }
-            }}
-            className="mt-4 text-[11px] font-semibold text-slate-500 hover:text-slate-300 underline-offset-4 hover:underline transition-colors cursor-pointer"
-          >
-            ¿Activaste el aviso por error? Acceso de administrador
-          </button>
         </div>
       </main>
 

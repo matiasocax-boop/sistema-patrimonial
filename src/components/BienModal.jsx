@@ -92,11 +92,32 @@ export default function BienModal({
     // Ubicación actualmente escrita: si coincide con el catálogo, priorizar sus funcionarios
     const ubicacionCatalogada = catalogoUbicaciones.find(u => normalizeStr(u) === normalizeStr(ubicacionTexto));
 
-    const filteredCustodios = funcionariosPadron.filter(f => {
-        if (!custodioTexto) return true;
-        const query = normalizeStr(custodioTexto);
-        return normalizeStr(f.nombre).includes(query) || String(f.cedula || '').includes(query);
-    }).sort((a, b) => {
+    const filteredCustodios = (() => {
+        const lista = funcionariosPadron.filter(f => {
+            if (!custodioTexto) return true;
+            const query = normalizeStr(custodioTexto);
+            return normalizeStr(f.nombre).includes(query) || String(f.cedula || '').includes(query);
+        });
+        // Fusionar homónimos (misma persona, filas repetidas con distinto cargo/CI)
+        const vistos = new Map();
+        lista.forEach(f => {
+            const key = normalizeStr(f.nombre || '');
+            if (!key) return;
+            if (!vistos.has(key)) {
+                vistos.set(key, f);
+            } else {
+                const actual = vistos.get(key);
+                vistos.set(key, {
+                    ...actual,
+                    cargo: actual.cargo || f.cargo,
+                    cedula: actual.cedula || f.cedula,
+                    ubicacion: actual.ubicacion || f.ubicacion,
+                    duplicado: true
+                });
+            }
+        });
+        return [...vistos.values()];
+    })().sort((a, b) => {
         if (!ubicacionCatalogada) return 0;
         const am = normalizeStr(a.ubicacion || '') === normalizeStr(ubicacionCatalogada) ? 0 : 1;
         const bm = normalizeStr(b.ubicacion || '') === normalizeStr(ubicacionCatalogada) ? 0 : 1;

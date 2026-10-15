@@ -3,7 +3,7 @@ import React from 'react';
 
 const LABEL = "block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2";
 
-export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsuario, todasDependencias, STYLES }) {
+export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsuario, todasDependencias, esDesarrollador, STYLES }) {
     if (!isOpen) return null;
 
     return (
@@ -87,6 +87,7 @@ export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsua
                     <select name="cargo" required defaultValue={usuarioEditing?.cargo || 'user'} className={`${STYLES.input} pl-10 appearance-none cursor-pointer pr-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}>
                         <option value="user">Funcionario Local (Lectura y creación)</option>
                         <option value="admin">Administrador General (Control Total)</option>
+                        {esDesarrollador && <option value="desarrollador">Desarrollador del Sistema</option>}
                     </select>
                     <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 text-xs pointer-events-none"></i>
                   </div>

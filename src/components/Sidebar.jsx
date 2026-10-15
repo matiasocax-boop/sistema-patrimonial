@@ -2,7 +2,7 @@ import React from 'react';
 import { getLogoPorDependencia, APP_VERSION } from '../utils/helpers';
 
 export default function Sidebar({ 
-    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, solicitudesBaja, dependenciaActual, onExportBackup,
+    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, esDesarrollador, solicitudesBaja, dependenciaActual, onExportBackup,
     mantenimiento, onOpenMantenimiento, onOpenDependencias
 }) {
     // Logo oficial del sistema (blanco para modo oscuro, negro para modo claro) + sello (respaldo).
@@ -140,11 +140,12 @@ export default function Sidebar({
                                 <span className="flex-1 text-left tracking-tight truncate">Copia de Seguridad (.json)</span>
                                 <i className="fa-solid fa-download text-[11px] text-zinc-300 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0"></i>
                             </button>
+                            {esDesarrollador && (
                             <button
                                 type="button"
                                 onClick={() => { if (onOpenMantenimiento) onOpenMantenimiento(); setIsSidebarOpen(false); }}
                                 className="group flex w-full items-center gap-3 rounded-xl px-3 h-11 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.06] hover:text-zinc-900 dark:hover:text-white border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary mt-1"
-                                title="Activar aviso de mantenimiento para todos los usuarios"
+                                title="Activar aviso de mantenimiento para todos los usuarios (solo desarrollador)"
                             >
                                 <span className="flex items-center justify-center w-7 shrink-0 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200">
                                     <i className="fa-solid fa-screwdriver-wrench text-[15px]"></i>
@@ -156,6 +157,7 @@ export default function Sidebar({
                                     <i className="fa-solid fa-chevron-right text-[11px] text-zinc-300 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0"></i>
                                 )}
                             </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => { if (onOpenDependencias) onOpenDependencias(); setIsSidebarOpen(false); }}
