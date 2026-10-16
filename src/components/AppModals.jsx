@@ -466,6 +466,16 @@ export default function AppModals({
             subiendoFoto={subiendoFoto}
             esAdmin={isAdmin}
             STYLES={STYLES}
+            onVerEnInventario={(bien) => {
+              setFichaBien(null);
+              setEventosAuditFicha([]);
+              clearAllFilters();
+              const r = bien?.rotulo || '';
+              setSearchTerm(r);
+              setSearchInput(r);
+              setCurrentPage(1);
+              setActiveTab('inventario');
+            }}
           />
           {tourPaso >= 0 && (
             <TourGuiado

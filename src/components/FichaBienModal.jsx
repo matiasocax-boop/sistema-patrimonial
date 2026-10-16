@@ -9,7 +9,7 @@ const TIPO_STYLE = {
   otro: { box: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20', icon: 'fa-circle-info', dot: 'bg-violet-500' },
 };
 
-export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatCurrency, formatDateText, onAgregarFoto, onEliminarFoto, subiendoFoto, esAdmin, STYLES }) {
+export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatCurrency, formatDateText, onAgregarFoto, onEliminarFoto, subiendoFoto, esAdmin, STYLES, onVerEnInventario }) {
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
   if (!isOpen || !bien) return null;
   const st = TIPO_STYLE.otro;
@@ -147,6 +147,11 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
         </div>
 
         <div className="flex justify-end gap-2 px-6 py-5 border-t border-zinc-100 dark:border-zinc-800/80 shrink-0">
+          {onVerEnInventario && (
+            <button onClick={() => onVerEnInventario(bien)} className="h-10 px-5 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+              <i className="fa-solid fa-boxes-stacked mr-1.5 text-xs"></i>Ver en inventario
+            </button>
+          )}
           <button onClick={onClose} className="h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
             Cerrar
           </button>

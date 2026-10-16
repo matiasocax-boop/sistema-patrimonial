@@ -518,23 +518,41 @@ export default function App() {
   // Atajo "/": enfoca el buscador del inventario · Ctrl/Cmd+K: paleta global
   const searchRef = useRef(null);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const ultimaTeclaG = useRef(0);
   useEffect(() => {
+    const TABS_ATAJO = {
+      d: 'dashboard', r: 'resumen', i: 'inventario', f: 'funcionarios',
+      c: 'fc04', a: 'fc10', t: 'fc11', u: 'usuarios', h: 'ayuda', b: 'aprobaciones'
+    };
     const onKey = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         setCmdOpen(v => !v);
         return;
       }
-      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (activeTab !== 'inventario') return;
+      if (e.key === 'Escape') { ultimaTeclaG.current = 0; return; }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const t = e.target;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
-      e.preventDefault();
-      searchRef.current?.focus();
+      const escribiendo = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (e.key === '/' && !escribiendo) {
+        if (activeTab !== 'inventario' || cmdOpen) return;
+        e.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      // Secuencias g+letra para navegar (con ventana de 800ms)
+      if (escribiendo || cmdOpen) return;
+      const ahora = Date.now();
+      if (e.key.toLowerCase() === 'g') { ultimaTeclaG.current = ahora; return; }
+      if (ahora - ultimaTeclaG.current < 800 && TABS_ATAJO[e.key.toLowerCase()]) {
+        ultimaTeclaG.current = 0;
+        e.preventDefault();
+        setActiveTab(TABS_ATAJO[e.key.toLowerCase()]);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [activeTab]);
+  }, [activeTab, cmdOpen]);
   const irTabGlobal = (tab, texto) => {
     if (tab === 'funcionarios' && texto) setSearchFuncionarioInput(texto);
     setActiveTab(tab);
