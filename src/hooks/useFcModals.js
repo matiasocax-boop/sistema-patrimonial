@@ -618,8 +618,8 @@ export function useFcModals({
       await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
       
       if (fc11Editing) setFc11List(prev => prev.map(item => item.id === fc11Data.id ? fc11Data : item)); else setFc11List(prev => [fc11Data, ...prev]);
-      if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); notify(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); notify(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false);
-    } catch (error) { console.error(error); notify("Error al registrar FC-11.", "error"); }
+      if (esMovimientoInterno) { setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); notify(`Movimiento interno registrado en ${fc11Data.dependenciaDestinataria}.`, "warning"); } else { setBienes(prev => prev.filter(b => b.id !== updatedBien.id)); notify(`El bien fue transferido a ${fc11Data.dependenciaDestinataria}.`, "success"); } setIsFC11ModalOpen(false); return true;
+    } catch (error) { console.error(error); notify("Error al registrar FC-11.", "error"); return false; }
   };
 
   const saveFC04 = async (e) => {
@@ -666,7 +666,8 @@ export function useFcModals({
       }
       if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);
       notify("Expediente FC-04 guardado", "success");
-    } catch (error) { console.error(error); notify("Error guardando FC-04.", "error"); }
+      return true;
+    } catch (error) { console.error(error); notify("Error guardando FC-04.", "error"); return false; }
   };
 
   const saveFC10 = async (e) => {
@@ -709,8 +710,9 @@ export function useFcModals({
         setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
         setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
         setIsFC10ModalOpen(false); 
-        notify(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success"); 
-    } catch (error) { console.error(error); notify("Error al guardar.", "error"); }
+        notify(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success");
+        return true; 
+    } catch (error) { console.error(error); notify("Error al guardar.", "error"); return false; }
   };
 
   const submitResolucionBaja = async (e) => {

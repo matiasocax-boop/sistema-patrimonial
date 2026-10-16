@@ -163,6 +163,7 @@ export default function AppModals({
   fileInputFuncionariosRef,
   executeProcessBienesCSV,
   executeProcessFuncionariosCSV,
+  previsualizarCSVBienes,
   showChangelog,
   setShowChangelog,
   isConsolidatedFC10ModalOpen,
@@ -187,7 +188,7 @@ export default function AppModals({
               <CSVPreviewModal 
                   isOpen={isCSVPreviewOpen}
                   onClose={() => setIsCSVPreviewOpen(false)}
-                  onConfirm={confirmCSVImportFuncionarios}
+                  onConfirm={() => { if (csvPreviewData?.tipo === 'bienes' && csvPreviewData?.file) executeProcessBienesCSV(csvPreviewData.file); else confirmCSVImportFuncionarios(); }}
                   data={csvPreviewData}
                   STYLES={STYLES}
               />
@@ -727,7 +728,7 @@ export default function AppModals({
                       const { type, file } = pendingCSVImport;
                       setPendingCSVImport(null);
                       if (type === 'bienes') {
-                        executeProcessBienesCSV(file);
+                        previsualizarCSVBienes(file);
                       } else {
                         executeProcessFuncionariosCSV(file);
                       }

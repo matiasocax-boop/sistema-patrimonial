@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { toInputDateFormat, formatearMiles } from '../utils/helpers';
+import { useDraft, serializarForm } from '../hooks/useDraft';
 
 export default function BienModal({
     setIsBienModalOpen,
@@ -30,6 +31,33 @@ export default function BienModal({
     const ubicacionDropdownRef = useRef(null);
 
     // Estado para autocompletado de descripción (aprende de bienes existentes)
+    const esNuevo = !bienEditing;
+    const { borrador, hayBorrador, guardarBorrador, limpiarBorrador } = useDraft('borrador_bien_nuevo', esNuevo);
+    const [restaurado, setRestaurado] = useState(null);
+    const [formKey, setFormKey] = useState(0);
+    const [rotuloError, setRotuloError] = useState('');
+    const [fechaAviso, setFechaAviso] = useState('');
+    const defecto = (campo, fb) => (restaurado && restaurado[campo] !== undefined && restaurado[campo] !== null ? restaurado[campo] : fb);
+    const validarRotulo = (valor) => {
+        const v = String(valor || "").trim();
+        if (!v) { setRotuloError(''); return true; }
+        const dup = (sugerenciasBienes || []).some(b => String(b.rotulo || "").trim().toLowerCase() === v.toLowerCase() && (!bienEditing || b.id !== bienEditing.id));
+        setRotuloError(dup ? `El rótulo "${v}" ya está registrado en esta dependencia.` : '');
+        return !dup;
+    };
+    const validarFecha = (valor) => {
+        if (!valor) { setFechaAviso(''); return; }
+        const hoy = new Date().toISOString().split("T")[0];
+        setFechaAviso(valor > hoy ? 'La fecha es futura. Verifica que sea la adquisición real.' : '');
+    };
+    const continuarBorrador = () => {
+        if (!borrador) return;
+        setRestaurado(borrador);
+        if (borrador.funcionario) setCustodioTexto(borrador.funcionario);
+        if (borrador.ubicacion) setUbicacionTexto(borrador.ubicacion);
+        if (borrador.descripcion) setDescTexto(borrador.descripcion);
+        setFormKey(k => k + 1);
+    };
     const [descTexto, setDescTexto] = useState(bienEditing?.descripcion || '');
     const [showDescDropdown, setShowDescDropdown] = useState(false);
     const descDropdownRef = useRef(null);
@@ -210,7 +238,15 @@ export default function BienModal({
               </button>
             </div>
             
-            <form ref={bienFormRef} onSubmit={(e) => saveBien(e, false)} className="flex flex-col h-full overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
+            {esNuevo && hayBorrador && !restaurado && (
+              <div className="mx-8 mt-6 mb-0 flex flex-wrap items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 animate-fade-in">
+                <i className="fa-solid fa-history text-amber-600 dark:text-amber-400 text-sm"></i>
+                <p className="flex-1 min-w-[200px] text-xs font-bold text-amber-700 dark:text-amber-300">Tienes un borrador sin guardar de este formulario.</p>
+                <button type="button" onClick={continuarBorrador} className="h-8 px-3.5 rounded-xl text-[11px] font-black bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer">Continuar</button>
+                <button type="button" onClick={limpiarBorrador} className="h-8 px-3.5 rounded-xl text-[11px] font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer">Descartar</button>
+              </div>
+            )}
+            <form key={formKey} ref={bienFormRef} onSubmit={async (e) => { const ok = await saveBien(e, false); if (ok) limpiarBorrador(); }} onChange={() => guardarBorrador(serializarForm(bienFormRef.current))} className="flex flex-col h-full overflow-hidden bg-zinc-50/50 dark:bg-zinc-950">
               <div className="p-8 overflow-y-auto space-y-6 custom-scrollbar">
                 
                 {/* 1. IMPUTACIÓN CONTABLE Y RÓTULO */}
@@ -223,25 +259,30 @@ export default function BienModal({
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cuenta</label>
-                        <input name="cuenta" defaultValue={bienEditing?.cuenta} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 11" />
+                        <input name="cuenta" defaultValue={defecto('cuenta', bienEditing?.cuenta)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 11" />
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Subcuenta</label>
-                        <input name="subcuenta" defaultValue={bienEditing?.subcuenta} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 01" />
+                        <input name="subcuenta" defaultValue={defecto('subcuenta', bienEditing?.subcuenta)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 01" />
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Analítico 1</label>
-                        <input name="analitico1" defaultValue={bienEditing?.analitico1} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 001" />
+                        <input name="analitico1" defaultValue={defecto('analitico1', bienEditing?.analitico1)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 001" />
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Analítico 2</label>
-                        <input name="analitico2" defaultValue={bienEditing?.analitico2} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 000" />
+                        <input name="analitico2" defaultValue={defecto('analitico2', bienEditing?.analitico2)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 000" />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Rótulo / Código de Barra *</label>
-                    <input name="rotulo" required defaultValue={bienEditing?.rotulo} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 104523" />
+                    <input name="rotulo" required onBlur={(e) => validarRotulo(e.target.value)} onChange={() => rotuloError && setRotuloError('')} defaultValue={defecto('rotulo', bienEditing?.rotulo)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 104523" />
+                      {rotuloError && (
+                        <p className="animate-fade-in mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                          <i className="fa-solid fa-circle-exclamation text-[10px]"></i>{rotuloError}
+                        </p>
+                      )}
                   </div>
                 </div>
 
@@ -258,7 +299,7 @@ export default function BienModal({
                       name="descripcion"
                       required
                       rows="3"
-                      defaultValue={bienEditing?.descripcion}
+                      defaultValue={defecto('descripcion', bienEditing?.descripcion)}
                       onChange={(e) => { setDescTexto(e.target.value); setShowDescDropdown(true); }}
                       onFocus={() => { if (normalizeStr(descTexto).length >= 3) setShowDescDropdown(true); }}
                       className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
@@ -286,7 +327,7 @@ export default function BienModal({
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación</label>
-                    <select name="estadoConservacion" defaultValue={bienEditing?.estadoConservacion || 'Bueno'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}>
+                    <select name="estadoConservacion" defaultValue={defecto('estadoConservacion', bienEditing?.estadoConservacion || 'Bueno')} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}>
                         {ESTADOS_CONSERVACION.map(est => <option key={est} value={est}>{est}</option>)}
                     </select>
                   </div>
@@ -302,15 +343,18 @@ export default function BienModal({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Valor de Adquisición (Gs.)</label>
-                        <input type="text" inputMode="numeric" name="valorUnitario" defaultValue={bienEditing?.valorUnitario ? formatearMiles(bienEditing.valorUnitario) : ''} onInput={(e) => { e.target.value = formatearMiles(e.target.value); }} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 1.500.000" />
+                        <input type="text" inputMode="numeric" name="valorUnitario" defaultValue={defecto('valorUnitario', bienEditing?.valorUnitario) ? formatearMiles(defecto('valorUnitario', bienEditing?.valorUnitario)) : ''} onInput={(e) => { e.target.value = formatearMiles(e.target.value); }} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 1.500.000" />
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha de Adquisición</label>
-                        <input type="date" name="fechaAdquisicion" defaultValue={toInputDateFormat(bienEditing?.fechaAdquisicion)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                        <input type="date" name="fechaAdquisicion" defaultValue={toInputDateFormat(bienEditing?.fechaAdquisicion)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}  onBlur={(e) => validarFecha(e.target.value)}/>
+                    </div>
+                    <div>
+                        {fechaAviso && (<p className="animate-fade-in mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400"><i className="fa-solid fa-triangle-exclamation text-[10px]"></i>{fechaAviso}</p>)}
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Vida Útil (Años)</label>
-                        <input type="number" name="vidaUtil" defaultValue={bienEditing?.vidaUtil} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 5 o 10" />
+                        <input type="number" name="vidaUtil" defaultValue={defecto('vidaUtil', bienEditing?.vidaUtil)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 5 o 10" />
                     </div>
                   </div>
                 </div>
@@ -324,7 +368,7 @@ export default function BienModal({
                       </div>
                       
                       <label className="flex items-center gap-2 text-xs font-semibold text-zinc-600 dark:text-zinc-400 cursor-pointer">
-                        <input type="checkbox" name="hasQR" defaultChecked={bienEditing?.hasQR} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" />
+                        <input type="checkbox" name="hasQR" defaultChecked={restaurado ? restaurado.hasQR === 'on' : bienEditing?.hasQR} className="h-4 w-4 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary" />
                         <span>Etiqueta QR Impresa</span>
                       </label>
                   </div>
@@ -332,7 +376,7 @@ export default function BienModal({
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">C.I. Custodio</label>
-                        <input name="funcionarioDoc" defaultValue={bienEditing?.funcionarioDoc} readOnly className={`${STYLES.input} tabular-nums bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
+                        <input name="funcionarioDoc" defaultValue={defecto('funcionarioDoc', bienEditing?.funcionarioDoc)} readOnly className={`${STYLES.input} tabular-nums bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
                     </div>
                     <div className="md:col-span-2 relative" ref={custodioDropdownRef}>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Custodio Designado (Nombre)</label>
@@ -379,7 +423,7 @@ export default function BienModal({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
-                        <input name="funcionarioCargo" defaultValue={bienEditing?.funcionarioCargo} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
+                        <input name="funcionarioCargo" defaultValue={defecto('funcionarioCargo', bienEditing?.funcionarioCargo)} readOnly className={`${STYLES.input} bg-zinc-100 dark:bg-zinc-900/80 text-zinc-500 cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Auto-completado" />
                     </div>
                     <div className="relative" ref={ubicacionDropdownRef}>
                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Ubicación Operativa</label>
@@ -434,7 +478,7 @@ export default function BienModal({
                     <button 
                       type="button" 
                       disabled={isSaving}
-                      onClick={(e) => saveBien(e, true)} 
+                      onClick={async (e) => { const ok = await saveBien(e, true); if (ok) limpiarBorrador(); }} 
                       className="inline-flex items-center justify-center h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                     >
                       + Guardar y Añadir Otro

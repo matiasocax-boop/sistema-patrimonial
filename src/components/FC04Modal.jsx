@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useDraft, serializarForm } from '../hooks/useDraft';
 
 const LABEL = "block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2";
 const INPUT_FOCUS = " focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
@@ -11,6 +12,16 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
     // PROTECCIÓN ANTICRASH: Si la lista de items llega desconectada, usamos un array vacío
     const safeItems = fc04Items || [];
     const safeOrigenes = ORIGENES_FC04 || [];
+    const esNuevoFC = !fc04Editing;
+    const { borrador: borradorFC, hayBorrador: hayBorradorFC, guardarBorrador: guardarBorradorFC, limpiarBorrador: limpiarBorradorFC } = useDraft('borrador_fc04_nuevo', esNuevoFC);
+    const [restauradoFC, setRestauradoFC] = useState(null);
+    const [formKeyFC, setFormKeyFC] = useState(0);
+    const defectoFC = (campo, fb) => (restauradoFC && restauradoFC[campo] !== undefined && restauradoFC[campo] !== null ? restauradoFC[campo] : fb);
+    const continuarBorradorFC = () => {
+        if (!borradorFC) return;
+        setRestauradoFC(borradorFC);
+        setFormKeyFC(k => k + 1);
+    };
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -27,12 +38,20 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                     <button type="button" title="Cerrar" onClick={() => setIsFC04ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0"><i className="fa-solid fa-xmark text-base"></i></button>
                 </div>
                 
-                <form onSubmit={saveFC04} className="flex flex-col h-full overflow-hidden">
+                {esNuevoFC && hayBorradorFC && !restauradoFC && (
+                  <div className="mx-8 mt-6 flex flex-wrap items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 animate-fade-in">
+                    <i className="fa-solid fa-history text-amber-600 dark:text-amber-400 text-sm"></i>
+                    <p className="flex-1 min-w-[200px] text-xs font-bold text-amber-700 dark:text-amber-300">Tienes un borrador sin guardar.</p>
+                    <button type="button" onClick={continuarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-black bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer">Continuar</button>
+                    <button type="button" onClick={limpiarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer">Descartar</button>
+                  </div>
+                )}
+                <form key={formKeyFC} onSubmit={async (e) => { const ok = await saveFC04(e); if (ok) limpiarBorradorFC(); }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} className="flex flex-col h-full overflow-hidden">
                     <div className={STYLES.modalBody}>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
-                            <div><label className={LABEL}>Mes</label><select name="mes" required defaultValue={fc04Editing?.mes || fc10Month} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                            <div><label className={LABEL}>Año</label><select name="anio" required defaultValue={fc04Editing?.anio || fc10Year} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-                            <div><label className={LABEL}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={fc04Editing?.origenMovimiento} className={STYLES.input + INPUT_FOCUS}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
+                            <div><label className={LABEL}>Mes</label><select name="mes" required defaultValue={defectoFC('mes', (fc04Editing?.mes || fc10Month))} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
+                            <div><label className={LABEL}>Año</label><select name="anio" required defaultValue={defectoFC('anio', (fc04Editing?.anio || fc10Year))} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
+                            <div><label className={LABEL}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={defectoFC('origenMovimiento', (fc04Editing?.origenMovimiento))} className={STYLES.input + INPUT_FOCUS}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
                         </div>
 
                         <div className="flex items-center gap-2 mb-6 p-4 rounded-lg bg-zinc-50 border border-zinc-200 dark:bg-darkbg-main dark:border-darkbg-border">

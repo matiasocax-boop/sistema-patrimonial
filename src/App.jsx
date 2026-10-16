@@ -21,6 +21,7 @@ import {
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { conSello, debeResyncTotal, fusionarBienes, ahoraISO } from './services/syncBienes';
+import { mapearFilasBienes } from './utils/csvBienes';
 import { useToasts } from './hooks/useToasts';
 import { useAuditoria } from './hooks/useAuditoria';
 import { usePdfHandlers } from './hooks/usePdfHandlers';
@@ -953,9 +954,34 @@ useEffect(() => {
     setPendingCSVImport({ type: 'bienes', file });
   };
 
+  // Paso previo al import: muestra conteos y primeras filas en el modal.
+  const previsualizarCSVBienes = async (file) => {
+    if (!file) return;
+    setIsProcessing({ active: true, text: 'Analizando planilla...' });
+    try {
+      const { default: Papa } = await import('papaparse');
+      const { validos, duplicados, errores } = await new Promise((resolve, reject) => {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          encoding: "UTF-8",
+          complete: (results) => resolve(mapearFilasBienes(results.data, results.meta.fields, bienes, dependenciaActual)),
+          error: (err) => reject(err)
+        });
+      });
+      setCsvPreviewData({ validos, duplicados, errores, tipo: 'bienes', file });
+      setIsCSVPreviewOpen(true);
+    } catch (e) {
+      addToast("No se pudo leer el archivo CSV.", "error");
+    } finally {
+      setIsProcessing({ active: false, text: '' });
+    }
+  };
+
   const executeProcessBienesCSV = async (file) => {
 
     setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
+    setIsCSVPreviewOpen(false);
 
     // papaparse se carga bajo demanda: no entra al bundle inicial.
     const { default: Papa } = await import('papaparse');
@@ -964,65 +990,8 @@ useEffect(() => {
       skipEmptyLines: true,
       encoding: "UTF-8",
       complete: async (results) => {
-        const newBienes = [];
-        let duplicatesSkipped = 0;
-
-        // Mapeo automático de columnas: acepta encabezados con otros nombres,
-        // sin tildes, mayúsculas o abreviaturas (ej: "Rotulo", "VALOR", "Fecha").
-        const ALIAS_COLUMNAS = {
-          rotulo: ['Nº RÓTULO', 'N ROTULO', 'ROTULO', 'RÓTULO', 'CÓDIGO', 'CODIGO'],
-          cuenta: ['CUENTA MAYOR', 'CUENTA'],
-          subcuenta: ['SUB-CUENTA', 'SUBCUENTA', 'SUB CUENTA'],
-          analitico1: ['ANALÍTICO 1', 'ANALITICO 1', 'AN 1', 'AN. 1'],
-          analitico2: ['ANALÍTICO 2', 'ANALITICO 2', 'AN 2', 'AN. 2'],
-          descripcion: ['DESCRIPCIÓN GENERAL', 'DESCRIPCION GENERAL', 'DESCRIPCIÓN', 'DESCRIPCION', 'DETALLE'],
-          fechaAdquisicion: ['FECHA ADQUISICIÓN (YYYY-MM-DD)', 'FECHA ADQUISICION', 'FECHA ADQUISICIÓN', 'FECHA'],
-          valorUnitario: ['VALOR UNITARIO (SIN PUNTOS)', 'VALOR UNITARIO', 'VALOR', 'PRECIO', 'COSTO'],
-          vidaUtil: ['VIDA ATIL (AÑOS)', 'VIDA ÚTIL', 'VIDA UTIL', 'VIDA'],
-        };
-        const encabezados = results.meta.fields || [];
-        const buscarColumna = (aliases) => {
-          const normas = aliases.map(a => normalizeStr(a));
-          return encabezados.find(h => normas.includes(normalizeStr(h))) || null;
-        };
-        const COL = {};
-        Object.keys(ALIAS_COLUMNAS).forEach(k => { COL[k] = buscarColumna(ALIAS_COLUMNAS[k]); });
-        const val = (row, c) => (c ? String(row[c] ?? '').trim() : '');
-
-        results.data.forEach(row => {
-          // Mapeo seguro de columnas independientemente del nombre exacto de la cabecera
-          const rotuloCSV = val(row, COL.rotulo);
-          if (!rotuloCSV) return;
-
-          const isDuplicateDB = bienes.some(b => 
-            normalizeStr(b.rotulo) === normalizeStr(rotuloCSV) && 
-            b.dependencia === dependenciaActual
-          );
-
-          if (isDuplicateDB) {
-            duplicatesSkipped++;
-            return;
-          }
-
-          newBienes.push({
-            id: generateId(),
-            dependencia: dependenciaActual,
-            cuenta: val(row, COL.cuenta),
-            subcuenta: val(row, COL.subcuenta),
-            analitico1: val(row, COL.analitico1),
-            analitico2: val(row, COL.analitico2),
-            descripcion: val(row, COL.descripcion),
-            fechaAdquisicion: val(row, COL.fechaAdquisicion),
-            rotulo: rotuloCSV,
-            valorUnitario: (val(row, COL.valorUnitario) || '0').replace(/\D/g, ''),
-            vidaUtil: val(row, COL.vidaUtil),
-            funcionario: '',
-            ubicacion: '',
-            hasFC10: false,
-            hasQR: false,
-            estadoConservacion: 'Muy bueno'
-          });
-        });
+        const { validos: newBienes, duplicados } = mapearFilasBienes(results.data, results.meta.fields, bienes, dependenciaActual);
+        const duplicatesSkipped = duplicados.length;
 
         if (newBienes.length > 0) {
           try {
@@ -1419,7 +1388,7 @@ if (publicBienId) {
 
       {/* Modales y componentes flotantes (carga diferida) */}
       <Suspense fallback={null}>
-      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List} />
+      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} previsualizarCSVBienes={previsualizarCSVBienes} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List} />
       </Suspense>
     </div>
   );

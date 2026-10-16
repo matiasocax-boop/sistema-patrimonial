@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDraft, serializarForm } from '../hooks/useDraft';
 
 export default function FC11Modal({
     setIsFC11ModalOpen,
@@ -10,6 +11,16 @@ export default function FC11Modal({
     formatCurrency,
     STYLES
 }) {
+    const esNuevoFC = !fc11Editing;
+    const { borrador: borradorFC, hayBorrador: hayBorradorFC, guardarBorrador: guardarBorradorFC, limpiarBorrador: limpiarBorradorFC } = useDraft('borrador_fc11_nuevo', esNuevoFC);
+    const [restauradoFC, setRestauradoFC] = useState(null);
+    const [formKeyFC, setFormKeyFC] = useState(0);
+    const defectoFC = (campo, fb) => (restauradoFC && restauradoFC[campo] !== undefined && restauradoFC[campo] !== null ? restauradoFC[campo] : fb);
+    const continuarBorradorFC = () => {
+        if (!borradorFC) return;
+        setRestauradoFC(borradorFC);
+        setFormKeyFC(k => k + 1);
+    };
     const [step, setStep] = useState(1);
 
     if (!fc11TargetBien) return null;
@@ -52,7 +63,14 @@ export default function FC11Modal({
                     </button>
                 </div>
                 
-                <form onSubmit={saveFC11} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
+{esNuevoFC && hayBorradorFC && !restauradoFC && (
+                  <div className="mx-8 mt-6 flex flex-wrap items-center gap-2 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-4 py-3 animate-fade-in">
+                    <i className="fa-solid fa-history text-amber-600 dark:text-amber-400 text-sm"></i>
+                    <p className="flex-1 min-w-[200px] text-xs font-bold text-amber-700 dark:text-amber-300">Tienes un borrador sin guardar.</p>
+                    <button type="button" onClick={continuarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-black bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer">Continuar</button>
+                    <button type="button" onClick={limpiarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer">Descartar</button>
+                  </div>
+                )}<form key={formKeyFC} onSubmit={async (e) => { const ok = await saveFC11(e); if (ok) limpiarBorradorFC(); }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
                     <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
                         
                         {/* BARRA DE PROGRESO WIZARD */}
@@ -89,11 +107,11 @@ export default function FC11Modal({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5 pb-5 border-b border-zinc-100 dark:border-darkbg-border">
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nº Formulario (Opcional)</label>
-                                        <input name="numeroFormulario" defaultValue={fc11Editing?.numeroFormulario} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 001-2026" />
+                                        <input name="numeroFormulario" defaultValue={defectoFC('numeroFormulario', (fc11Editing?.numeroFormulario))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 001-2026" />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha de Traslado</label>
-                                        <input type="date" name="fecha" required defaultValue={fc11Editing?.fecha || new Date().toISOString().split('T')[0]} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
+                                        <input type="date" name="fecha" required defaultValue={defectoFC('fecha', (fc11Editing?.fecha || new Date().toISOString().split('T')[0]))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
                                     </div>
                                 </div>
 
@@ -104,18 +122,18 @@ export default function FC11Modal({
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área Remitente</label>
-                                        <input name="areaRemitente" required defaultValue={fc11Editing?.areaRemitente} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de origen" />
+                                        <input name="areaRemitente" required defaultValue={defectoFC('areaRemitente', (fc11Editing?.areaRemitente))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de origen" />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia Destinataria</label>
-                                        <select name="dependenciaDestinataria" required defaultValue={fc11Editing?.dependenciaDestinataria || ''} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
+                                        <select name="dependenciaDestinataria" required defaultValue={defectoFC('dependenciaDestinataria', (fc11Editing?.dependenciaDestinataria || ''))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="" disabled>Seleccione destino...</option>
                                             {todasDependencias.map(d => <option key={d} value={d}>{d}</option>)}
                                         </select>
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área Destinataria</label>
-                                        <input name="areaDestinataria" required defaultValue={fc11Editing?.areaDestinataria} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de destino" />
+                                        <input name="areaDestinataria" required defaultValue={defectoFC('areaDestinataria', (fc11Editing?.areaDestinataria))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Área o Dpto. de destino" />
                                     </div>
                                 </div>
                             </div>
@@ -133,7 +151,7 @@ export default function FC11Modal({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Motivo del Traslado</label>
-                                        <select name="motivo" required defaultValue={fc11Editing?.motivo || 'Traspaso'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
+                                        <select name="motivo" required defaultValue={defectoFC('motivo', (fc11Editing?.motivo || 'Traspaso'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="Traspaso">Traspaso</option>
                                             <option value="Préstamo">Préstamo</option>
                                             <option value="Inservible">Inservible</option>
@@ -142,7 +160,7 @@ export default function FC11Modal({
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación Actual</label>
-                                        <select name="estadoConservacion" required defaultValue={fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
+                                        <select name="estadoConservacion" required defaultValue={defectoFC('estadoConservacion', (fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
                                             <option value="Muy bueno">Muy bueno</option>
                                             <option value="Bueno">Bueno</option>
                                             <option value="Regular">Regular</option>
@@ -152,7 +170,7 @@ export default function FC11Modal({
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observaciones</label>
-                                        <input name="observaciones" defaultValue={fc11Editing?.observaciones} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Anotaciones adicionales..." />
+                                        <input name="observaciones" defaultValue={defectoFC('observaciones', (fc11Editing?.observaciones))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Anotaciones adicionales..." />
                                     </div>
                                 </div>
                             </div>
