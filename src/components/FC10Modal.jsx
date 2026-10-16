@@ -51,6 +51,22 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
         setIsReturning(!!fc10Editing?.devolucionFecha);
     }, [fc10Editing]);
 
+    // Al abrir (bien con custodio pero sin CI/cargo) resuelve una vez sola.
+    // Va antes del early return: los hooks nunca son condicionales.
+    useEffect(() => {
+        if (!funcData.nombre || (funcData.doc && funcData.cargo)) return;
+        const q = normalizeStr(funcData.nombre);
+        const exacto = safeFuncionarios.find(f => normalizeStr(f.nombre || '') === q);
+        const match = exacto || safeFuncionarios.find(f => {
+            const n = normalizeStr(f.nombre || '');
+            return n.includes(q) || q.includes(n);
+        });
+        if (match && (match.doc || match.cargo)) {
+            setFuncData({ nombre: funcData.nombre, doc: match.doc || '', cargo: match.cargo || '' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     if (!fc10TargetBien) return null; 
 
     const nextStep = () => {
@@ -116,15 +132,6 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
             setFuncData({ nombre: e.target.value.trim(), doc: match.doc || '', cargo: match.cargo || '' });
         }
     };
-    // Al abrir (bien con custodio pero sin CI/cargo) resuelve una vez sola
-    useEffect(() => {
-        if (!funcData.nombre || (funcData.doc && funcData.cargo)) return;
-        const match = resolverFuncionario(funcData.nombre);
-        if (match && (match.doc || match.cargo)) {
-            setFuncData({ nombre: funcData.nombre, doc: match.doc || '', cargo: match.cargo || '' });
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
     const matchPadronActual = resolverFuncionario(funcData.nombre);
     const coincidePadron = !!matchPadronActual;
     const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);

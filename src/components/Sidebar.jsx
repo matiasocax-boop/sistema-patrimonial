@@ -1,10 +1,12 @@
 import React from 'react';
 import { getLogoPorDependencia, APP_VERSION } from '../utils/helpers';
+import { useIdioma } from '../utils/i18n';
 
 export default function Sidebar({ 
     isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, esDesarrollador, solicitudesBaja, dependenciaActual, onExportBackup,
     mantenimiento, onOpenMantenimiento, onOpenDependencias
 }) {
+    const { t } = useIdioma();
     // Logo oficial del sistema (blanco para modo oscuro, negro para modo claro) + sello (respaldo).
     // WebP en UI (liviano); los PDF siguen usando PNG.
     const LOGO_SISTEMA = '/UNP-Site-Logo.webp';
@@ -77,22 +79,22 @@ export default function Sidebar({
                     <p className="px-3 pb-2 text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.18em]">Navegación</p>
 
                     {[
-                        { id: 'dashboard', label: 'Panel Principal', icon: 'fa-chart-pie' },
-                        { id: 'resumen', label: 'Mi Dependencia', icon: 'fa-house-user' },
-                        { id: 'inventario', label: 'Inventario General', icon: 'fa-boxes-stacked' },
-                        { id: 'funcionarios', label: 'Plantel de Funcionarios', icon: 'fa-address-book' },
-                        { id: 'fc04', label: 'Altas y Bajas (FC-04)', icon: 'fa-file-invoice' },
-                        { id: 'fc10', label: 'Asignaciones (FC-10)', icon: 'fa-file-signature' },
-                        { id: 'fc11', label: 'Traslados (FC-11)', icon: 'fa-truck-fast' },
+                        { id: 'dashboard', label: t('nav.dashboard'), icon: 'fa-chart-pie' },
+                        { id: 'resumen', label: t('nav.resumen'), icon: 'fa-house-user' },
+                        { id: 'inventario', label: t('nav.inventario'), icon: 'fa-boxes-stacked' },
+                        { id: 'funcionarios', label: t('nav.funcionarios'), icon: 'fa-address-book' },
+                        { id: 'fc04', label: t('nav.fc04'), icon: 'fa-file-invoice' },
+                        { id: 'fc10', label: t('nav.fc10'), icon: 'fa-file-signature' },
+                        { id: 'fc11', label: t('nav.fc11'), icon: 'fa-truck-fast' },
                         ...(isAdmin ? [
-                            { id: 'aprobaciones', label: 'Aprobaciones', icon: 'fa-check-to-slot' },
-                            { id: 'auditoria', label: 'Auditoría', icon: 'fa-magnifying-glass-chart' },
-                            { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear' }
+                            { id: 'aprobaciones', label: t('nav.aprobaciones'), icon: 'fa-check-to-slot' },
+                            { id: 'auditoria', label: t('nav.auditoria'), icon: 'fa-magnifying-glass-chart' },
+                            { id: 'usuarios', label: t('nav.usuarios'), icon: 'fa-users-gear' }
                         ] : []),
                         ...(esDesarrollador ? [
-                            { id: 'anuncios', label: 'Anuncios', icon: 'fa-bullhorn' }
+                            { id: 'anuncios', label: t('nav.anuncios'), icon: 'fa-bullhorn' }
                         ] : []),
-                        { id: 'ayuda', label: 'Centro de Ayuda', icon: 'fa-circle-question' }
+                        { id: 'ayuda', label: t('nav.ayuda'), icon: 'fa-circle-question' }
                     ].map(tab => {
                         const isActive = activeTab === tab.id;
                         return (

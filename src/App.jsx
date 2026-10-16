@@ -539,8 +539,13 @@ export default function App() {
   // Duplicar bien: abre el formulario precargado (rótulo vacío) como alta nueva.
   const duplicarBien = (item) => {
     if (!item) return;
-    const { id, rotulo, hasFC10, hasQR, fotos, ...resto } = item;
-    setBienEditing({ ...resto, rotulo: '', hasFC10: false, hasQR: false, fotos: [] });
+    const copia = { ...item };
+    delete copia.id;
+    copia.rotulo = '';
+    copia.hasFC10 = false;
+    copia.hasQR = false;
+    copia.fotos = [];
+    setBienEditing(copia);
     setIsBienModalOpen(true);
   };
   // QR en lote de la selección del inventario.
@@ -856,7 +861,7 @@ useEffect(() => {
   // Ficha 360: la lee el realtime (H5) anterior a H8, vive en App.
   // Sincronización de datos: hook extraído (Fase 6). La UI usa los mismos nombres.
   const {
-    isOnline, notificaciones, setNotificaciones,
+    isOnline, colaOffline, notificaciones, setNotificaciones,
     fetchData, cargarNotificaciones, sondearNotificaciones, fusionarNotificacion,
     markAsRead, markAllAsRead, misNotificaciones, unreadCount
   } = useRealtimeSync({
@@ -1072,6 +1077,8 @@ useEffect(() => {
     if (!ultimaExportacion) return addToast('Aún no hay exportaciones favoritas.', 'warning');
     if (ultimaExportacion.formato === 'xlsx') handleExportInventarioExcel(); else handleExportInventarioCSV();
   };
+  // Reintento de importación CSV de bienes (guarda el último archivo).
+  const ultimoArchivoBienesRef = useRef(null);
 
 
 
@@ -1152,6 +1159,7 @@ useEffect(() => {
 
     setIsProcessing({ active: true, text: 'Procesando Planilla Excel (CSV)...' });
     setIsCSVPreviewOpen(false);
+    if (file) ultimoArchivoBienesRef.current = file;
 
     // papaparse se carga bajo demanda: no entra al bundle inicial.
     const { default: Papa } = await import('papaparse');
@@ -1175,7 +1183,7 @@ useEffect(() => {
             } catch (e) {}
             addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
           } catch (error) {
-            addToast("Error al guardar registros en la base de datos.", "error");
+            addToast("Error al guardar registros en la base de datos.", "error", { action: { label: 'Reintentar', onClick: () => { if (ultimoArchivoBienesRef.current) executeProcessBienesCSV(ultimoArchivoBienesRef.current); } } });
           }
         } else {
           addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
@@ -1188,7 +1196,7 @@ useEffect(() => {
       },
       error: (err) => {
         console.error(err);
-        addToast("Error al procesar el archivo CSV.", "error");
+        addToast("Error al procesar el archivo CSV.", "error", { action: { label: 'Reintentar', onClick: () => { if (ultimoArchivoBienesRef.current) executeProcessBienesCSV(ultimoArchivoBienesRef.current); } } });
         setIsProcessing({ active: false, text: '' });
       }
     });
@@ -1490,7 +1498,13 @@ if (publicBienId) {
         {!isOnline && (
           <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
             <i className="fa-solid fa-wifi-slash text-base"></i>
-            <span className="flex-1">Sin conexión a red (Modo Local)</span>
+            <span className="flex-1">Sin conexión (Modo Local){colaOffline > 0 ? ` · ${colaOffline} pendiente${colaOffline === 1 ? '' : 's'}` : ''}</span>
+          </div>
+        )}
+        {isOnline && colaOffline > 0 && (
+          <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-sky-600/90 text-white backdrop-blur-md border border-sky-400/30 transition-all animate-slide-up">
+            <i className="fa-solid fa-cloud-arrow-up text-base"></i>
+            <span className="flex-1">Sincronizando {colaOffline} pendiente{colaOffline === 1 ? '' : 's'}...</span>
           </div>
         )}
 

@@ -3,6 +3,7 @@ import { PENDIENTE_LABELS, ESTADOS_CONSERVACION } from '../constants/appConstant
 import FiltroCombo from '../components/FiltroCombo';
 import CompararBienesModal from '../components/CompararBienesModal';
 import { formatDateText } from '../utils/helpers';
+import { useIdioma } from '../utils/i18n';
 
 // Vista del inventario general (extraída de App.jsx, Fase 5).
 // Es la vista más grande del sistema; recibe todo por props.
@@ -140,6 +141,7 @@ export default function InventarioView({
   const flechaOrden = (campo) => (!orden || orden.campo !== campo) ? 'fa-sort' : (orden.dir === 'asc' ? 'fa-arrow-up-wide-short' : 'fa-arrow-down-wide-short');
   const [comparando, setComparando] = useState(false);
   const [confirmaBajaMasiva, setConfirmaBajaMasiva] = useState(false);
+  const { t } = useIdioma();
   const bienesSeleccionados = itemsPaginados.filter(i => seleccionados.includes(i.id));
   const selFueraPagina = seleccionados.length - bienesSeleccionados.length;
   // Chips de filtros activos con limpieza individual
@@ -191,7 +193,7 @@ export default function InventarioView({
         title="Descargar Plantilla CSV"
       >
         <i className="fa-solid fa-file-excel text-emerald-600"></i>
-        <span>Plantilla</span>
+        <span>{t('inv.plantilla')}</span>
       </button>
 
       <button 
@@ -200,7 +202,7 @@ export default function InventarioView({
         title="Importar archivo CSV"
       >
         <i className="fa-solid fa-file-import text-emerald-600"></i>
-        <span>Importar</span>
+        <span>{t('inv.importar')}</span>
       </button>
 
       <button 
@@ -209,7 +211,7 @@ export default function InventarioView({
         title="Exportar archivo CSV"
       >
         <i className="fa-solid fa-file-export text-sky-600"></i>
-        <span>Exportar</span>
+        <span>{t('inv.exportar')}</span>
       </button>
 
       <button 
@@ -218,7 +220,7 @@ export default function InventarioView({
         title="Exportar Excel real (.xlsx)"
       >
         <i className="fa-solid fa-file-excel text-emerald-600 dark:text-emerald-400"></i>
-        <span>Excel</span>
+        <span>{t('inv.excel')}</span>
       </button>
 
       {ultimaExportacion && (
@@ -228,7 +230,7 @@ export default function InventarioView({
           title={`Repetir última exportación (${ultimaExportacion.formato.toUpperCase()}) con los filtros actuales`}
         >
           <i className="fa-solid fa-rotate-right text-zinc-500"></i>
-          <span>Repetir</span>
+          <span>{t('inv.repetir')}</span>
         </button>
       )}
 
@@ -238,7 +240,7 @@ export default function InventarioView({
         title="Generar Lote Masivo de QRs"
       >
         <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i>
-        <span>Lote QRs</span>
+        <span>{t('inv.loteqr')}</span>
       </button>
     </div>
 
@@ -258,7 +260,7 @@ export default function InventarioView({
         className="inline-flex shrink-0 items-center gap-2 px-5 h-10 rounded-xl bg-zinc-900 dark:bg-white hover:bg-zinc-700 dark:hover:bg-zinc-200 text-white dark:text-zinc-900 text-[13px] font-bold shadow-sm transition-all active:scale-95 cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
       >
         <i className="fa-solid fa-plus text-xs"></i>
-        <span className="whitespace-nowrap">Añadir Registro</span>
+        <span className="whitespace-nowrap">{t('inv.anadir')}</span>
       </button>
     </div>
 
@@ -841,7 +843,7 @@ export default function InventarioView({
             </div>
             <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
               <button onClick={() => setConfirmaBajaMasiva(false)} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer">Cancelar</button>
-              <button onClick={() => { setConfirmaBajaMasiva(false); onBajaMasiva && onBajaMasiva(seleccionados); }} className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer">Confirmar</button>
+              <button onClick={() => { setConfirmaBajaMasiva(false); if (onBajaMasiva) onBajaMasiva(seleccionados); }} className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer">Confirmar</button>
             </div>
           </div>
         </div>

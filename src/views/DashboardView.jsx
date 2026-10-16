@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import AnimatedNumber from '../components/AnimatedNumber';
 import SimpleBar from '../components/SimpleBar';
 
@@ -10,13 +11,27 @@ export default function DashboardView({
   setIsBulkQR, setQrTargetBien, setIsQRModalOpen, openFC03Modal,
   setFc10Year, setFc10Month
 }) {
+  // Widgets visibles del panel (preferencia por usuario).
+  const [widgets, setWidgets] = useState(() => {
+    try { return { metricas: true, pendientes: true, accesos: true, tendencias: true, ...JSON.parse(localStorage.getItem('dash_widgets') || '{}') }; }
+    catch { return { metricas: true, pendientes: true, accesos: true, tendencias: true }; }
+  });
+  const [menuWidgets, setMenuWidgets] = useState(false);
+  const alternarWidget = (k) => {
+    setWidgets(prev => {
+      const n = { ...prev, [k]: !prev[k] };
+      try { localStorage.setItem('dash_widgets', JSON.stringify(n)); } catch {}
+      return n;
+    });
+  };
+  const WIDGETS = [['metricas', 'Métricas'], ['pendientes', 'Pendientes'], ['accesos', 'Accesos'], ['tendencias', 'Tendencias']];
   return (
     <div className="space-y-5 sm:space-y-6 animate-fade-in pb-12">
 
       {/* 1. ENCABEZADO DE PÁGINA COMPACTO */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4 min-w-0">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-xl sm:text-2xl shadow-md">
+          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-xl sm:text-2xl shadow-md dep-accent-ring">
             {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
           </div>
           <div className="min-w-0">
@@ -29,19 +44,50 @@ export default function DashboardView({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0 rounded-2xl bg-white dark:bg-white/5 px-4 py-2.5 border border-zinc-200/80 dark:border-white/10 shadow-sm">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Sistema Sincronizado</span>
-            <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">Conexión activa</span>
+        <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+          <div className="relative">
+            <button
+              onClick={() => setMenuWidgets(v => !v)}
+              title="Personalizar panel" aria-label="Personalizar panel"
+              className="flex items-center gap-2 h-10 px-4 rounded-2xl bg-white dark:bg-white/5 border border-zinc-200/80 dark:border-white/10 shadow-sm text-[13px] font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-white/10 transition-all cursor-pointer"
+            >
+              <i className="fa-solid fa-sliders text-xs"></i> <span className="hidden sm:inline">Personalizar</span>
+            </button>
+            {menuWidgets && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuWidgets(false)}></div>
+                <div className="absolute right-0 z-50 mt-1.5 w-52 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl p-1.5 animate-pop">
+                  <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Widgets visibles</p>
+                  {WIDGETS.map(([k, label]) => (
+                    <button
+                      key={k} onClick={() => alternarWidget(k)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <span className={'flex h-4 w-4 items-center justify-center rounded border ' + (widgets[k] ? 'bg-brand-primary border-brand-primary text-white' : 'border-zinc-300 dark:border-zinc-600 text-transparent')}>
+                        <i className="fa-solid fa-check text-[9px]"></i>
+                      </span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5 rounded-2xl bg-white dark:bg-white/5 px-4 py-2.5 border border-zinc-200/80 dark:border-white/10 shadow-sm">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Sistema Sincronizado</span>
+              <span className="text-[10px] font-medium text-zinc-500 dark:text-zinc-400 leading-tight">Conexión activa</span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* 2. TARJETAS DE MÉTRICAS ACCIONABLES */}
+      {widgets.metricas && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5" data-tour="dash-stats">
 
         {/* Bienes Activos */}
@@ -138,8 +184,10 @@ export default function DashboardView({
         </button>
 
       </div>
+      )}
 
       {/* 2B. BANDEJA DE PENDIENTES */}
+      {widgets.pendientes && (
       <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm" data-tour="dash-pendientes">
           <div className="flex items-center justify-between gap-3 mb-4">
               <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
@@ -171,8 +219,10 @@ export default function DashboardView({
               ))}
           </div>
       </div>
+      )}
 
       {/* 3. ACCESOS DIRECTOS */}
+      {widgets.accesos && (
       <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-3 sm:p-4 shadow-sm">
           <p className="px-2 pb-2.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-400 dark:text-zinc-500">Accesos directos</p>
           <div className="flex flex-wrap items-center gap-2">
@@ -194,8 +244,10 @@ export default function DashboardView({
               </button>
           </div>
       </div>
+      )}
 
       {/* 4. GRÁFICOS Y TENDENCIAS */}
+      {widgets.tendencias && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Estado de Regularización */}
@@ -273,6 +325,7 @@ export default function DashboardView({
         </div>
 
       </div>
+      )}
 
     </div>
   );

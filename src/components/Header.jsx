@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useIdioma } from '../utils/i18n';
 
 export default function Header({
     setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen,
@@ -7,22 +8,42 @@ export default function Header({
     misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout
 }) {
     const [filtroNotif, setFiltroNotif] = useState('todas');
+    const { lang, setLang, t } = useIdioma();
+    // Preferencias de apariencia (persisten por navegador).
+    const [menuApariencia, setMenuApariencia] = useState(false);
+    const [textoGrande, setTextoGrande] = useState(() => { try { return localStorage.getItem('ap_texto_grande') === '1'; } catch { return false; } });
+    const [contrasteAlto, setContrasteAlto] = useState(() => { try { return localStorage.getItem('ap_contraste') === '1'; } catch { return false; } });
+    const [reducirAnim, setReducirAnim] = useState(() => { try { return localStorage.getItem('ap_reduce_motion') === '1'; } catch { return false; } });
+    useEffect(() => {
+      const root = document.documentElement;
+      root.classList.toggle('font-lg', textoGrande);
+      try { localStorage.setItem('ap_texto_grande', textoGrande ? '1' : '0'); } catch {}
+    }, [textoGrande]);
+    useEffect(() => {
+      const app = document.querySelector('.dark');
+      if (app) app.classList.toggle('contrast-more', contrasteAlto);
+      try { localStorage.setItem('ap_contraste', contrasteAlto ? '1' : '0'); } catch {}
+    }, [contrasteAlto, darkMode]);
+    useEffect(() => {
+      document.documentElement.classList.toggle('reduce-motion', reducirAnim);
+      try { localStorage.setItem('ap_reduce_motion', reducirAnim ? '1' : '0'); } catch {}
+    }, [reducirAnim]);
     const notifsVisibles = filtroNotif === 'noleidas'
         ? misNotificaciones.filter(n => !n.leido)
         : misNotificaciones;
     const TITULOS = {
-        dashboard: 'Panel Principal',
-        resumen: 'Mi Dependencia',
-        inventario: 'Inventario General',
-        funcionarios: 'Plantel de Funcionarios',
-        fc04: 'Registro FC-04',
-        fc10: 'Registro FC-10',
-        fc11: 'Registro FC-11',
-        aprobaciones: 'Aprobaciones',
-        auditoria: 'Auditoría',
-        usuarios: 'Gestión de Usuarios',
-        anuncios: 'Anuncios',
-        ayuda: 'Centro de Ayuda'
+        dashboard: t('nav.dashboard'),
+        resumen: t('nav.resumen'),
+        inventario: t('nav.inventario'),
+        funcionarios: t('nav.funcionarios'),
+        fc04: t('nav.fc04'),
+        fc10: t('nav.fc10'),
+        fc11: t('nav.fc11'),
+        aprobaciones: t('nav.aprobaciones'),
+        auditoria: t('nav.auditoria'),
+        usuarios: t('nav.usuarios'),
+        anuncios: t('nav.anuncios'),
+        ayuda: t('nav.ayuda')
     };
     return (
         <header className="sticky top-0 z-30 flex h-[72px] shrink-0 items-center justify-between bg-white/90 dark:bg-darkbg-card/90 backdrop-blur-xl px-4 sm:px-6 lg:px-8 border-b border-zinc-200/80 dark:border-darkbg-border transition-all">
@@ -83,6 +104,48 @@ export default function Header({
                     <button onClick={() => setDarkMode(!darkMode)} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Alternar tema claro / oscuro" aria-label="Alternar tema claro / oscuro">
                         <i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
                     </button>
+                    <div className="relative">
+                      <button onClick={() => setMenuApariencia(v => !v)} className="hidden sm:flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Apariencia: texto, contraste y animaciones" aria-label="Apariencia">
+                        <i className="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                      </button>
+                      {menuApariencia && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setMenuApariencia(false)}></div>
+                          <div className="absolute right-0 z-50 mt-1.5 w-60 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl p-1.5 animate-pop">
+                            <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Apariencia</p>
+                            <div className="flex items-center gap-1.5 px-3 py-2">
+                              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex-1">Idioma</span>
+                              <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                {['es', 'gn'].map(l => (
+                                  <button
+                                    key={l} onClick={() => setLang(l)}
+                                    className={`px-2.5 h-7 text-[11px] font-black uppercase transition-colors cursor-pointer ${lang === l ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                                  >
+                                    {l === 'es' ? 'ES' : 'GN'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {[
+                              ['Texto grande', textoGrande, setTextoGrande, 'fa-text-height'],
+                              ['Contraste alto', contrasteAlto, setContrasteAlto, 'fa-circle-half-stroke'],
+                              ['Reducir animaciones', reducirAnim, setReducirAnim, 'fa-film'],
+                            ].map(([label, val, set, icon]) => (
+                              <button
+                                key={label} onClick={() => set(v => !v)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                              >
+                                <i className={`fa-solid ${icon} text-[11px] text-zinc-400 shrink-0`}></i>
+                                <span className="flex-1 text-left">{label}</span>
+                                <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${val ? 'bg-brand-primary' : 'bg-zinc-300 dark:bg-zinc-700'}`}>
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${val ? 'translate-x-4' : 'translate-x-0.5'}`}></span>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
                     
                     <div className="relative flex items-center">
                         {isNotifOpen && <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>}

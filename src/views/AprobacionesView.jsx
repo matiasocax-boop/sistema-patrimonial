@@ -1,4 +1,5 @@
 // Vista de solicitudes de baja -solo admin- (extraída de App.jsx, Fase 5).
+import EmptyState from '../components/EmptyState';
 export default function AprobacionesView({
   solicitudesBaja, dependenciaActual, bienes,
   resolverSolicitudFuncionario, openResolucionModal
@@ -146,12 +147,12 @@ export default function AprobacionesView({
 
               {solicitudesBaja.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="p-16 text-center">
-                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-400 mb-3">
-                      <i className="fa-solid fa-check-double text-2xl"></i>
-                    </div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-white">Bandeja de aprobaciones al día</p>
-                    <p className="text-xs text-zinc-400 mt-1">No hay solicitudes de baja pendientes en esta dependencia.</p>
+                  <td colSpan="4">
+                    <EmptyState
+                      icon="fa-check-double"
+                      titulo="Bandeja de aprobaciones al día"
+                      descripcion="No hay solicitudes de baja pendientes en esta dependencia."
+                    />
                   </td>
                 </tr>
               )}

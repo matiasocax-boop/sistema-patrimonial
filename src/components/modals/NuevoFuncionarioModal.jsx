@@ -1,9 +1,18 @@
 // src/components/modals/NuevoFuncionarioModal.jsx
-import React from 'react';
+import React, { useState } from 'react';
 import { formatearMiles } from '../../utils/helpers';
 
 export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, dependenciaActual, ubicaciones = [], STYLES }) {
+    const [ciAviso, setCiAviso] = useState('');
     if (!isOpen) return null;
+
+    const validarCI = (valor) => {
+        const digitos = String(valor || '').replace(/\D/g, '');
+        if (!digitos) { setCiAviso(''); return true; }
+        const ok = digitos.length >= 6 && digitos.length <= 8;
+        setCiAviso(ok ? '' : 'La CI paraguaya suele tener 6 a 8 dígitos.');
+        return ok;
+    };
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -28,8 +37,13 @@ export default function NuevoFuncionarioModal({ isOpen, onClose, onSave, depende
                                 <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
                                 <div className="relative">
                                     <i className="fa-solid fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm"></i>
-                                    <input type="text" name="cedula" required inputMode="numeric" onInput={(e) => { e.target.value = formatearMiles(e.target.value); }} className={`${STYLES.input} pl-11 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 1.234.567" />
+                                    <input type="text" name="cedula" required inputMode="numeric" onInput={(e) => { e.target.value = formatearMiles(e.target.value); validarCI(e.target.value); }} onBlur={(e) => validarCI(e.target.value)} className={`${STYLES.input} pl-11 tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej. 1.234.567" />
                                 </div>
+                                {ciAviso && (
+                                  <p className="mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">
+                                    <i className="fa-solid fa-triangle-exclamation text-[10px]"></i>{ciAviso}
+                                  </p>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre Completo</label>

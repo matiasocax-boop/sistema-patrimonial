@@ -1,4 +1,5 @@
 import { formatCI } from '../utils/helpers';
+import EmptyState from '../components/EmptyState';
 
 // Vista del plantel de funcionarios (extraída de App.jsx, Fase 5).
 export default function FuncionariosView({
@@ -176,19 +177,14 @@ export default function FuncionariosView({
                 })}
                 {funcionariosPurosDependencia.length === 0 && (
                   <tr>
-                    <td colSpan="4" className="p-16 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
-                            <i className="fa-solid fa-users-slash text-2xl"></i>
-                        </div>
-                        <span className="text-sm font-bold text-zinc-400">No hay funcionarios registrados en esta dependencia.</span>
-                        <div>
-                          <button
-                            onClick={() => setIsNewFuncionarioModalOpen(true)}
-                            className="mt-4 inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
-                          >
-                            <i className="fa-solid fa-user-plus text-xs"></i> Registrar el primero
-                          </button>
-                        </div>
+                    <td colSpan="4">
+                        <EmptyState
+                          icon="fa-users-slash"
+                          titulo="No hay funcionarios en esta dependencia"
+                          descripcion="Registra el primero manualmente o importa el padrón desde un CSV."
+                          accionLabel="Registrar el primero"
+                          onAccion={() => setIsNewFuncionarioModalOpen(true)}
+                        />
                     </td>
                   </tr>
                 )}

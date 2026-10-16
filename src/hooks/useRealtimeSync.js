@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import localforage from 'localforage';
 import { debeResyncTotal, fusionarBienes, ahoraISO } from '../services/syncBienes';
-import { processOfflineQueue } from '../services/offlineSyncService';
+import { processOfflineQueue, getOfflineQueueLength } from '../services/offlineSyncService';
 
 // Sincronización de datos: fetch inicial (total + delta), realtime,
 // notificaciones y modo offline (extraído de App.jsx, Fase 6).
@@ -407,6 +407,10 @@ export function useRealtimeSync({
   };
 
   // xÓ Escuchador de estado de red (Offline / Online)
+  const [colaOffline, setColaOffline] = useState(0);
+  const refrescarColaOffline = async () => {
+    try { setColaOffline(await getOfflineQueueLength()); } catch {}
+  };
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
@@ -414,6 +418,7 @@ export function useRealtimeSync({
       processOfflineQueue((count) => {
         notify(`Se sincronizaron ${count} operaciones guardadas en modo local.`, "success");
         fetchData(true); // Recargamos los datos para reflejar los cambios reales de Supabase
+        refrescarColaOffline();
       });
     };
 
@@ -430,10 +435,13 @@ export function useRealtimeSync({
     if (navigator.onLine) {
       handleOnline();
     }
+    refrescarColaOffline();
+    const tCola = setInterval(() => { refrescarColaOffline(); }, 15000);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(tCola);
     };
   }, [fetchData]);
 
@@ -445,7 +453,7 @@ export function useRealtimeSync({
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
 
   return {
-    isOnline, notificaciones, setNotificaciones,
+    isOnline, colaOffline, notificaciones, setNotificaciones,
     fetchData, cargarNotificaciones, sondearNotificaciones, fusionarNotificacion,
     markAsRead, markAllAsRead, misNotificaciones, unreadCount
   };

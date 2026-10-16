@@ -18,6 +18,16 @@ export const enqueueOfflineAction = async (action) => {
   }
 };
 
+// Cantidad de acciones guardadas localmente sin sincronizar
+export const getOfflineQueueLength = async () => {
+  try {
+    const q = (await localforage.getItem(QUEUE_KEY)) || [];
+    return q.length;
+  } catch {
+    return 0;
+  }
+};
+
 // Sincronizar cola al recuperar señal
 export const processOfflineQueue = async (onSuccessCallback) => {
   if (!navigator.onLine) return;

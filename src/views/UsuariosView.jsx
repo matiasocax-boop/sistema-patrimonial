@@ -1,4 +1,5 @@
 // Vista de gestión de usuarios -solo admin- (extraída de App.jsx, Fase 4).
+import EmptyState from '../components/EmptyState';
 export default function UsuariosView({
   usuariosList, setUsuarioEditing, setIsUsuarioModalOpen,
   esDesarrollador, currentUser, setItemToDelete, STYLES
@@ -82,7 +83,13 @@ export default function UsuariosView({
                 ))}
                 {usuariosList.length === 0 && (
                   <tr>
-                    <td colSpan="3" className="p-12 text-center text-sm font-medium text-zinc-400 italic">No hay usuarios registrados en el sistema.</td>
+                    <td colSpan="3">
+                      <EmptyState
+                        icon="fa-users-slash"
+                        titulo="Sin usuarios registrados"
+                        descripcion="Crea el primer usuario del sistema."
+                      />
+                    </td>
                   </tr>
                 )}
               </tbody>
