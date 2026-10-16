@@ -28,6 +28,14 @@ export const toInputDateFormat = (val) => {
   return '';
 };
 export const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
+// Acento de color por dependencia (hash estable del nombre -> tono HSL).
+// Se usa como variable CSS --dep-accent para detalles de identidad.
+export const colorPorDependencia = (dependencia) => {
+  const s = String(dependencia || 'UNP');
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+  return `hsl(${h}, 65%, 45%)`;
+};
 export const normalizeStr = (str) => 
   String(str || '')
     .normalize('NFD')

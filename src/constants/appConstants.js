@@ -29,3 +29,14 @@ export const FORMATO_PDF = [216, 330];
 
 // Etiquetas de la bandeja de pendientes del inventario.
 export const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida', porVencer: 'Vida útil por vencer' };
+
+// Atajos de teclado globales (se muestran en el modal de atajos y en Ayuda).
+export const SHORTCUTS = [
+    { teclas: ['Ctrl', 'K'], accion: 'Búsqueda global (bienes, funcionarios, acciones)' },
+    { teclas: ['/'], accion: 'Enfocar el buscador del inventario' },
+    { teclas: ['N'], accion: 'Nuevo registro de bien (desde Inventario)' },
+    { teclas: ['?'], accion: 'Abrir esta lista de atajos' },
+    { teclas: ['G', 'letra'], accion: 'Ir a sección (G+D panel, G+I inventario, G+F funcionarios, …)' },
+    { teclas: ['Esc'], accion: 'Cerrar paleta y diálogos' },
+    { teclas: ['↑', '↓', 'Enter'], accion: 'Navegar y elegir en la búsqueda global' },
+];

@@ -10,8 +10,8 @@ export default function AnunciosView({
   onEliminarGrupo,
   currentUser
 }) {
-  const [titulo, setTitulo] = useState('');
-  const [mensaje, setMensaje] = useState('');
+  const [titulo, setTitulo] = useState(() => { try { return localStorage.getItem('anuncio_borrador_titulo') || ''; } catch { return ''; } });
+  const [mensaje, setMensaje] = useState(() => { try { return localStorage.getItem('anuncio_borrador_mensaje') || ''; } catch { return ''; } });
   const [destino, setDestino] = useState('TODOS');
   const [enviando, setEnviando] = useState(false);
   const [eliminando, setEliminando] = useState(null);
@@ -29,7 +29,7 @@ export default function AnunciosView({
     setEnviando(true);
     try {
       const ok = await onEnviar({ titulo: titulo.trim(), mensaje: mensaje.trim(), destino });
-      if (ok) { setTitulo(''); setMensaje(''); setDestino('TODOS'); }
+      if (ok) { setTitulo(''); setMensaje(''); setDestino('TODOS'); try { localStorage.removeItem('anuncio_borrador_titulo'); localStorage.removeItem('anuncio_borrador_mensaje'); } catch {} }
     } finally {
       setEnviando(false);
     }
@@ -71,7 +71,7 @@ export default function AnunciosView({
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Título</label>
           <input
-            type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} maxLength={120}
+            type="text" value={titulo} onChange={(e) => { setTitulo(e.target.value); try { localStorage.setItem('anuncio_borrador_titulo', e.target.value); } catch {} }} maxLength={120}
             placeholder="Ej: Mantenimiento programado este sábado"
             className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 transition-all"
           />
@@ -79,7 +79,7 @@ export default function AnunciosView({
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Mensaje</label>
           <textarea
-            rows={3} value={mensaje} onChange={(e) => setMensaje(e.target.value)} maxLength={1000}
+            rows={3} value={mensaje} onChange={(e) => { setMensaje(e.target.value); try { localStorage.setItem('anuncio_borrador_mensaje', e.target.value); } catch {} }} maxLength={1000}
             placeholder="Detalle del aviso que verán en la campana de notificaciones..."
             className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-4 py-3 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 transition-all resize-none"
           />

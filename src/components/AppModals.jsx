@@ -182,7 +182,10 @@ export default function AppModals({
   clearAllFilters, setSearchTerm, setSearchInput, setCurrentPage,
   openFC03Modal,
   fc10List, fc11List,
-  modoCampo, setModoCampo, ultimoEscaneo, setUltimoEscaneo, openFichaBien
+  modoCampo, setModoCampo, ultimoEscaneo, setUltimoEscaneo, openFichaBien,
+  setDarkMode, setIsAtajosOpen,
+  handleExportInventarioCSV, handleExportInventarioExcel,
+  repetirUltimaExportacion, ultimaExportacion
 }) {
   return (
     <>
@@ -512,6 +515,15 @@ export default function AppModals({
             abrirEscaner={() => setIsScannerOpen(true)}
             abrirFC03={() => openFC03Modal()}
             irTab={irTabGlobal}
+            isAdmin={isAdmin}
+            esDesarrollador={esDesarrollador}
+            onToggleTheme={() => setDarkMode(v => !v)}
+            onAbrirAtajos={() => setIsAtajosOpen(true)}
+            onAbrirTour={() => setTourPaso(0)}
+            onExportCSV={() => handleExportInventarioCSV()}
+            onExportExcel={() => handleExportInventarioExcel()}
+            onRepetirExport={() => repetirUltimaExportacion()}
+            ultimaExportacion={ultimaExportacion}
           />
           <DependenciasModal
             isOpen={isDependenciasModalOpen}

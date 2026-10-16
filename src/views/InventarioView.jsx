@@ -13,6 +13,8 @@ export default function InventarioView({
   fileInputRef,
   handleExportInventarioCSV,
   handleExportInventarioExcel,
+  ultimaExportacion,
+  onRepetirExport,
   setIsBulkQR,
   setQrTargetBien,
   setIsQRModalOpen,
@@ -90,6 +92,17 @@ export default function InventarioView({
     });
   };
   const [menuCols, setMenuCols] = useState(false);
+  const [showHistorial, setShowHistorial] = useState(false);
+  const [recientes, setRecientes] = useState(() => { try { return JSON.parse(localStorage.getItem('inv_recientes') || '[]'); } catch { return []; } });
+  const guardarReciente = (texto) => {
+    const v = String(texto || '').trim();
+    if (!v) return;
+    setRecientes(prev => {
+      const next = [v, ...prev.filter(x => x !== v)].slice(0, 6);
+      try { localStorage.setItem('inv_recientes', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const ORDENES = [
     { id: 'natural', label: 'Orden natural' },
     { id: 'rotulo-asc', label: 'Rótulo A–Z' },
@@ -185,6 +198,17 @@ export default function InventarioView({
         <span>Excel</span>
       </button>
 
+      {ultimaExportacion && (
+        <button 
+          onClick={onRepetirExport} 
+          className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+          title={`Repetir última exportación (${ultimaExportacion.formato.toUpperCase()}) con los filtros actuales`}
+        >
+          <i className="fa-solid fa-rotate-right text-zinc-500"></i>
+          <span>Repetir</span>
+        </button>
+      )}
+
       <button 
         onClick={() => { setIsBulkQR(true); setQrTargetBien(null); setIsQRModalOpen(true); }} 
         className="inline-flex shrink-0 items-center gap-2 px-4 h-10 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
@@ -231,8 +255,34 @@ export default function InventarioView({
         placeholder="Buscar por rótulo, descripción, funcionario... Ej: 1045 silla"
         value={searchTerm}
         onChange={(e) => { setSearchTerm(e.target.value); setSearchInput(e.target.value); setCurrentPage(1); }}
+        onFocus={() => setShowHistorial(true)}
+        onBlur={() => setTimeout(() => setShowHistorial(false), 150)}
+        onKeyDown={(e) => { if (e.key === 'Enter' && searchTerm.trim()) { guardarReciente(searchTerm); setShowHistorial(false); } }}
         className="w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 pl-11 pr-11 text-sm font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:border-zinc-900 dark:focus:border-zinc-500 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/5 outline-none transition-all"
       />
+      {showHistorial && !searchTerm && recientes.length > 0 && (
+        <div className="absolute left-0 right-0 top-full mt-1.5 z-30 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-2xl py-1.5 animate-pop">
+          <p className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Búsquedas recientes</p>
+          {recientes.map(r => (
+            <button
+              key={r} type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { setSearchTerm(r); setSearchInput(r); setCurrentPage(1); setShowHistorial(false); }}
+              className="w-full flex items-center gap-2.5 px-4 py-2 text-left hover:bg-zinc-50 dark:hover:bg-white/5 transition-colors cursor-pointer"
+            >
+              <i className="fa-solid fa-clock-rotate-left text-[10px] text-zinc-400 shrink-0"></i>
+              <span className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200 truncate">{r}</span>
+            </button>
+          ))}
+          <button
+            type="button" onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setRecientes([]); try { localStorage.removeItem('inv_recientes'); } catch {} }}
+            className="w-full px-4 py-1.5 text-left text-[11px] font-bold text-zinc-400 hover:text-rose-500 transition-colors cursor-pointer"
+          >
+            Borrar historial
+          </button>
+        </div>
+      )}
       {searchTerm && (
         <button
           onClick={() => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); }}

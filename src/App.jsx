@@ -6,6 +6,7 @@ import SimpleBar from './components/SimpleBar';
 import { PeriodSelector } from './components/FilterComponents';
 import AnimatedNumber from './components/AnimatedNumber';
 import CommandPalette from './components/CommandPalette';
+import AtajosModal from './components/modals/AtajosModal';
 import TourGuiado from './components/TourGuiado';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -17,7 +18,7 @@ import { supabase } from './supabaseClient';
 import { 
     formatCurrency, formatCI, generateId, parseDateInfo, 
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, getPlaceholderLogo,
-    convertirImagenABase64, getLogoPorDependencia, comprimirImagen 
+    convertirImagenABase64, getLogoPorDependencia, comprimirImagen, colorPorDependencia 
 } from './utils/helpers';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { conSello, debeResyncTotal, fusionarBienes, ahoraISO } from './services/syncBienes';
@@ -543,9 +544,10 @@ export default function App() {
       addToast('No se pudo eliminar.', 'error');
     }
   };
-  // Atajo "/": enfoca el buscador del inventario · Ctrl/Cmd+K: paleta global
+  // Atajos: "/" buscador · Ctrl/Cmd+K paleta · N nuevo bien · ? lista de atajos
   const searchRef = useRef(null);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [isAtajosOpen, setIsAtajosOpen] = useState(false);
   const ultimaTeclaG = useRef(0);
   useEffect(() => {
     const TABS_ATAJO = {
@@ -566,6 +568,19 @@ export default function App() {
         if (activeTab !== 'inventario' || cmdOpen) return;
         e.preventDefault();
         searchRef.current?.focus();
+        return;
+      }
+      if (e.key === '?' && !escribiendo && !cmdOpen) {
+        e.preventDefault();
+        setIsAtajosOpen(true);
+        return;
+      }
+      if ((e.key.toLowerCase() === 'n') && !escribiendo && !cmdOpen && !isAtajosOpen) {
+        if (activeTab !== 'inventario') return;
+        if (document.querySelector('.modalOverlay')) return;
+        e.preventDefault();
+        setBienEditing(null);
+        setIsBienModalOpen(true);
         return;
       }
       // Secuencias g+letra para navegar (con ventana de 800ms)
@@ -971,6 +986,14 @@ useEffect(() => {
 
   // --- EN App_2.jsx ---
 
+  // Exportación favorita: recuerda el último formato para repetirlo en 1 clic.
+  const [ultimaExportacion, setUltimaExportacion] = useState(() => { try { return JSON.parse(localStorage.getItem('ultima_exportacion') || 'null'); } catch { return null; } });
+  const guardarUltimaExport = (formato) => {
+    const v = { formato, ts: Date.now() };
+    setUltimaExportacion(v);
+    try { localStorage.setItem('ultima_exportacion', JSON.stringify(v)); } catch {}
+  };
+
 
   // Handlers de PDFs/QR/CSV/Excel/backup: hook extraído (Fase 6).
   const {
@@ -988,6 +1011,13 @@ useEffect(() => {
     setBienes, setIsQRModalOpen, setIsConsolidatedFC10ModalOpen,
     resolveLogoImg: (...a) => resolveLogoImg(...a)
   });
+
+  const exportarCSV = () => { guardarUltimaExport('csv'); handleExportInventarioCSV(); };
+  const exportarExcel = () => { guardarUltimaExport('xlsx'); handleExportInventarioExcel(); };
+  const repetirUltimaExportacion = () => {
+    if (!ultimaExportacion) return addToast('Aún no hay exportaciones favoritas.', 'warning');
+    if (ultimaExportacion.formato === 'xlsx') handleExportInventarioExcel(); else handleExportInventarioCSV();
+  };
 
 
 
@@ -1389,7 +1419,8 @@ if (publicBienId) {
   }
 
   return (
-    <div className={`${darkMode ? 'dark' : ''} flex h-dvh overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`}>
+    <div className={`${darkMode ? 'dark' : ''} flex h-dvh overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`} style={{ '--dep-accent': colorPorDependencia(dependenciaActual) }}>
+      <a href="#contenido" className="skip-link px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-bold shadow-xl">Saltar al contenido</a>
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
       
@@ -1433,8 +1464,12 @@ if (publicBienId) {
 
       {isProcessing.active && (
         <div className="fixed inset-0 bg-white/80 dark:bg-black/80 backdrop-blur-sm z-[500] flex flex-col items-center justify-center animate-fade-in">
+          <div className="proc-track"><div className={`proc-fill ${isProcessing.pct == null ? 'indete' : ''}`} style={isProcessing.pct != null ? { width: `${Math.min(100, Math.max(0, isProcessing.pct))}%` } : undefined}></div></div>
           <i className="fa-solid fa-circle-notch fa-spin text-4xl text-brand-primary mb-4"></i>
           <h2 className="text-xl font-medium text-zinc-900 dark:text-white tracking-tight">{isProcessing.text}</h2>
+          {isProcessing.pct != null && (
+            <p className="text-sm font-bold text-zinc-500 dark:text-zinc-400 mt-2 tabular-nums">{Math.round(isProcessing.pct)}%</p>
+          )}
         </div>
       )}
       <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} esDesarrollador={esDesarrollador} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} />
@@ -1450,12 +1485,12 @@ if (publicBienId) {
 
           <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} />
 
-          <main className="flex-1 overflow-y-auto custom-scrollbar">
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
+          <main id="contenido" className="flex-1 overflow-y-auto custom-scrollbar">
+            <div key={activeTab} className="tab-enter mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
                 {activeTab === 'dashboard' && (<DashboardView currentUser={currentUser} dependenciaActual={dependenciaActual} saludoBienvenida={saludoBienvenida} stats={stats} pendientes={pendientes} isLoading={isLoading} timeStats={timeStats} clearAllFilters={clearAllFilters} setActiveTab={setActiveTab} setFiltroQR={setFiltroQR} setFiltroFC10={setFiltroFC10} setFiltroPendiente={setFiltroPendiente} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} fileInputRef={fileInputRef} handleExportInventarioCSV={handleExportInventarioCSV} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setFc10Year={setFc10Year} setFc10Month={setFc10Month} />)}
 
                 {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
-                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={handleExportInventarioCSV} handleExportInventarioExcel={handleExportInventarioExcel} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
+                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
 
                 {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} />)}
 
@@ -1475,8 +1510,9 @@ if (publicBienId) {
 
       {/* Modales y componentes flotantes (carga diferida) */}
       <Suspense fallback={null}>
-      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} previsualizarCSVBienes={previsualizarCSVBienes} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List}  modoCampo={modoCampo} setModoCampo={setModoCampo} ultimoEscaneo={ultimoEscaneo} setUltimoEscaneo={setUltimoEscaneo} openFichaBien={openFichaBien} />
+      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} setDarkMode={setDarkMode} setIsAtajosOpen={setIsAtajosOpen} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} repetirUltimaExportacion={repetirUltimaExportacion} ultimaExportacion={ultimaExportacion} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} previsualizarCSVBienes={previsualizarCSVBienes} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List}  modoCampo={modoCampo} setModoCampo={setModoCampo} ultimoEscaneo={ultimoEscaneo} setUltimoEscaneo={setUltimoEscaneo} openFichaBien={openFichaBien} />
       </Suspense>
+      <AtajosModal isOpen={isAtajosOpen} onClose={() => setIsAtajosOpen(false)} STYLES={STYLES} />
     </div>
   );
 }

@@ -260,11 +260,93 @@ select:focus {
 .login-rise-3 { animation-delay: 0.24s; }
 .login-rise-4 { animation-delay: 0.32s; }
 
+@keyframes app-tab-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes app-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-11deg); }
+  45% { transform: rotate(7deg); }
+  60% { transform: rotate(-5deg); }
+  75% { transform: rotate(3deg); }
+}
+
+@keyframes app-row-flash {
+  0% { background-color: rgba(29, 78, 216, 0.16); box-shadow: inset 3px 0 0 #1d4ed8; }
+  100% { background-color: transparent; box-shadow: inset 3px 0 0 transparent; }
+}
+
+@keyframes app-proc-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(320%); }
+}
+
+@keyframes app-check-pop {
+  0% { opacity: 0; transform: scale(0.4); }
+  60% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Transición entre pestañas (el contenedor se remonta con key=activeTab) */
+.tab-enter { animation: app-tab-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Micro-interacciones */
+.btn-press { transition: transform 0.12s ease; }
+.btn-press:active { transform: scale(0.94); }
+.bell-attention { animation: app-bell-ring 0.7s ease both; transform-origin: top center; }
+.card-lift { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.card-lift:hover { transform: translateY(-2px); }
+.row-flash { animation: app-row-flash 2.4s ease-out both; }
+.check-pop { animation: app-check-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Barra de progreso superior (procesos globales) */
+.proc-track { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 600; background: transparent; overflow: hidden; }
+.proc-fill { height: 100%; border-radius: 9999px; background: linear-gradient(90deg, #1d4ed8, #60a5fa); transition: width 0.25s ease; }
+.proc-fill.indete { width: 30%; animation: app-proc-slide 1.1s ease-in-out infinite; }
+
+/* Enlace "saltar al contenido" (solo visible con teclado) */
+.skip-link { position: fixed; top: -60px; left: 16px; z-index: 700; transition: top 0.2s ease; }
+.skip-link:focus-visible { top: 12px; }
+
+/* Texto grande (preferencia de apariencia) */
+html.font-lg { font-size: 18px; }
+
+/* Contraste alto: refuerza textos apagados y bordes en oscuro */
+.dark.contrast-more .dark\:text-zinc-400 { color: #e4e4e7 !important; }
+.dark.contrast-more .dark\:text-zinc-500 { color: #d4d4d8 !important; }
+.dark.contrast-more .dark\:text-zinc-300 { color: #fafafa !important; }
+.dark.contrast-more .dark\:border-white\/10 { border-color: rgba(255, 255, 255, 0.28) !important; }
+.dark.contrast-more .dark\:bg-white\/5 { background-color: rgba(255, 255, 255, 0.09) !important; }
+
+/* Pulido general del modo oscuro: superficies y focos */
+.dark body { background-color: #0c0c0e; }
+.dark ::selection { background: rgba(96, 165, 250, 0.35); }
+::selection { background: rgba(29, 78, 216, 0.18); }
+
+/* Acento por dependencia (variable --dep-accent desde App) */
+.dep-accent-bar { background: var(--dep-accent, #1d4ed8); }
+.dep-accent-ring { box-shadow: 0 0 0 2px var(--dep-accent, #1d4ed8); }
+
+/* Foco visible global (no pisa los rings de Tailwind, solo fallback) */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Reducir animaciones (preferencia manual + sistema) */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
   .animate-shake,
   .animate-pop,
+  .tab-enter,
+  .bell-attention,
+  .row-flash,
   .login-kenburns,
   .login-orb-a,
   .login-orb-b,
@@ -277,5 +359,8 @@ select:focus {
   }
   .shimmer-wrap::after {
     display: none;
+  }
+  html {
+    scroll-behavior: auto;
   }
 }

@@ -18,7 +18,7 @@ export default function Sidebar({
     );
     const brandCaption = (
         <div className="mt-3 flex items-center gap-2.5">
-            <span className="h-px w-4 bg-brand-primary/60"></span>
+            <span className="h-px w-4 dep-accent-bar opacity-80"></span>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">Dpto. Bienes Patrimoniales</p>
         </div>
     );

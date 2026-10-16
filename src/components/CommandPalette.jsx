@@ -4,7 +4,9 @@ import { normalizeStr } from '../utils/helpers';
 // Paleta de comandos global (Ctrl+K): bienes, funcionarios y acciones.
 export default function CommandPalette({
   isOpen, onClose, bienes, funcionarios, dependenciaActual,
-  irInventario, abrirNuevoBien, abrirEscaner, abrirFC03, irTab
+  irInventario, abrirNuevoBien, abrirEscaner, abrirFC03, irTab,
+  isAdmin, esDesarrollador, onToggleTheme, onAbrirAtajos, onAbrirTour,
+  onExportCSV, onExportExcel, onRepetirExport, ultimaExportacion
 }) {
   const [query, setQuery] = useState('');
   const [sel, setSel] = useState(0);
@@ -26,7 +28,24 @@ export default function CommandPalette({
       const h = normalizeStr(texto);
       return tokens.every(t => h.includes(t));
     };
+    const guardarReciente = (r) => {
+      try {
+        const prev = JSON.parse(localStorage.getItem('cmd_recientes') || '[]');
+        const next = [{ kind: r.kind, ref: r.ref, titulo: r.titulo, subtitulo: r.subtitulo }, ...prev.filter(x => !(x.kind === r.kind && x.ref === r.ref))].slice(0, 5);
+        localStorage.setItem('cmd_recientes', JSON.stringify(next));
+      } catch {}
+    };
     const out = [];
+    // Recientes (solo sin búsqueda): bienes y funcionarios visitados
+    if (!tokens.length) {
+      try {
+        const recientes = JSON.parse(localStorage.getItem('cmd_recientes') || '[]');
+        recientes.forEach(r => {
+          if (r.kind === 'bien') out.push({ tipo: 'Reciente', titulo: r.titulo, subtitulo: r.subtitulo, icon: 'fa-tag', accion: () => irInventario(r.ref) });
+          if (r.kind === 'func') out.push({ tipo: 'Reciente', titulo: r.titulo, subtitulo: r.subtitulo, icon: 'fa-user-tie', accion: () => irTab('funcionarios', r.ref) });
+        });
+      } catch {}
+    }
     if (dependenciaActual) {
       bienes
         .filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual))
@@ -34,7 +53,7 @@ export default function CommandPalette({
         .slice(0, 6)
         .forEach(b => out.push({
           tipo: 'Bien', titulo: b.rotulo || 'S/R', subtitulo: String(b.descripcion || '').slice(0, 60),
-          icon: 'fa-tag', accion: () => irInventario(b.rotulo || '')
+          icon: 'fa-tag', accion: () => { guardarReciente({ kind: 'bien', ref: b.rotulo || '', titulo: b.rotulo || 'S/R', subtitulo: String(b.descripcion || '').slice(0, 60) }); irInventario(b.rotulo || ''); }
         }));
       funcionarios
         .filter(f => !dependenciaActual || f.dependencia === dependenciaActual)
@@ -42,20 +61,34 @@ export default function CommandPalette({
         .slice(0, 3)
         .forEach(f => out.push({
           tipo: 'Funcionario', titulo: f.nombre, subtitulo: f.cedula ? `CI ${f.cedula}` : (f.cargo || ''),
-          icon: 'fa-user-tie', accion: () => irTab('funcionarios', f.nombre || '')
+          icon: 'fa-user-tie', accion: () => { guardarReciente({ kind: 'func', ref: f.nombre || '', titulo: f.nombre, subtitulo: f.cedula ? `CI ${f.cedula}` : (f.cargo || '') }); irTab('funcionarios', f.nombre || ''); }
         }));
     }
-    [
+    const acciones = [
       { titulo: 'Nuevo registro de bien', subtitulo: 'Inventario', icon: 'fa-plus', accion: abrirNuevoBien },
       { titulo: 'Escanear código QR', subtitulo: 'Cámara', icon: 'fa-qrcode', accion: abrirEscaner },
       { titulo: 'Generar reporte FC-03', subtitulo: 'Documento', icon: 'fa-print', accion: abrirFC03 },
+      { titulo: 'Exportar inventario (CSV)', subtitulo: 'Descarga', icon: 'fa-file-export', accion: onExportCSV },
+      { titulo: 'Exportar inventario (Excel)', subtitulo: 'Descarga', icon: 'fa-file-excel', accion: onExportExcel },
+      ...(ultimaExportacion ? [{ titulo: `Repetir última exportación (${ultimaExportacion.formato.toUpperCase()})`, subtitulo: 'Favorita', icon: 'fa-rotate-right', accion: onRepetirExport }] : []),
+      { titulo: 'Alternar tema claro / oscuro', subtitulo: 'Apariencia', icon: 'fa-circle-half-stroke', accion: onToggleTheme },
+      { titulo: 'Ver atajos de teclado', subtitulo: 'Ayuda', icon: 'fa-keyboard', accion: onAbrirAtajos },
+      { titulo: 'Hacer tour guiado', subtitulo: 'Ayuda', icon: 'fa-route', accion: onAbrirTour },
       { titulo: 'Ir al Inventario General', subtitulo: 'Sección', icon: 'fa-boxes-stacked', accion: () => irTab('inventario') },
       { titulo: 'Ir a Asignaciones FC-10', subtitulo: 'Sección', icon: 'fa-file-signature', accion: () => irTab('fc10') },
       { titulo: 'Ir a Mi Dependencia', subtitulo: 'Sección', icon: 'fa-house-user', accion: () => irTab('resumen') },
-    ].filter(a => !tokens.length || match(`${a.titulo} ${a.subtitulo}`))
-      .forEach(a => out.push({ tipo: 'Acción', ...a }));
-    return out.slice(0, 12);
-  }, [query, bienes, funcionarios, dependenciaActual, irInventario, abrirNuevoBien, abrirEscaner, abrirFC03, irTab]);
+      ...(isAdmin ? [
+        { titulo: 'Ir a Aprobaciones', subtitulo: 'Sección', icon: 'fa-check-to-slot', accion: () => irTab('aprobaciones') },
+        { titulo: 'Ir a Auditoría', subtitulo: 'Sección', icon: 'fa-magnifying-glass-chart', accion: () => irTab('auditoria') },
+        { titulo: 'Ir a Gestión de Usuarios', subtitulo: 'Sección', icon: 'fa-users-gear', accion: () => irTab('usuarios') },
+      ] : []),
+      ...(esDesarrollador ? [
+        { titulo: 'Ir a Anuncios', subtitulo: 'Sección', icon: 'fa-bullhorn', accion: () => irTab('anuncios') },
+      ] : []),
+    ].filter(a => a.accion && (!tokens.length || match(`${a.titulo} ${a.subtitulo}`)));
+    acciones.forEach(a => out.push({ tipo: 'Acción', ...a }));
+    return out.slice(0, 14);
+  }, [query, bienes, funcionarios, dependenciaActual, irInventario, abrirNuevoBien, abrirEscaner, abrirFC03, irTab, isAdmin, esDesarrollador, onToggleTheme, onAbrirAtajos, onAbrirTour, onExportCSV, onExportExcel, onRepetirExport, ultimaExportacion]);
 
   useEffect(() => { setSel(0); }, [query]);
 

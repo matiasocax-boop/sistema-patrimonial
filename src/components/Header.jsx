@@ -87,7 +87,7 @@ export default function Header({
                     <div className="relative flex items-center">
                         {isNotifOpen && <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>}
                         <button onClick={() => setIsNotifOpen(!isNotifOpen)} title="Notificaciones" className="relative flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer z-50 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
-                            <i className="fa-regular fa-bell"></i>
+                            <i key={unreadCount} className={`fa-regular fa-bell ${unreadCount > 0 ? 'bell-attention' : ''}`}></i>
                             {unreadCount > 0 && <span className="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-darkbg-card"></span>}
                         </button>
                         
