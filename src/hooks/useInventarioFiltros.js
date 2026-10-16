@@ -185,10 +185,11 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
   }, [bienes, dependenciaActual]);
 
   const filteredBienes = useMemo(() => {
-    // Compara ignorando mayúsculas y espacios extra
+    // Compara ignorando mayúsculas, tildes y espacios extra (antes el ===
+    // exacto partía los resultados si el nombre tenía variantes de carga)
     let filtered = bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual));
-    if (filtroFuncionario) filtered = filtered.filter(b => String(b.funcionario||'').trim() === filtroFuncionario);
-    if (filtroUbicacion) filtered = filtered.filter(b => String(b.ubicacion||'').trim() === filtroUbicacion);
+    if (filtroFuncionario) filtered = filtered.filter(b => normalizeStr(b.funcionario || '') === normalizeStr(filtroFuncionario));
+    if (filtroUbicacion) filtered = filtered.filter(b => normalizeStr(b.ubicacion || '') === normalizeStr(filtroUbicacion));
     if (filtroAnio) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).year === filtroAnio);
     if (filtroMes) filtered = filtered.filter(b => parseDateInfo(b.fechaAdquisicion).month === filtroMes);
     if (filtroSubcuenta) filtered = filtered.filter(b => String(b.subcuenta||'').trim() === filtroSubcuenta);
