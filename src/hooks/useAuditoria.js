@@ -37,10 +37,30 @@ export function useAuditoria({
   const [kpisAud, setKpisAud] = useState({ total: 0, altas: 0, mods: 0, bajas: 0 });
   const [accionesUnicasAud, setAccionesUnicasAud] = useState([]);
   const limpiarBusquedaAud = (texto) => String(texto || '').replace(/[%(),.]/g, ' ').replace(/\s+/g, ' ').trim();
+  // Higiene de auditoría: retención de 5 días. Se ejecuta como máximo una
+  // vez al día al entrar al libro (solo admin). Borra eventos con fecha
+  // anterior al corte, en lotes para no saturar.
+  const RETENCION_AUD_MS = 5 * 24 * 3600 * 1000;
+  const purgarAuditoriaVieja = async () => {
+    try {
+      const key = 'aud_purge_ts';
+      const last = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+      if (Date.now() - last < 24 * 3600 * 1000) return;
+      localStorage.setItem(key, String(Date.now()));
+      const corte = new Date(Date.now() - RETENCION_AUD_MS).toISOString();
+      for (;;) {
+        const { data, error } = await supabase.from('auditoria').select('id').lt('fecha', corte).limit(500);
+        if (error || !data || data.length === 0) break;
+        await supabase.from('auditoria').delete().in('id', data.map(r => r.id));
+        if (data.length < 500) break;
+      }
+    } catch (e) {}
+  };
   const fetchAuditoria = async (pagina = 1) => {
     const pag = Number.isInteger(pagina) && pagina > 0 ? pagina : 1;
     setIsLoadingAud(true);
     try {
+      await purgarAuditoriaVieja();
       let q = supabase.from('auditoria').select('*', { count: 'exact' }).order('fecha', { ascending: false });
       if (alcanceAud === 'dep') q = q.eq('dependencia', dependenciaActual);
       if (filtroAccionAud) q = q.eq('accion', filtroAccionAud);
