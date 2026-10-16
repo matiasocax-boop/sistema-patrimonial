@@ -909,30 +909,27 @@ useEffect(() => {
           setIsProcessing({ active: false, text: '' });
       }
   };
-  // Módulo Anuncios (solo desarrollador): fan-out de una fila por
-  // destinatario para que el leído sea individual en la campana.
+  // Módulo Anuncios (solo desarrollador): una sola fila por anuncio.
+  // Broadcast (TODOS) con leídos por usuario; directo con leído simple.
   const enviarAnuncio = async ({ titulo, mensaje, destino }) => {
       const remitente = currentUser?.username || 'Desarrollador';
       const dests = destino === 'TODOS' ? usuariosList.map(u => u.username).filter(Boolean) : [destino];
       if (dests.length === 0) { addToast('No hay destinatarios.', 'warning'); return false; }
       try {
           setIsProcessing({ active: true, text: 'Enviando anuncio...' });
+          const id = generateId();
           const grupo = generateId();
           const fecha = new Date().toISOString();
-          const filas = dests.map(u => {
-              const id = generateId();
-              const data = { id, tipoRegistro: 'NOTIFICACION', accion: 'anuncio', usuarioDestino: u, titulo, mensaje, leido: false, fecha, remitente, grupo, alcance: destino === 'TODOS' ? 'TODOS' : destino };
-              return { id, data };
-          });
-          const { error } = await supabase.from('notificaciones').insert(filas);
+          const data = { id, tipoRegistro: 'NOTIFICACION', accion: 'anuncio', usuarioDestino: destino === 'TODOS' ? 'TODOS' : destino, alcance: destino === 'TODOS' ? 'TODOS' : destino, titulo, mensaje, leido: false, leidos: [], totalDest: dests.length, fecha, remitente, grupo };
+          const { error } = await supabase.from('notificaciones').insert([{ id, data }]);
           if (error) throw error;
-          setNotificaciones(prev => [...filas.map(f => ({ id: f.id, ...f.data })), ...prev]);
+          setNotificaciones(prev => [{ id, ...data }, ...prev]);
           await registrarAuditoria({
               usuario: remitente, dependencia: dependenciaActual,
               accion: 'ENVIAR_ANUNCIO', entidad: 'NOTIFICACION', entidadId: grupo,
-              detalles: { titulo, destino, total: filas.length }
+              detalles: { titulo, destino, total: dests.length }
           });
-          addToast(`Anuncio enviado a ${filas.length} usuario${filas.length === 1 ? '' : 's'}.`, 'success');
+          addToast(destino === 'TODOS' ? `Anuncio enviado a ${dests.length} usuarios.` : `Anuncio enviado a @${destino}.`, 'success');
           return true;
       } catch (e) {
           addToast('No se pudo enviar el anuncio.', 'error');
@@ -958,8 +955,15 @@ useEffect(() => {
           const g = n.grupo || n.id;
           if (!mapa.has(g)) mapa.set(g, { grupo: g, titulo: n.titulo || '(Sin título)', mensaje: n.mensaje || '', fecha: n.fecha, remitente: n.remitente, alcance: n.alcance || n.usuarioDestino, total: 0, leidos: 0 });
           const e = mapa.get(g);
-          e.total++;
-          if (n.leido) e.leidos++;
+          if (Array.isArray(n.leidos) || n.totalDest) {
+              // Formato nuevo: una sola fila (toma el máximo por seguridad)
+              e.total = Math.max(e.total, n.totalDest || 0);
+              e.leidos = Math.max(e.leidos, (n.leidos || []).length);
+          } else {
+              // Formato legacy (fan-out): una fila por destinatario
+              e.total++;
+              if (n.leido) e.leidos++;
+          }
           if (new Date(n.fecha).getTime() > new Date(e.fecha).getTime()) e.fecha = n.fecha;
       });
       return [...mapa.values()].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());

@@ -24,6 +24,53 @@ export function useRealtimeSync({
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // Higiene de notificaciones: retención de 2 días. Solo se borra lo ya
+  // visto (leídas) y las solicitudes resueltas; lo no leído y lo pendiente
+  // nunca se toca.
+  const RETENCION_NOTIF_MS = 2 * 24 * 60 * 60 * 1000;
+  const esAnuncioGlobal = (n) => !!n && n.accion === 'anuncio' && n.usuarioDestino === 'TODOS';
+
+  // Fetch acotado: solo mías + broadcast + solicitudes pendientes, con
+  // límite. Antes era `select('*')` de toda la tabla para todos.
+  const queryNotificacionesAcotadas = () => {
+    const u = String(currentUser?.username || '').replace(/[,()]/g, '');
+    const filtros = u
+      ? `data->>usuarioDestino.eq.${u},data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`
+      : `data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`;
+    return supabase.from('notificaciones').select('id, data, updated_at').or(filtros).order('updated_at', { ascending: false }).limit(500);
+  };
+
+  // Purga local (throttle 2 días por usuario): borra leídas viejas,
+  // anuncios globales totalmente leídos y solicitudes resueltas viejas.
+  const purgarNotificacionesViejas = async (filas) => {
+    try {
+      const user = currentUser?.username || 'anon';
+      const key = `notif_purge_ts_${user}`;
+      const last = parseInt(localStorage.getItem(key) || '0', 10) || 0;
+      if (Date.now() - last < RETENCION_NOTIF_MS) return;
+      localStorage.setItem(key, String(Date.now()));
+      const corte = Date.now() - RETENCION_NOTIF_MS;
+      const fechaDe = (n) => new Date(n.resueltoFecha || n.fecha || n.created_at || 0).getTime() || 0;
+      const paraBorrar = (filas || []).filter(n => {
+        if (fechaDe(n) >= corte) return false;
+        if (n.tipo === 'BAJA_BIEN' || n.tipo === 'BAJA_FUNCIONARIO') {
+          return n.estado === 'APROBADO' || n.estado === 'RECHAZADO';
+        }
+        if (esAnuncioGlobal(n)) {
+          return (n.totalDest || 0) > 0 && (n.leidos || []).length >= (n.totalDest || 0);
+        }
+        return n.leido === true;
+      });
+      if (paraBorrar.length === 0) return;
+      const ids = paraBorrar.map(n => n.id);
+      for (let i = 0; i < ids.length; i += 20) {
+        await Promise.all(ids.slice(i, i + 20).map(id => supabase.from('notificaciones').delete().eq('id', id)));
+      }
+      const set = new Set(ids);
+      setNotificaciones(prev => prev.filter(n => !set.has(n.id)));
+    } catch (e) {}
+  };
+
   const fetchData = useCallback(async (isSilent = false) => {
     try {
       if (!isSilent) setIsLoading(true);
@@ -122,7 +169,7 @@ export function useRealtimeSync({
             supabase.from('fc11').select('id, data'), 
             supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
             supabase.from('estructuras').select('id, data'), 
-            supabase.from('notificaciones').select('*'),
+            queryNotificacionesAcotadas(),
             supabase.from('usuarios').select('username, nombre, cargo, dependencia'),
             supabase.from('funcionarios').select('*')
         ]);
@@ -220,6 +267,18 @@ export function useRealtimeSync({
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
 
   const markAsRead = async (notif) => {
+      const user = currentUser?.username;
+      if (esAnuncioGlobal(notif)) {
+          const leidos = Array.isArray(notif.leidos) ? notif.leidos : [];
+          if (!user || leidos.includes(user)) return;
+          const { leido: _ign, ...base } = notif;
+          const updated = { ...base, leidos: [...leidos, user] };
+          setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
+          try {
+              await supabase.from('notificaciones').update({ data: updated }).eq('id', notif.id);
+          } catch(e) {}
+          return;
+      }
       if(notif.leido) return;
       const updated = {...notif, leido: true};
       setNotificaciones(prev => prev.map(n => n.id === notif.id ? updated : n));
@@ -229,18 +288,40 @@ export function useRealtimeSync({
   };
 
   const markAllAsRead = async () => {
+      const user = currentUser?.username;
       const pendientes = misNotificaciones.filter(n => !n.leido);
       if (pendientes.length === 0) return;
-      setNotificaciones(prev => prev.map(n => ({ ...n, leido: true })));
+      const ids = new Set(pendientes.map(n => n.id));
+      setNotificaciones(prev => prev.map(n => {
+          if (!ids.has(n.id)) return n;
+          if (esAnuncioGlobal(n)) {
+              const leidos = Array.isArray(n.leidos) ? n.leidos : [];
+              return (user && !leidos.includes(user)) ? { ...n, leidos: [...leidos, user] } : n;
+          }
+          return { ...n, leido: true };
+      }));
       try {
-          await Promise.all(pendientes.map(n =>
-              supabase.from('notificaciones').update({ data: { ...n, leido: true } }).eq('id', n.id)
-          ));
+          await Promise.all(pendientes.map(n => {
+              const base = notificaciones.find(x => x.id === n.id) || n;
+              let payload;
+              if (esAnuncioGlobal(base)) {
+                  const { leido: _ign, ...sinLeido } = base;
+                  const leidos = Array.isArray(base.leidos) ? base.leidos : [];
+                  payload = user && !leidos.includes(user) ? { ...sinLeido, leidos: [...leidos, user] } : null;
+              } else {
+                  payload = { ...n, leido: true };
+              }
+              return payload ? supabase.from('notificaciones').update({ data: payload }).eq('id', n.id) : Promise.resolve();
+          }));
       } catch (e) {}
   };
 
   const misNotificaciones = useMemo(() => { 
-    const directas = notificaciones.filter(n => n.tipoRegistro === 'NOTIFICACION' && n.usuarioDestino === currentUser?.username);
+    // Broadcast (TODOS) + directas. En el broadcast el leído es por
+    // usuario (array `leidos`); se mapea a `leido` efectivo para la UI.
+    const directas = notificaciones
+      .filter(n => n.tipoRegistro === 'NOTIFICACION' && (n.usuarioDestino === currentUser?.username || n.usuarioDestino === 'TODOS'))
+      .map(n => (esAnuncioGlobal(n) ? { ...n, leido: (n.leidos || []).includes(currentUser?.username) } : n));
 
     if (isAdmin) {
       const solicitudesComoNotif = notificaciones
@@ -275,16 +356,22 @@ export function useRealtimeSync({
   };
 
   const cargarNotificaciones = async () => {
-      const { data, error } = await supabase.from('notificaciones').select('*');
+      const { data, error } = await queryNotificacionesAcotadas();
       if (!error && data) {
-          setNotificaciones(data.map(parseNotifRow));
+          const filas = data.map(parseNotifRow);
+          setNotificaciones(filas);
+          purgarNotificacionesViejas(filas);
       }
   };
 
-  // Sondeo liviano: últimas 100 por actualización, fusionadas sin recargar todo
+  // Sondeo liviano: últimas 100 relevantes, fusionadas sin recargar todo
   const sondearNotificaciones = async () => {
       try {
-          const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').order('updated_at', { ascending: false }).limit(100);
+          const u = String(currentUser?.username || '').replace(/[,()]/g, '');
+          const filtros = u
+            ? `data->>usuarioDestino.eq.${u},data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`
+            : `data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`;
+          const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').or(filtros).order('updated_at', { ascending: false }).limit(100);
           if (error || !data) return;
           const frescas = data.map(parseNotifRow);
           setNotificaciones(prev => {
@@ -304,6 +391,11 @@ export function useRealtimeSync({
           const row = payload.new;
           if (!row) return;
           const parsed = parseNotifRow(row);
+          // El canal trae cambios de todos: lo ajeno no se mezcla.
+          const u = currentUser?.username;
+          const esMia = parsed.tipoRegistro === 'NOTIFICACION' && (parsed.usuarioDestino === u || parsed.usuarioDestino === 'TODOS');
+          const esSolicitud = (parsed.tipo === 'BAJA_BIEN' || parsed.tipo === 'BAJA_FUNCIONARIO') && parsed.estado === 'PENDIENTE';
+          if (!esMia && !esSolicitud) return;
           setNotificaciones(prev => {
               const i = prev.findIndex(n => n.id === parsed.id);
               if (i === -1) return [parsed, ...prev];
