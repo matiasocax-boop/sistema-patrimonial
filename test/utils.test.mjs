@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { numeroALetras } from '../src/utils/numeroLetras.js';
 import { extraerCodigoQR } from '../src/utils/qr.js';
 import { normalizarBien, tieneValor } from '../src/utils/bienPublico.js';
+import { puntuarOpcion, ordenarPorCercania } from '../src/utils/busqueda.js';
+import { normalizeStr } from '../src/utils/helpers.js';
 
 describe('numeroALetras', () => {
   it('casos base', () => {
@@ -39,5 +41,24 @@ describe('bienPublico', () => {
     assert.equal(tieneValor({ valorUnitario: '70.000' }), true);
     assert.equal(tieneValor({ valorUnitario: '0' }), false);
     assert.equal(tieneValor(null), false);
+  });
+});
+
+describe('busqueda sin tildes (reclamo de Victor/Victor)', () => {
+  it('normalizeStr ignora tildes y mayusculas', () => {
+    assert.equal(normalizeStr('Víctor'), normalizeStr('victor'));
+    assert.equal(normalizeStr('Fernández Cristaldo'), normalizeStr('fernandez cristaldo'));
+  });
+
+  it('puntuarOpcion ordena por cercania', () => {
+    const q = normalizeStr('victor');
+    assert.ok(puntuarOpcion(normalizeStr('Víctor Ríos'), q) < puntuarOpcion(normalizeStr('Convicto Barrios'), q));
+    assert.ok(puntuarOpcion(normalizeStr('Víctor'), q) < puntuarOpcion(normalizeStr('Alvíctor Gómez'), q));
+    assert.equal(puntuarOpcion(normalizeStr('otra cosa'), 'zzz'), 3);
+  });
+
+  it('ordenarPorCercania devuelve lo mas cercano primero', () => {
+    const r = ordenarPorCercania(['Alvíctor Gómez', 'Víctor Ríos'], 'victor').map(o => o.original);
+    assert.deepEqual(r, ['Víctor Ríos', 'Alvíctor Gómez']);
   });
 });

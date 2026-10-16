@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { toInputDateFormat, formatearMiles } from '../utils/helpers';
+import { toInputDateFormat, formatearMiles, normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
 
 export default function BienModal({
@@ -18,8 +18,7 @@ export default function BienModal({
     sugerenciasBienes = [],
     STYLES
 }) {
-    const normalizeStr = (str) => String(str || '').trim().toUpperCase().replace(/\s+/g, ' ');
-
+    // normalizeStr compartido de helpers (NFD: quita tildes).
     // Estado para custodio
     const [custodioTexto, setCustodioTexto] = useState(bienEditing?.funcionario || '');
     const [showCustodioDropdown, setShowCustodioDropdown] = useState(false);

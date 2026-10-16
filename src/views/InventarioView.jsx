@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PENDIENTE_LABELS, ESTADOS_CONSERVACION } from '../constants/appConstants';
+import FiltroCombo from '../components/FiltroCombo';
 import { formatDateText } from '../utils/helpers';
 
 // Vista del inventario general (extraída de App.jsx, Fase 5).
@@ -247,64 +248,58 @@ export default function InventarioView({
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
 
       {/* Responsables */}
-      <select 
-        value={filtroFuncionario || ''} 
-        onChange={(e) => setFiltroFuncionario(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Responsables: Todos</option>
-        {funcionariosUnicos.map(f => <option key={f} value={f}>{f}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroFuncionario}
+        opciones={funcionariosUnicos}
+        onElegir={(v) => { setFiltroFuncionario(v); setCurrentPage(1); }}
+        etiquetaTodos="Responsables: Todos"
+        titulo="Filtrar por responsable"
+      />
 
       {/* Ubicaciones */}
-      <select 
-        value={filtroUbicacion || ''} 
-        onChange={(e) => setFiltroUbicacion(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Ubicación: Todas</option>
-        {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroUbicacion}
+        opciones={ubicacionesUnicas}
+        onElegir={(v) => { setFiltroUbicacion(v); setCurrentPage(1); }}
+        etiquetaTodos="Ubicación: Todas"
+        titulo="Filtrar por ubicación"
+      />
 
       {/* Año */}
-      <select 
-        value={filtroAnio || ''} 
-        onChange={(e) => setFiltroAnio(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Año: Todos</option>
-        {aniosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroAnio}
+        opciones={aniosUnicos}
+        onElegir={(v) => { setFiltroAnio(v); setCurrentPage(1); }}
+        etiquetaTodos="Año: Todos"
+        titulo="Filtrar por año"
+      />
 
       {/* Subcuenta */}
-      <select 
-        value={filtroSubcuenta || ''} 
-        onChange={(e) => setFiltroSubcuenta(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Subcuenta: Todas</option>
-        {subcuentasUnicas.map(s => <option key={s} value={s}>{s}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroSubcuenta}
+        opciones={subcuentasUnicas}
+        onElegir={(v) => { setFiltroSubcuenta(v); setCurrentPage(1); }}
+        etiquetaTodos="Subcuenta: Todas"
+        titulo="Filtrar por subcuenta"
+      />
 
       {/* Analítico 1 */}
-      <select 
-        value={filtroAnalitico1 || ''} 
-        onChange={(e) => setFiltroAnalitico1(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Analítico 1: Todos</option>
-        {analiticos1Unicos.map(a1 => <option key={a1} value={a1}>{a1}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroAnalitico1}
+        opciones={analiticos1Unicos}
+        onElegir={(v) => { setFiltroAnalitico1(v); setCurrentPage(1); }}
+        etiquetaTodos="Analítico 1: Todos"
+        titulo="Filtrar por analítico 1"
+      />
 
       {/* Analítico 2 */}
-      <select 
-        value={filtroAnalitico2 || ''} 
-        onChange={(e) => setFiltroAnalitico2(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="">Analítico 2: Todos</option>
-        {analiticos2Unicos.map(a2 => <option key={a2} value={a2}>{a2}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroAnalitico2}
+        opciones={analiticos2Unicos}
+        onElegir={(v) => { setFiltroAnalitico2(v); setCurrentPage(1); }}
+        etiquetaTodos="Analítico 2: Todos"
+        titulo="Filtrar por analítico 2"
+      />
 
       {/* FC-10 */}
       <select 
