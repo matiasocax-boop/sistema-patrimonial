@@ -76,39 +76,58 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     };
 
     // Resolución tolerante contra el padrón (tildes, mayúsculas, espacios).
-    // El match exacto anterior fallaba en silencio y dejaba CI/cargo vacíos.
+    // Prioriza coincidencia exacta y, entre fuzzy, la que tenga CI/cargo.
+    // Antes el primer fuzzy (a veces una fila vacía/duplicada) ganaba y
+    // dejaba CI/cargo vacíos aunque el dato existía en el padrón.
     const resolverFuncionario = (valor) => {
         const q = normalizeStr(valor || '');
         if (!q) return null;
-        return safeFuncionarios.find(f => normalizeStr(f.nombre || '') === q)
-            || safeFuncionarios.find(f => normalizeStr(f.nombre || '').includes(q) || q.includes(normalizeStr(f.nombre || '')))
-            || null;
+        const exacto = safeFuncionarios.find(f => normalizeStr(f.nombre || '') === q);
+        if (exacto) return exacto;
+        const cands = safeFuncionarios.filter(f => {
+            const n = normalizeStr(f.nombre || '');
+            return n.includes(q) || q.includes(n);
+        });
+        if (!cands.length) return null;
+        cands.sort((a, b) => ((b.doc ? 1 : 0) + (b.cargo ? 1 : 0)) - ((a.doc ? 1 : 0) + (a.cargo ? 1 : 0)));
+        return cands[0];
     };
 
-    // Función que lee el padrón en tiempo real
+    // Función que lee el padrón en tiempo real (rellena sin borrar lo manual)
     const handleNameChange = (e) => {
         const val = e.target.value;
-        let newDoc = funcData.doc;
-        let newCargo = funcData.cargo;
-
-        const match = resolverFuncionario(val);
-        if (match) {
-            newDoc = match.doc || '';
-            newCargo = match.cargo || '';
+        if (!val.trim()) {
+            setFuncData({ nombre: val, doc: '', cargo: '' });
+            return;
         }
-
-        setFuncData({ nombre: val, doc: newDoc, cargo: newCargo });
+        const match = resolverFuncionario(val);
+        setFuncData({
+            nombre: val,
+            doc: match?.doc || funcData.doc,
+            cargo: match?.cargo || funcData.cargo
+        });
     };
 
     // Red de seguridad: el autocompletado del navegador a veces no dispara
     // onChange; al salir del campo se resuelve con el valor real del input.
     const handleNameBlur = (e) => {
         const match = resolverFuncionario(e.target.value);
-        if (match) {
+        if (match && (match.doc || match.cargo)) {
             setFuncData({ nombre: e.target.value.trim(), doc: match.doc || '', cargo: match.cargo || '' });
         }
     };
-    const coincidePadron = !!resolverFuncionario(funcData.nombre);
+    // Al abrir (bien con custodio pero sin CI/cargo) resuelve una vez sola
+    useEffect(() => {
+        if (!funcData.nombre || (funcData.doc && funcData.cargo)) return;
+        const match = resolverFuncionario(funcData.nombre);
+        if (match && (match.doc || match.cargo)) {
+            setFuncData({ nombre: funcData.nombre, doc: match.doc || '', cargo: match.cargo || '' });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const matchPadronActual = resolverFuncionario(funcData.nombre);
+    const coincidePadron = !!matchPadronActual;
+    const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -228,9 +247,9 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                             className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
                                         />
                                         {funcData.nombre.trim() !== '' && (
-                                            <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${coincidePadron ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                                                <i className={`fa-solid ${coincidePadron ? 'fa-circle-check' : 'fa-circle-info'} text-[10px]`}></i>
-                                                {coincidePadron ? 'Datos del padrón aplicados' : 'Nombre libre (no está en el padrón)'}
+                                            <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${padronConDatos ? 'text-emerald-600 dark:text-emerald-400' : coincidePadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                                <i className={`fa-solid ${padronConDatos ? 'fa-circle-check' : coincidePadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[10px]`}></i>
+                                                {padronConDatos ? 'Datos del padrón aplicados' : coincidePadron ? 'En el padrón pero sin CI/cargo — completalos a mano' : 'Nombre libre (no está en el padrón)'}
                                             </p>
                                         )}
                                     </div>

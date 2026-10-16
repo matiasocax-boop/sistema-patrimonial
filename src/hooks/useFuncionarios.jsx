@@ -75,13 +75,21 @@ export function useFuncionarios({
     const funcionariosConDatos = useMemo(() => {   
         const map = new Map();   
           
-        // 1. Padrón oficial de la dependencia  
-        funcionariosPadron.filter(f => f.dependencia === dependenciaActual).forEach(f => {  
-            const nombreSeguro = String(f.nombre).trim();  
-            if(!map.has(normalizeStr(nombreSeguro))) {  
-                map.set(normalizeStr(nombreSeguro), { nombre: nombreSeguro, doc: f.cedula || '', cargo: f.cargo || '' });  
-            }  
-        });  
+        // 1. Padrón oficial de la dependencia (si hay filas duplicadas del
+        // mismo nombre, se queda la que tenga CI/cargo, no la vacía)
+        funcionariosPadron.filter(f => f.dependencia === dependenciaActual).forEach(f => {
+            const nombreSeguro = String(f.nombre).trim();
+            const key = normalizeStr(nombreSeguro);
+            const nuevo = { nombre: nombreSeguro, doc: f.cedula || '', cargo: f.cargo || '' };
+            if(!map.has(key)) {
+                map.set(key, nuevo);
+            } else {
+                const actual = map.get(key);
+                if ((!actual.doc && nuevo.doc) || (!actual.cargo && nuevo.cargo)) {
+                    map.set(key, { nombre: actual.nombre, doc: actual.doc || nuevo.doc, cargo: actual.cargo || nuevo.cargo });
+                }
+            }
+        });
     
         // 2. FC-10 de la dependencia actual  
         fc10List.filter(fc => fc.dependencia === dependenciaActual).forEach(fc => {   
