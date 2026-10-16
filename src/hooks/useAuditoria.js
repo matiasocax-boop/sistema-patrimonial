@@ -15,7 +15,8 @@ import { registrarAuditoria } from '../services/auditService';
 // - notify: addToast estable. resolveLogoImg: helper de logos de App.
 export function useAuditoria({
   bienes, fc10List, fc11List, funcionariosPadron, dependenciaActual,
-  currentUser, ubicacionesUnicas, activeTab, isAdmin, notify, resolveLogoImg
+  currentUser, ubicacionesUnicas, activeTab, isAdmin, notify, resolveLogoImg,
+  setIsProcessing
 }) {
   // Auditoría (solo admin): libro de eventos + conciliación física + muestreo aleatorio
   const [auditoriaList, setAuditoriaList] = useState([]);

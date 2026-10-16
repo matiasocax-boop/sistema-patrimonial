@@ -24,5 +24,8 @@ export const ORIGENES_FC04 = [{ id: "A", nombre: "Alta" }, { id: "B", nombre: "B
 // Límite de inactividad de sesión (15 minutos).
 export const INACTIVITY_LIMIT_MS = 15 * 60 * 1000;
 
+// Formato único de papel para todos los PDF del sistema: oficio (216 x 330 mm).
+export const FORMATO_PDF = [216, 330];
+
 // Etiquetas de la bandeja de pendientes del inventario.
 export const PENDIENTE_LABELS = { sinQR: 'Sin etiqueta QR', sinFC10: 'Sin acta FC-10', sinUbicacion: 'Sin ubicación', sinFuncionario: 'Sin responsable', vidaVencida: 'Vida útil vencida', porVencer: 'Vida útil por vencer' };

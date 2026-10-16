@@ -7,7 +7,7 @@ export default function AuditoriaView({
   saludDatos, setSearchTerm, setSearchInput, setCurrentPage,
   setSearchFuncionarioInput, setCurrentPaginaFuncionarios,
   conteoUbicacion, setConteoUbicacion, bienes, dependenciaActual,
-  ubicacionesUnicas, conteoInput, setConteoInput, agregarCodigoConteo,
+  ubicacionesUnicas, conteoCodigos, conteoInput, setConteoInput, agregarCodigoConteo,
   resultadoConteo, setScanParaConteo, setIsScannerOpen, setConteoCodigos,
   exportarConteoCSV, descargarActaConteoPDF, guardarActaConteo,
   muestraN, setMuestraN, muestraUbicacion, setMuestraUbicacion,

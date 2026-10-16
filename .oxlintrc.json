@@ -19,6 +19,26 @@
     "document": "readonly",
     "localStorage": "readonly",
     "sessionStorage": "readonly",
-    "navigator": "readonly"
+    "navigator": "readonly",
+    "setTimeout": "readonly",
+    "setInterval": "readonly",
+    "clearTimeout": "readonly",
+    "clearInterval": "readonly",
+    "console": "readonly",
+    "URL": "readonly",
+    "Blob": "readonly",
+    "FileReader": "readonly",
+    "File": "readonly",
+    "FormData": "readonly",
+    "Image": "readonly",
+    "fetch": "readonly",
+    "TextDecoder": "readonly",
+    "TextEncoder": "readonly",
+    "URLSearchParams": "readonly",
+    "requestAnimationFrame": "readonly",
+    "cancelAnimationFrame": "readonly",
+    "crypto": "readonly",
+    "performance": "readonly",
+    "self": "readonly"
   }
 }
