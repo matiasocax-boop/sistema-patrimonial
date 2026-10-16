@@ -1,6 +1,6 @@
 export default function SkeletonLoader() {
     return (
-        <div className="w-full flex-1 bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden flex flex-col min-h-[550px] animate-pulse">
+        <div className="shimmer-wrap w-full flex-1 bg-white dark:bg-darkbg-card rounded-[24px] border border-zinc-200/80 dark:border-darkbg-border shadow-sm overflow-hidden flex flex-col min-h-[550px] animate-pulse">
             <div className="sticky top-0 bg-zinc-50/95 dark:bg-darkbg-main/95 border-b border-zinc-200/80 dark:border-darkbg-border px-8 py-4 flex justify-between hidden md:flex">
                 <div className="h-3 w-48 bg-zinc-200 dark:bg-zinc-800 rounded"></div>
                 <div className="h-3 w-32 bg-zinc-200 dark:bg-zinc-800 rounded"></div>

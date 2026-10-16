@@ -165,9 +165,68 @@ select:focus {
   50% { transform: translateY(-8px); }
 }
 
+@keyframes app-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes app-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@keyframes app-pop {
+  0% { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes app-row-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .animate-fade-in { animation: app-fade-in 0.45s ease both; }
 .animate-slide-up { animation: app-slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-shake { animation: app-shake 0.45s ease both; }
+.animate-pop { animation: app-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Spinner del botón de login (usa currentColor) */
+.login-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  animation: app-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* Shimmer para skeletons de carga */
+.shimmer-wrap { position: relative; overflow: hidden; }
+.shimmer-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: app-shimmer 1.6s ease-in-out infinite;
+}
+.dark .shimmer-wrap::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+/* Entrada escalonada de filas de tablas (primeras 10: la página visible) */
+.anim-rows tbody tr { animation: app-row-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-rows tbody tr:nth-child(1) { animation-delay: 0.02s; }
+.anim-rows tbody tr:nth-child(2) { animation-delay: 0.05s; }
+.anim-rows tbody tr:nth-child(3) { animation-delay: 0.08s; }
+.anim-rows tbody tr:nth-child(4) { animation-delay: 0.11s; }
+.anim-rows tbody tr:nth-child(5) { animation-delay: 0.14s; }
+.anim-rows tbody tr:nth-child(6) { animation-delay: 0.17s; }
+.anim-rows tbody tr:nth-child(7) { animation-delay: 0.20s; }
+.anim-rows tbody tr:nth-child(8) { animation-delay: 0.23s; }
+.anim-rows tbody tr:nth-child(9) { animation-delay: 0.26s; }
+.anim-rows tbody tr:nth-child(n+10) { animation-delay: 0.29s; }
 
 /* Fondo del login: zoom lento institucional + orbes a la deriva */
 .login-kenburns { animation: app-kenburns 36s ease-in-out infinite alternate; }
@@ -190,12 +249,18 @@ select:focus {
   .animate-fade-in,
   .animate-slide-up,
   .animate-shake,
+  .animate-pop,
   .login-kenburns,
   .login-orb-a,
   .login-orb-b,
   .login-float,
-  .login-rise {
+  .login-rise,
+  .login-spinner,
+  .anim-rows tbody tr {
     animation: none;
     opacity: 1;
+  }
+  .shimmer-wrap::after {
+    display: none;
   }
 }

@@ -346,7 +346,7 @@ export default function InventarioView({
     )}
                   <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden" data-tour="inv-table">
                     <div className="overflow-x-auto custom-scrollbar">
-                      <table className="w-full text-left border-collapse min-w-[900px]">
+                      <table className="anim-rows w-full text-left border-collapse min-w-[900px]">
 
                                                   <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                           <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
