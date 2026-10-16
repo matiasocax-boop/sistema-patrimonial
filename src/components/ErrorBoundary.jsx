@@ -6,7 +6,7 @@ import React from 'react';
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { tieneError: false, detalle: '' };
+    this.state = { tieneError: false, detalle: '', copiado: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -18,6 +18,23 @@ export default class ErrorBoundary extends React.Component {
       console.error('ErrorBoundary capturó:', error, info?.componentStack);
     } catch { /* noop */ }
   }
+
+  copiarDetalle = async () => {
+    const texto = `Error SIGEP UNP - ${new Date().toISOString()}\n${this.state.detalle}`;
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(texto);
+      else {
+        const ta = document.createElement('textarea');
+        ta.value = texto;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      this.setState({ copiado: true });
+      setTimeout(() => { try { this.setState({ copiado: false }); } catch {} }, 2500);
+    } catch {}
+  };
 
   render() {
     if (!this.state.tieneError) return this.props.children;
@@ -54,6 +71,14 @@ export default class ErrorBoundary extends React.Component {
               Ir al inicio
             </button>
           </div>
+          <button
+            onClick={this.copiarDetalle}
+            className="mt-3 text-[11px] font-bold text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+            title="Copia el detalle técnico para enviarlo al administrador"
+          >
+            <i className={`fa-solid ${this.state.copiado ? 'fa-check text-emerald-500' : 'fa-copy'} mr-1.5`}></i>
+            {this.state.copiado ? 'Detalle copiado' : 'Copiar detalle técnico'}
+          </button>
         </div>
       </div>
     );

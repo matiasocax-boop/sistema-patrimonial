@@ -29,7 +29,9 @@ export function useFcModals({
   agregarCodigoConteo, cargarNotificaciones,
   setIsScannerOpen, setDependenciaActual, setNotificaciones, setFc10List,
   setFc11List, setFc04List, setFuncionariosPadron, setUsuariosList,
+  itemToDelete, setItemToDelete, motivoSolicitudBaja, setMotivoSolicitudBaja, setPendingCSVImport,
   funcionariosPadron, notificaciones, estructurasDB, setEstructurasDB,
+  setFichaBien, setEventosAuditFicha,
   resolveLogoImg: _resolveLogoImg
 }) {
   // resolveLogoImg se define después en App: wrapper perezoso anti-TDZ.
@@ -38,8 +40,6 @@ export function useFcModals({
   const [isBulkQR, setIsBulkQR] = useState(false);
   const [qrTargetBien, setQrTargetBien] = useState(null);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  const [fichaBien, setFichaBien] = useState(null);
-  const [eventosAuditFicha, setEventosAuditFicha] = useState([]);
   const [isBienModalOpen, setIsBienModalOpen] = useState(false);
   const [bienEditing, setBienEditing] = useState(null);
   const bienFormRef = useRef(null);
@@ -60,10 +60,7 @@ export function useFcModals({
   const [showFC03FuncDropdown, setShowFC03FuncDropdown] = useState(false);
   const [isUsuarioModalOpen, setIsUsuarioModalOpen] = useState(false);
   const [usuarioEditing, setUsuarioEditing] = useState(null);
-  const [itemToDelete, setItemToDelete] = useState(null);
-  const [motivoSolicitudBaja, setMotivoSolicitudBaja] = useState('');
   const [confirmBackupModal, setConfirmBackupModal] = useState(false);
-  const [pendingCSVImport, setPendingCSVImport] = useState(null);
   const [resolucionBaja, setResolucionBaja] = useState(null);
   const [motivoResolucion, setMotivoResolucion] = useState('');
   const fileInputRef = useRef(null);
@@ -886,8 +883,7 @@ export function useFcModals({
 
   return {
     isBulkQR, setIsBulkQR, qrTargetBien, setQrTargetBien,
-    isQRModalOpen, setIsQRModalOpen, fichaBien, setFichaBien,
-    eventosAuditFicha, setEventosAuditFicha,
+    isQRModalOpen, setIsQRModalOpen,
     isBienModalOpen, setIsBienModalOpen, bienEditing, setBienEditing, bienFormRef,
     isFC10ModalOpen, setIsFC10ModalOpen, fc10TargetBien, setFc10TargetBien,
     fc10Editing, setFc10Editing,
@@ -899,11 +895,8 @@ export function useFcModals({
     fc03FuncionarioTexto, setFc03FuncionarioTexto,
     showFC03FuncDropdown, setShowFC03FuncDropdown,
     isUsuarioModalOpen, setIsUsuarioModalOpen, usuarioEditing, setUsuarioEditing,
-    itemToDelete, setItemToDelete,
-    motivoSolicitudBaja, setMotivoSolicitudBaja,
     isSaving, setIsSaving,
     confirmBackupModal, setConfirmBackupModal,
-    pendingCSVImport, setPendingCSVImport,
     resolucionBaja, setResolucionBaja, motivoResolucion, setMotivoResolucion,
     fileInputRef, showUnsavedChangesModal, setShowUnsavedChangesModal,
     scanParaConteo, setScanParaConteo,

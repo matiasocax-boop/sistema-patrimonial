@@ -143,6 +143,9 @@ export default function App() {
   const [usuariosList, setUsuariosList] = useState([]); 
   const [funcionariosPadron, setFuncionariosPadron] = useState([]); 
   const [estructurasDB, setEstructurasDB] = useState([]);
+  // Ficha 360: la lee el realtime (H5) y el memo de abajo; vive en App.
+  const [fichaBien, setFichaBien] = useState(null);
+  const [eventosAuditFicha, setEventosAuditFicha] = useState([]);
   const eventosFicha = useMemo(() => {
     if (!fichaBien) return [];
     const ev = [];
@@ -619,6 +622,11 @@ export default function App() {
     addToast(`Entorno cambiado a ${pendingDependencia}`, "success");
   };
   
+  // Estado compartido entre dominios (H4 lo consume antes de que exista H8):
+  // vive en App para no crear referencia circular por orden de hooks.
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [motivoSolicitudBaja, setMotivoSolicitudBaja] = useState('');
+  const [pendingCSVImport, setPendingCSVImport] = useState(null);
   // Dominio de funcionarios/padrón: hook extraído (Fase 6). La UI usa los mismos nombres.
   const {
     currentPaginaFuncionarios, setCurrentPaginaFuncionarios,
@@ -731,6 +739,7 @@ useEffect(() => {
   // useInventarioFiltros (Fase 3). La UI usa los mismos nombres.
 
 
+  // Ficha 360: la lee el realtime (H5) anterior a H8, vive en App.
   // Sincronización de datos: hook extraído (Fase 6). La UI usa los mismos nombres.
   const {
     isOnline, notificaciones, setNotificaciones,
@@ -745,8 +754,7 @@ useEffect(() => {
   // Modales de fichas y formularios: hook extraído (Fase 6). La UI usa los mismos nombres.
   const {
     isBulkQR, setIsBulkQR, qrTargetBien, setQrTargetBien,
-    isQRModalOpen, setIsQRModalOpen, fichaBien, setFichaBien,
-    eventosAuditFicha, setEventosAuditFicha,
+    isQRModalOpen, setIsQRModalOpen,
     isBienModalOpen, setIsBienModalOpen, bienEditing, setBienEditing, bienFormRef,
     isFC10ModalOpen, setIsFC10ModalOpen, fc10TargetBien, setFc10TargetBien,
     fc10Editing, setFc10Editing,
@@ -758,11 +766,8 @@ useEffect(() => {
     fc03FuncionarioTexto, setFc03FuncionarioTexto,
     showFC03FuncDropdown, setShowFC03FuncDropdown,
     isUsuarioModalOpen, setIsUsuarioModalOpen, usuarioEditing, setUsuarioEditing,
-    itemToDelete, setItemToDelete,
-    motivoSolicitudBaja, setMotivoSolicitudBaja,
     isSaving,
     confirmBackupModal, setConfirmBackupModal,
-    pendingCSVImport, setPendingCSVImport,
     resolucionBaja, setResolucionBaja, motivoResolucion, setMotivoResolucion,
     fileInputRef, showUnsavedChangesModal, setShowUnsavedChangesModal,
     scanParaConteo, setScanParaConteo,
@@ -780,8 +785,11 @@ useEffect(() => {
     clearAllFilters, setSearchTerm, setSearchInput, setActiveTab, setCurrentPage,
     agregarCodigoConteo, cargarNotificaciones,
     setIsScannerOpen, setDependenciaActual, setNotificaciones, setFc10List,
+  setFichaBien, setEventosAuditFicha,
+  setFichaBien, setEventosAuditFicha,
     setFc11List, setFc04List, setFuncionariosPadron, setUsuariosList,
     funcionariosPadron, notificaciones, estructurasDB, setEstructurasDB,
+    itemToDelete, setItemToDelete, motivoSolicitudBaja, setMotivoSolicitudBaja, setPendingCSVImport,
     resolveLogoImg: (...a) => resolveLogoImg(...a)
   });
   const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth], asigCurrent: { year: String(currentYear), month: String(currentMonth + 1).padStart(2, '0') }, asigPrev: { year: String(yearOfPrevMonth), month: String(prevMonth + 1).padStart(2, '0') } }; }, [bienes, fc10List, dependenciaActual]);

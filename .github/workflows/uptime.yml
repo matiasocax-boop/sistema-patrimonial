@@ -1,0 +1,57 @@
+# Monitoreo de uptime (costo cero): cada 15 minutos pide el frente de
+# producción. Si cae, abre (o mantiene) un issue con etiqueta `downtime`;
+# al recuperarse lo cierra solo con un comentario. Sin servicios externos.
+name: uptime
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+env:
+  SITE_URL: https://sistema-patrimonial-two.vercel.app
+  ISSUE_TITLE: '[downtime] El sitio no responde'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probar el sitio
+        id: ping
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 "$SITE_URL" || echo "000")
+          echo "http=$code"
+          if [ "$code" = "200" ]; then echo "up=true" >> "$GITHUB_OUTPUT"; else echo "up=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Buscar issue abierto de downtime
+        id: buscar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          num=$(gh issue list --label downtime --state open --json number --jq '.[0].number // empty')
+          echo "num=$num" >> "$GITHUB_OUTPUT"
+
+      - name: Abrir o mantener aviso
+        if: steps.ping.outputs.up == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -z "${{ steps.buscar.outputs.num }}" ]; then
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --label downtime \
+              --body "El monitoreo detectó que $SITE_URL no responde (último chequeo: $(date -u '+%Y-%m-%d %H:%M UTC')). Revisar Vercel y Supabase."
+          else
+            gh issue comment "${{ steps.buscar.outputs.num }}" --body "Sigue caído (chequeo: $(date -u '+%Y-%m-%d %H:%M UTC'))."
+          fi
+
+      - name: Cerrar aviso al recuperarse
+        if: steps.ping.outputs.up == 'true' && steps.buscar.outputs.num != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment "${{ steps.buscar.outputs.num }}" --body "Recuperado (chequeo: $(date -u '+%Y-%m-%d %H:%M UTC')). Cierro el aviso."
+          gh issue close "${{ steps.buscar.outputs.num }}"
