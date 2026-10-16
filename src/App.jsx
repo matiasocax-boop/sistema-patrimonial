@@ -38,6 +38,7 @@ import MaintenanceScreen from './components/MaintenanceScreen';
 import AyudaView from './views/AyudaView';
 import ResumenView from './views/ResumenView';
 import UsuariosView from './views/UsuariosView';
+import AnunciosView from './views/AnunciosView';
 import Fc04View from './views/Fc04View';
 import Fc10View from './views/Fc10View';
 import Fc11View from './views/Fc11View';
@@ -908,6 +909,61 @@ useEffect(() => {
           setIsProcessing({ active: false, text: '' });
       }
   };
+  // Módulo Anuncios (solo desarrollador): fan-out de una fila por
+  // destinatario para que el leído sea individual en la campana.
+  const enviarAnuncio = async ({ titulo, mensaje, destino }) => {
+      const remitente = currentUser?.username || 'Desarrollador';
+      const dests = destino === 'TODOS' ? usuariosList.map(u => u.username).filter(Boolean) : [destino];
+      if (dests.length === 0) { addToast('No hay destinatarios.', 'warning'); return false; }
+      try {
+          setIsProcessing({ active: true, text: 'Enviando anuncio...' });
+          const grupo = generateId();
+          const fecha = new Date().toISOString();
+          const filas = dests.map(u => {
+              const id = generateId();
+              const data = { id, tipoRegistro: 'NOTIFICACION', accion: 'anuncio', usuarioDestino: u, titulo, mensaje, leido: false, fecha, remitente, grupo, alcance: destino === 'TODOS' ? 'TODOS' : destino };
+              return { id, data };
+          });
+          const { error } = await supabase.from('notificaciones').insert(filas);
+          if (error) throw error;
+          setNotificaciones(prev => [...filas.map(f => ({ id: f.id, ...f.data })), ...prev]);
+          await registrarAuditoria({
+              usuario: remitente, dependencia: dependenciaActual,
+              accion: 'ENVIAR_ANUNCIO', entidad: 'NOTIFICACION', entidadId: grupo,
+              detalles: { titulo, destino, total: filas.length }
+          });
+          addToast(`Anuncio enviado a ${filas.length} usuario${filas.length === 1 ? '' : 's'}.`, 'success');
+          return true;
+      } catch (e) {
+          addToast('No se pudo enviar el anuncio.', 'error');
+          return false;
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+      }
+  };
+  const eliminarGrupoAnuncio = async (grupo) => {
+      const ids = notificaciones.filter(n => (n.grupo || n.id) === grupo).map(n => n.id);
+      if (ids.length === 0) return;
+      try {
+          await Promise.all(ids.map(id => supabase.from('notificaciones').delete().eq('id', id)));
+          setNotificaciones(prev => prev.filter(n => (n.grupo || n.id) !== grupo));
+          addToast('Anuncio eliminado.', 'success');
+      } catch (e) {
+          addToast('No se pudo eliminar el anuncio.', 'error');
+      }
+  };
+  const anunciosGrupos = useMemo(() => {
+      const mapa = new Map();
+      notificaciones.filter(n => n.accion === 'anuncio').forEach(n => {
+          const g = n.grupo || n.id;
+          if (!mapa.has(g)) mapa.set(g, { grupo: g, titulo: n.titulo || '(Sin título)', mensaje: n.mensaje || '', fecha: n.fecha, remitente: n.remitente, alcance: n.alcance || n.usuarioDestino, total: 0, leidos: 0 });
+          const e = mapa.get(g);
+          e.total++;
+          if (n.leido) e.leidos++;
+          if (new Date(n.fecha).getTime() > new Date(e.fecha).getTime()) e.fecha = n.fecha;
+      });
+      return [...mapa.values()].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  }, [notificaciones]);
 
   // --- EN App_2.jsx ---
 
@@ -1401,6 +1457,7 @@ if (publicBienId) {
 
                 {activeTab === 'auditoria' && isAdmin && (<AuditoriaView fetchAuditoria={fetchAuditoria} isLoadingAud={isLoadingAud} kpisAud={kpisAud} evolucionValor={evolucionValor} maxEvolucion={maxEvolucion} formatoCortoGs={formatoCortoGs} clearAllFilters={clearAllFilters} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setActiveTab={setActiveTab} saludDatos={saludDatos} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} setSearchFuncionarioInput={setSearchFuncionarioInput} setCurrentPaginaFuncionarios={setCurrentPaginaFuncionarios} conteoUbicacion={conteoUbicacion} setConteoUbicacion={setConteoUbicacion} bienes={bienes} dependenciaActual={dependenciaActual} ubicacionesUnicas={ubicacionesUnicas} conteoCodigos={conteoCodigos} conteoInput={conteoInput} setConteoInput={setConteoInput} agregarCodigoConteo={agregarCodigoConteo} resultadoConteo={resultadoConteo} setScanParaConteo={setScanParaConteo} setIsScannerOpen={setIsScannerOpen} setConteoCodigos={setConteoCodigos} exportarConteoCSV={exportarConteoCSV} descargarActaConteoPDF={descargarActaConteoPDF} guardarActaConteo={guardarActaConteo} muestraN={muestraN} setMuestraN={setMuestraN} muestraUbicacion={muestraUbicacion} setMuestraUbicacion={setMuestraUbicacion} muestra={muestra} verificadosMuestra={verificadosMuestra} setVerificadosMuestra={setVerificadosMuestra} generarMuestra={generarMuestra} guardarActaMuestreo={guardarActaMuestreo} descargarActaMuestreoPDF={descargarActaMuestreoPDF} totalAud={totalAud} paginaAud={paginaAud} alcanceAud={alcanceAud} setAlcanceAud={setAlcanceAud} searchAud={searchAud} setSearchAud={setSearchAud} filtroAccionAud={filtroAccionAud} setFiltroAccionAud={setFiltroAccionAud} accionesUnicasAud={accionesUnicasAud} auditoriaList={auditoriaList} actorAud={actorAud} tonoAccionAud={tonoAccionAud} detalleAudCorto={detalleAudCorto} />)}
                 {activeTab === 'usuarios' && isAdmin && (<UsuariosView usuariosList={usuariosList} setUsuarioEditing={setUsuarioEditing} setIsUsuarioModalOpen={setIsUsuarioModalOpen} esDesarrollador={esDesarrollador} currentUser={currentUser} setItemToDelete={setItemToDelete} STYLES={STYLES} />)}
+                {activeTab === 'anuncios' && esDesarrollador && (<AnunciosView usuariosList={usuariosList} anunciosGrupos={anunciosGrupos} onEnviar={enviarAnuncio} onEliminarGrupo={eliminarGrupoAnuncio} currentUser={currentUser} />)}
                 {activeTab === 'funcionarios' && (<FuncionariosView funcionariosPurosDependencia={funcionariosPurosDependencia} dependenciaActual={dependenciaActual} sincronizarBienesConPadron={sincronizarBienesConPadron} handleDownloadTemplateFuncionarios={handleDownloadTemplateFuncionarios} fileInputFuncionariosRef={fileInputFuncionariosRef} isAdmin={isAdmin} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} searchFuncionarioInput={searchFuncionarioInput} setSearchFuncionarioInput={setSearchFuncionarioInput} setCurrentPaginaFuncionarios={setCurrentPaginaFuncionarios} funcionariosPaginados={funcionariosPaginados} handleEditFuncionario={handleEditFuncionario} handleDeleteFuncionario={handleDeleteFuncionario} renderPaginationFuncionarios={renderPaginationFuncionarios} />)}
 
                 {activeTab === 'fc04' && (<Fc04View filteredFC04={filteredFC04} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} openFC04Modal={openFC04Modal} STYLES={STYLES} isLoading={isLoading} ORIGENES_FC04={ORIGENES_FC04} handleGenerateFC04PDF={handleGenerateFC04PDF} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}

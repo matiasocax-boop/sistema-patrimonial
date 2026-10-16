@@ -89,6 +89,9 @@ export default function Sidebar({
                             { id: 'auditoria', label: 'Auditoría', icon: 'fa-magnifying-glass-chart' },
                             { id: 'usuarios', label: 'Gestión de Usuarios', icon: 'fa-users-gear' }
                         ] : []),
+                        ...(esDesarrollador ? [
+                            { id: 'anuncios', label: 'Anuncios', icon: 'fa-bullhorn' }
+                        ] : []),
                         { id: 'ayuda', label: 'Centro de Ayuda', icon: 'fa-circle-question' }
                     ].map(tab => {
                         const isActive = activeTab === tab.id;

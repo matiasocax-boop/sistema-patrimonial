@@ -21,6 +21,7 @@ export default function Header({
         aprobaciones: 'Aprobaciones',
         auditoria: 'Auditoría',
         usuarios: 'Gestión de Usuarios',
+        anuncios: 'Anuncios',
         ayuda: 'Centro de Ayuda'
     };
     return (
@@ -142,11 +143,13 @@ export default function Header({
                                                     <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${
                                                         n.esSolicitud 
                                                             ? 'bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900/50'
-                                                            : n.accion === 'aprobar' 
-                                                                ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900/50' 
-                                                                : 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50'
+                                                            : n.accion === 'anuncio'
+                                                                ? 'bg-sky-50 text-sky-600 border border-sky-200 dark:bg-sky-900/30 dark:text-sky-400 dark:border-sky-900/50'
+                                                                : n.accion === 'aprobar' 
+                                                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-900/50' 
+                                                                    : 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-900/30 dark:text-red-400 dark:border-red-900/50'
                                                     }`}>
-                                                        <i className={`fa-solid ${n.esSolicitud ? 'fa-paper-plane' : n.accion === 'aprobar' ? 'fa-check' : 'fa-xmark'} text-[13px]`}></i>
+                                                        <i className={`fa-solid ${n.esSolicitud ? 'fa-paper-plane' : n.accion === 'anuncio' ? 'fa-bullhorn' : n.accion === 'aprobar' ? 'fa-check' : 'fa-xmark'} text-[13px]`}></i>
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center justify-between gap-2">
