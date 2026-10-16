@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
 
 export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos }) {
@@ -56,13 +57,23 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
         }
     };
 
+    // Resolución tolerante contra el padrón (tildes, mayúsculas, espacios).
+    // El match exacto anterior fallaba en silencio y dejaba CI/cargo vacíos.
+    const resolverFuncionario = (valor) => {
+        const q = normalizeStr(valor || '');
+        if (!q) return null;
+        return safeFuncionarios.find(f => normalizeStr(f.nombre || '') === q)
+            || safeFuncionarios.find(f => normalizeStr(f.nombre || '').includes(q) || q.includes(normalizeStr(f.nombre || '')))
+            || null;
+    };
+
     // Función que lee el padrón en tiempo real
     const handleNameChange = (e) => {
         const val = e.target.value;
         let newDoc = funcData.doc;
         let newCargo = funcData.cargo;
 
-        const match = safeFuncionarios.find(f => f.nombre.toLowerCase() === val.toLowerCase());
+        const match = resolverFuncionario(val);
         if (match) {
             newDoc = match.doc || '';
             newCargo = match.cargo || '';
@@ -70,6 +81,16 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
 
         setFuncData({ nombre: val, doc: newDoc, cargo: newCargo });
     };
+
+    // Red de seguridad: el autocompletado del navegador a veces no dispara
+    // onChange; al salir del campo se resuelve con el valor real del input.
+    const handleNameBlur = (e) => {
+        const match = resolverFuncionario(e.target.value);
+        if (match) {
+            setFuncData({ nombre: e.target.value.trim(), doc: match.doc || '', cargo: match.cargo || '' });
+        }
+    };
+    const coincidePadron = !!resolverFuncionario(funcData.nombre);
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -185,8 +206,15 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                             required 
                                             value={funcData.nombre}
                                             onChange={handleNameChange}
+                                            onBlur={handleNameBlur}
                                             className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
                                         />
+                                        {funcData.nombre.trim() !== '' && (
+                                            <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${coincidePadron ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                                <i className={`fa-solid ${coincidePadron ? 'fa-circle-check' : 'fa-circle-info'} text-[10px]`}></i>
+                                                {coincidePadron ? 'Datos del padrón aplicados' : 'Nombre libre (no está en el padrón)'}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
@@ -280,7 +308,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                         </div>
 
                         <datalist id="funcionarios-list-fc10">
-                            {safeFuncionarios.map(f => <option key={f.nombre} value={f.nombre} />)}
+                            {safeFuncionarios.map((f, i) => <option key={`${f.nombre}-${i}`} value={f.nombre} />)}
                         </datalist>
                     </div>
                     
