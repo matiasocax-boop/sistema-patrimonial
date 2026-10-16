@@ -66,6 +66,8 @@ export function useFcModals({
   const fileInputRef = useRef(null);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [scanParaConteo, setScanParaConteo] = useState(false);
+  const [modoCampo, setModoCampo] = useState(() => { try { return localStorage.getItem('qr_modo_campo') === '1'; } catch { return false; } });
+  const [ultimoEscaneo, setUltimoEscaneo] = useState(null);
   const borradoPendiente = useRef(null);
   const ejecutarBorradoPendiente = async () => {
     const plan = borradoPendiente.current;
@@ -389,6 +391,10 @@ export function useFcModals({
     }
 
     if (bienEncontrado) {
+      if (modoCampo) {
+        setUltimoEscaneo({ bien: bienEncontrado, fecha: new Date().toISOString() });
+        return;
+      }
       notify(`Bien localizado: ${bienEncontrado.rotulo} - ${bienEncontrado.descripcion || ''}`, "success");
       clearAllFilters();
       const rotuloLimpio = bienEncontrado.rotulo || '';
@@ -968,6 +974,7 @@ export function useFcModals({
     resolucionBaja, setResolucionBaja, motivoResolucion, setMotivoResolucion,
     fileInputRef, showUnsavedChangesModal, setShowUnsavedChangesModal,
     scanParaConteo, setScanParaConteo,
+    modoCampo, setModoCampo, ultimoEscaneo, setUltimoEscaneo,
     openFichaBien, openFC03Modal, executeGenerateFC03,
     openResolucionModal, openFC10Modal, openFC11Modal, openFC04Modal,
     handleAddFC04Item, handleRemoveFC04Item, handleFC04ItemChange,

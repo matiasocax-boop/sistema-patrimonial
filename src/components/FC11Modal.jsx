@@ -58,7 +58,7 @@ export default function FC11Modal({
                         </div>
                     </div>
 
-                    <button type="button" title="Cerrar" onClick={() => setIsFC11ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
+                    <button type="button" title="Cerrar" aria-label="Cerrar" onClick={() => setIsFC11ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
                         <i className="fa-solid fa-xmark text-base"></i>
                     </button>
                 </div>

@@ -34,7 +34,7 @@ export default function UbicacionesModal({ isOpen, onClose, ubicaciones, conteos
               <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">{dependenciaActual} · {ubicaciones.length} registradas</p>
             </div>
           </div>
-          <button onClick={onClose} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          <button onClick={onClose} title="Cerrar" aria-label="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
             <i className="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
@@ -83,12 +83,12 @@ export default function UbicacionesModal({ isOpen, onClose, ubicaciones, conteos
                       />
                       <button
                         onClick={() => { if (editNombre.trim()) { onSave(u.id, editNombre.trim()); setEditId(null); } }}
-                        title="Guardar"
+                        title="Guardar" aria-label="Guardar"
                         className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0"
                       >
                         <i className="fa-solid fa-check text-xs"></i>
                       </button>
-                      <button onClick={() => setEditId(null)} title="Cancelar" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 cursor-pointer shrink-0">
+                      <button onClick={() => setEditId(null)} title="Cancelar" aria-label="Cancelar" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-zinc-100 dark:hover:bg-white/10 text-zinc-400 cursor-pointer shrink-0">
                         <i className="fa-solid fa-xmark text-xs"></i>
                       </button>
                     </>
@@ -98,7 +98,7 @@ export default function UbicacionesModal({ isOpen, onClose, ubicaciones, conteos
                         <span className="block text-[13px] font-bold text-zinc-800 dark:text-zinc-200 truncate" title={u.nombre}>{u.nombre}</span>
                         <span className="block text-[11px] text-zinc-400 tabular-nums">{c.bienes} bienes · {c.funcionarios} funcionarios</span>
                       </span>
-                      <button onClick={() => empezarEdicion(u)} title="Renombrar" className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer shrink-0">
+                      <button onClick={() => empezarEdicion(u)} title="Renombrar" aria-label="Renombrar" className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer shrink-0">
                         <i className="fa-solid fa-pen text-xs"></i>
                       </button>
                       <button

@@ -158,7 +158,7 @@ export default function FuncionariosView({
                                 <button
                                     onClick={() => handleEditFuncionario(f)}
                                     className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
-                                    title="Editar funcionario"
+                                    title="Editar funcionario" aria-label="Editar funcionario"
                                 >
                                     <i className="fa-solid fa-pen-to-square text-xs"></i>
                                 </button>

@@ -23,9 +23,9 @@ export default function UsuarioModal({ isOpen, onClose, usuarioEditing, saveUsua
               </div>
               <button
                 onClick={onClose}
-                title="Cerrar"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
-              >
+                title="Cerrar" aria-label="Cerrar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+              
                 <i className="fa-solid fa-xmark text-base"></i>
               </button>
             </div>

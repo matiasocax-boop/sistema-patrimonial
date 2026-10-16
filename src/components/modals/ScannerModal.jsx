@@ -1,8 +1,14 @@
 // src/components/modals/ScannerModal.jsx
 import React from 'react';
 
-export default function ScannerModal({ isOpen, onClose, modoConteo, conteoActual, STYLES }) {
+export default function ScannerModal({ isOpen, onClose, modoConteo, conteoActual, modoCampo, setModoCampo, STYLES }) {
     if (!isOpen) return null;
+
+    const alternarModoCampo = () => {
+      const v = !modoCampo;
+      setModoCampo(v);
+      try { localStorage.setItem('qr_modo_campo', v ? '1' : '0'); } catch {}
+    };
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -20,10 +26,18 @@ export default function ScannerModal({ isOpen, onClose, modoConteo, conteoActual
                 </p>
               </div>
               <button
-                onClick={onClose}
-                title="Cerrar"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+                onClick={alternarModoCampo}
+                title={modoCampo ? 'Salir del modo campo' : 'Modo campo: resultado grande tras escanear'}
+                className={`flex h-9 shrink-0 items-center gap-2 rounded-xl px-3 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${modoCampo ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
               >
+                <i className="fa-solid fa-person-walking text-xs"></i>
+                <span className="hidden sm:inline">Campo</span>
+              </button>
+              <button
+                onClick={onClose}
+                title="Cerrar" aria-label="Cerrar"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+              
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>

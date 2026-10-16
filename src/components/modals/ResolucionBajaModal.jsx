@@ -20,7 +20,7 @@ export default function ResolucionBajaModal({ resolucionBaja, setResolucionBaja,
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">{resolucionBaja.bien.rotulo}</p>
                       </div>
                   </div>
-                  <button onClick={() => setResolucionBaja(null)} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"><i className="fa-solid fa-xmark"></i></button>
+                  <button onClick={() => setResolucionBaja(null)} title="Cerrar" aria-label="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"><i className="fa-solid fa-xmark"></i></button>
               </div>
             </div>
             

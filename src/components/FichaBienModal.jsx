@@ -51,7 +51,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
               <p className="text-base font-black tabular-nums text-zinc-900 dark:text-white">Gs. {formatCurrency(bien.valorUnitario || '0')}</p>
             </div>
           </div>
-          <button onClick={onClose} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+          <button onClick={onClose} title="Cerrar" aria-label="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
             <i className="fa-solid fa-xmark text-base"></i>
           </button>
         </div>
@@ -98,7 +98,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
                     {esAdmin && (
                       <button
                         onClick={() => onEliminarFoto(f)}
-                        title="Eliminar foto"
+                        title="Eliminar foto" aria-label="Eliminar foto"
                         className="absolute top-1 right-1 h-6 w-6 items-center justify-center rounded-lg bg-zinc-950/70 text-white hidden group-hover/foto:flex hover:bg-rose-600 transition-colors cursor-pointer"
                       >
                         <i className="fa-solid fa-xmark text-[10px]"></i>
@@ -162,7 +162,7 @@ export default function FichaBienModal({ isOpen, onClose, bien, eventos, formatC
           <img src={fotoAmpliada} alt="Foto ampliada del bien" className="max-h-[90dvh] max-w-full rounded-2xl shadow-2xl object-contain" />
           <button
             onClick={() => setFotoAmpliada(null)}
-            title="Cerrar"
+            title="Cerrar" aria-label="Cerrar"
             className="absolute top-4 right-4 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer"
           >
             <i className="fa-solid fa-xmark"></i>

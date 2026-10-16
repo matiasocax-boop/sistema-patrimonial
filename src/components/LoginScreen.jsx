@@ -138,7 +138,7 @@ export default function LoginScreen({
               localStorage.setItem('theme', newMode ? 'dark' : 'light');
             }}
             className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/[0.06] border border-white/15 text-slate-200 hover:bg-white/[0.12] hover:scale-105 active:scale-95 transition-all cursor-pointer"
-            title="Alternar Tema"
+            title="Alternar Tema" aria-label="Alternar Tema"
           >
             <i className={`fa-solid ${darkMode ? 'fa-sun text-amber-300' : 'fa-moon text-sky-300'} text-sm transition-transform duration-500 ${darkMode ? 'rotate-0' : '-rotate-12'}`}></i>
           </button>

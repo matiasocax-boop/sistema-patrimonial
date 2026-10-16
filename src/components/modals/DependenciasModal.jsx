@@ -156,7 +156,7 @@ export default function DependenciasModal({
                 className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 h-10 pl-10 pr-3 text-[13px] font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 w-64"
               />
             </div>
-            <button onClick={onClose} title="Cerrar" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
+            <button onClick={onClose} title="Cerrar" aria-label="Cerrar" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary">
               <i className="fa-solid fa-xmark text-base"></i>
             </button>
           </div>
@@ -196,7 +196,7 @@ export default function DependenciasModal({
                 <button
                   onClick={() => { if (nuevo.trim()) { onSave(null, nuevo.trim()); setNuevo(''); } }}
                   disabled={isSaving || !nuevo.trim()}
-                  title="Agregar dependencia"
+                  title="Agregar dependencia" aria-label="Agregar dependencia"
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0 disabled:opacity-40"
                 >
                   <i className="fa-solid fa-plus text-xs"></i>
@@ -244,7 +244,7 @@ export default function DependenciasModal({
                           }}
                           className="rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 h-9 text-sm font-bold outline-none focus:border-brand-primary min-w-0"
                         />
-                        <button onClick={() => { if (editDepNombre.trim()) { onSave(depSel.id, editDepNombre.trim()); setEditandoDep(false); } }} title="Guardar" className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
+                        <button onClick={() => { if (editDepNombre.trim()) { onSave(depSel.id, editDepNombre.trim()); setEditandoDep(false); } }} title="Guardar" aria-label="Guardar" className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
                           <i className="fa-solid fa-check text-xs"></i>
                         </button>
                       </span>
@@ -259,10 +259,10 @@ export default function DependenciasModal({
                     <button onClick={() => onVerPadron(depSel.nombre)} title="Ver padrón y bienes" className="flex h-9 px-3.5 items-center gap-2 rounded-xl text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer">
                       <i className="fa-solid fa-users"></i><span className="hidden sm:inline">Padrón</span>
                     </button>
-                    <button onClick={() => { setEditandoDep(true); setEditDepNombre(depSel.nombre); }} title="Renombrar (actualiza todo)" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer">
+                    <button onClick={() => { setEditandoDep(true); setEditDepNombre(depSel.nombre); }} title="Renombrar (actualiza todo)" aria-label="Renombrar (actualiza todo)" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer">
                       <i className="fa-solid fa-pen text-xs"></i>
                     </button>
-                    <button onClick={() => onDelete(depSel.id, depSel.nombre)} title="Eliminar (solo si está vacía)" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer">
+                    <button onClick={() => onDelete(depSel.id, depSel.nombre)} title="Eliminar (solo si está vacía)" aria-label="Eliminar (solo si está vacía)" className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer">
                       <i className="fa-solid fa-trash-can text-xs"></i>
                     </button>
                   </div>
@@ -282,7 +282,7 @@ export default function DependenciasModal({
                     <button
                       onClick={() => { if (nuevaUbic.trim()) { onGuardarUbicacion(null, nuevaUbic.trim(), depSel.nombre); setNuevaUbicacion(''); } }}
                       disabled={isSaving || !nuevaUbic.trim()}
-                      title="Agregar departamento"
+                      title="Agregar departamento" aria-label="Agregar departamento"
                       className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0 disabled:opacity-40"
                     >
                       <i className="fa-solid fa-plus text-xs"></i>
@@ -395,7 +395,7 @@ const TarjetaDepartamento = React.memo(function TarjetaDepartamento({
               }}
               className="flex-1 rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-2 h-8 text-xs font-medium outline-none focus:border-brand-primary"
             />
-            <button onClick={() => { if (editNombre.trim()) { onGuardarUbicacion(u.id, editNombre.trim(), depNombre); onTerminarEditar(); } }} title="Guardar" className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
+            <button onClick={() => { if (editNombre.trim()) { onGuardarUbicacion(u.id, editNombre.trim(), depNombre); onTerminarEditar(); } }} title="Guardar" aria-label="Guardar" className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer shrink-0">
               <i className="fa-solid fa-check text-[10px]"></i>
             </button>
           </>
@@ -403,10 +403,10 @@ const TarjetaDepartamento = React.memo(function TarjetaDepartamento({
           <>
             <span className="flex-1 min-w-0 text-[13px] font-bold text-zinc-800 dark:text-zinc-200 leading-snug text-balance" title={u.nombre}>{u.nombre}</span>
             <span className="text-[10px] tabular-nums text-zinc-400 shrink-0">{asignados.length} func.</span>
-            <button onClick={onEmpezarEditar} title="Renombrar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/70 dark:hover:text-white dark:hover:bg-white/10 cursor-pointer shrink-0">
+            <button onClick={onEmpezarEditar} title="Renombrar" aria-label="Renombrar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/70 dark:hover:text-white dark:hover:bg-white/10 cursor-pointer shrink-0">
               <i className="fa-solid fa-pen text-[10px]"></i>
             </button>
-            <button onClick={() => onEliminarUbicacion(u.id, u.nombre)} title="Eliminar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 cursor-pointer shrink-0">
+            <button onClick={() => onEliminarUbicacion(u.id, u.nombre)} title="Eliminar" aria-label="Eliminar" className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 cursor-pointer shrink-0">
               <i className="fa-solid fa-trash-can text-[10px]"></i>
             </button>
           </>

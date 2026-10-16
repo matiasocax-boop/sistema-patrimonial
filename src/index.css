@@ -228,6 +228,21 @@ select:focus {
 .anim-rows tbody tr:nth-child(9) { animation-delay: 0.26s; }
 .anim-rows tbody tr:nth-child(n+10) { animation-delay: 0.29s; }
 
+/* Bottom-sheet en móvil: los modales dejan de centrarse y suben desde abajo.
+ * Solo <640px; en desktop no cambia nada. El CSS sin capas gana a las
+ * utilidades de Tailwind, por eso no hace falta !important. */
+@media (max-width: 640px) {
+  .modalOverlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modalContent {
+    border-radius: 24px 24px 0 0;
+    max-height: 92dvh;
+    width: 100%;
+  }
+}
+
 /* Fondo del login: zoom lento institucional + orbes a la deriva */
 .login-kenburns { animation: app-kenburns 36s ease-in-out infinite alternate; }
 .login-orb-a { animation: app-drift-a 18s ease-in-out infinite; }

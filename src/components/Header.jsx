@@ -29,7 +29,7 @@ export default function Header({
                 <button 
                     onClick={() => setIsSidebarOpen(true)} 
                     className="lg:hidden flex items-center justify-center h-10 w-10 rounded-xl bg-zinc-100 dark:bg-white/5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white transition-all cursor-pointer border border-zinc-200/80 dark:border-white/10 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
-                    title="Abrir menú"
+                    title="Abrir menú" aria-label="Abrir menú"
                 >
                     <i className="fa-solid fa-bars"></i>
                 </button>
@@ -50,7 +50,7 @@ export default function Header({
                 </button>
                 <button
                     onClick={() => setIsScannerOpen(true)}
-                    title="Escanear código QR"
+                    title="Escanear código QR" aria-label="Escanear código QR"
                     className="md:hidden flex items-center justify-center h-10 w-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                 >
                     <i className="fa-solid fa-qrcode text-sm"></i>
@@ -79,7 +79,7 @@ export default function Header({
                 <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 hidden sm:block"></div>
 
                 <div className="flex items-center gap-1.5">
-                    <button onClick={() => setDarkMode(!darkMode)} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Alternar tema claro / oscuro">
+                    <button onClick={() => setDarkMode(!darkMode)} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Alternar tema claro / oscuro" aria-label="Alternar tema claro / oscuro">
                         <i className={`fa-solid ${darkMode ? 'fa-sun' : 'fa-moon'}`}></i>
                     </button>
                     
@@ -180,7 +180,7 @@ export default function Header({
                     <div title={currentUser?.nombre || 'Usuario'} className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold select-none">
                         {currentUser?.nombre ? currentUser.nombre.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <button onClick={handleLogout} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Cerrar sesión">
+                    <button onClick={handleLogout} className="flex h-10 w-10 items-center justify-center rounded-xl text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Cerrar sesión" aria-label="Cerrar sesión">
                         <i className="fa-solid fa-power-off"></i>
                     </button>
                 </div>

@@ -235,7 +235,7 @@ export default function InventarioView({
       {searchTerm && (
         <button
           onClick={() => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); }}
-          title="Limpiar búsqueda"
+          title="Limpiar búsqueda" aria-label="Limpiar búsqueda"
           className="absolute right-3 top-1/2 -translate-y-1/2 flex h-7 w-7 items-center justify-center rounded-full bg-zinc-100 dark:bg-white/10 text-zinc-500 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-white/20 transition-all cursor-pointer"
         >
           <i className="fa-solid fa-xmark text-xs"></i>
@@ -339,7 +339,7 @@ export default function InventarioView({
               <button onClick={() => aplicarVista(v)} title={`Aplicar vista "${v.nombre}"`} className="hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer">
                 {v.nombre}
               </button>
-              <button onClick={() => eliminarVista(v.nombre)} title="Eliminar vista" className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-400 transition-colors cursor-pointer">
+              <button onClick={() => eliminarVista(v.nombre)} title="Eliminar vista" aria-label="Eliminar vista" className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-zinc-200 dark:hover:bg-white/20 text-zinc-400 transition-colors cursor-pointer">
                 <i className="fa-solid fa-xmark text-[9px]"></i>
               </button>
             </span>
@@ -367,7 +367,7 @@ export default function InventarioView({
               autoFocus
               className="h-8 w-40 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 text-xs font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400"
             />
-            <button onClick={guardarVistaActual} title="Guardar" className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer">
+            <button onClick={guardarVistaActual} title="Guardar" aria-label="Guardar" className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 cursor-pointer">
               <i className="fa-solid fa-check text-[11px]"></i>
             </button>
           </span>
@@ -422,7 +422,7 @@ export default function InventarioView({
           <div className="relative">
             <button
               onClick={() => setMenuCols(v => !v)}
-              title="Columnas visibles"
+              title="Columnas visibles" aria-label="Columnas visibles"
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
             >
               <i className="fa-solid fa-table-columns text-xs"></i>
@@ -563,7 +563,7 @@ export default function InventarioView({
                                     <button
                                       onClick={() => openFichaBien(item)}
                                       className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
-                                      title="Ficha 360 y trazabilidad"
+                                      title="Ficha 360 y trazabilidad" aria-label="Ficha 360 y trazabilidad"
                                     >
                                       <i className="fa-solid fa-timeline text-xs"></i>
                                     </button>
@@ -572,7 +572,7 @@ export default function InventarioView({
                                     <button 
                                       onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
                                       className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                      title="Generar Código QR"
+                                      title="Generar Código QR" aria-label="Generar Código QR"
                                     >
                                       <i className="fa-solid fa-qrcode text-xs"></i>
                                     </button>
@@ -581,7 +581,7 @@ export default function InventarioView({
                                     <button 
                                       onClick={() => openFC10Modal(item)}
                                       className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                      title="Asignación FC-10"
+                                      title="Asignación FC-10" aria-label="Asignación FC-10"
                                     >
                                       <i className="fa-solid fa-file-signature text-xs"></i>
                                     </button>
@@ -590,7 +590,7 @@ export default function InventarioView({
                                     <button 
                                       onClick={() => openFC11Modal(item)}
                                       className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                      title="Traslado FC-11"
+                                      title="Traslado FC-11" aria-label="Traslado FC-11"
                                     >
                                       <i className="fa-solid fa-truck-fast text-xs"></i>
                                     </button>
@@ -599,7 +599,7 @@ export default function InventarioView({
                                     <button 
                                       onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }}
                                       className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                      title="Editar Bien"
+                                      title="Editar Bien" aria-label="Editar Bien"
                                     >
                                       <i className="fa-solid fa-pen-to-square text-xs"></i>
                                     </button>
@@ -614,7 +614,7 @@ export default function InventarioView({
                                         }
                                       }}
                                       className="h-8 w-8 flex items-center justify-center text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
-                                      title="Eliminar o Solicitar Baja"
+                                      title="Eliminar o Solicitar Baja" aria-label="Eliminar o Solicitar Baja"
                                     >
                                       <i className="fa-solid fa-trash-can text-xs"></i>
                                     </button>

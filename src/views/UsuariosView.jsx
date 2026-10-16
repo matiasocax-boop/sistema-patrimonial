@@ -66,11 +66,11 @@ export default function UsuariosView({
                                 </span>
                             ) : (
                             <>
-                            <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar usuario">
+                            <button onClick={() => { setUsuarioEditing(u); setIsUsuarioModalOpen(true); }} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none" title="Editar usuario" aria-label="Editar usuario">
                                 <i className="fa-solid fa-pen-to-square text-[13px]"></i>
                             </button>
                             {u.username !== currentUser.username && (
-                                <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo, item: u})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario">
+                                <button onClick={() => setItemToDelete({type:'usuario', username: u.username, cargo: u.cargo, item: u})} className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:text-rose-400 dark:hover:bg-rose-500/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-rose-500 outline-none" title="Eliminar usuario" aria-label="Eliminar usuario">
                                     <i className="fa-solid fa-trash-can text-[13px]"></i>
                                 </button>
                             )}

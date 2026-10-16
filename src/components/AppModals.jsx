@@ -20,6 +20,7 @@ import CommandPalette from './CommandPalette';
 import DependenciasModal from './modals/DependenciasModal';
 import UbicacionesModal from './modals/UbicacionesModal';
 import MantenimientoModal from './modals/MantenimientoModal';
+import CampoResultado from './CampoResultado';
 import { formatCurrency, formatDateText, formatCI, matchSearchWords, normalizeStr } from '../utils/helpers';
 
 // Cableado de modales y flotantes (extraído de App.jsx, Fase 6).
@@ -181,6 +182,7 @@ export default function AppModals({
   clearAllFilters, setSearchTerm, setSearchInput, setCurrentPage,
   openFC03Modal,
   fc10List, fc11List,
+  modoCampo, setModoCampo, ultimoEscaneo, setUltimoEscaneo, openFichaBien
 }) {
   return (
     <>
@@ -213,8 +215,19 @@ export default function AppModals({
         }}
         modoConteo={scanParaConteo}
         conteoActual={conteoCodigos.length}
+        modoCampo={modoCampo}
+        setModoCampo={setModoCampo}
         STYLES={STYLES}
     />
+          {ultimoEscaneo?.bien && (
+            <CampoResultado
+              escaneo={ultimoEscaneo}
+              onVerFicha={(bien) => { setUltimoEscaneo(null); openFichaBien(bien); }}
+              onSeguir={() => { setUltimoEscaneo(null); setIsScannerOpen(true); }}
+              onCerrar={() => setUltimoEscaneo(null)}
+              STYLES={STYLES}
+            />
+          )}
           <QRModal 
         isOpen={isQRModalOpen}
         onClose={() => setIsQRModalOpen(false)}
@@ -240,7 +253,7 @@ export default function AppModals({
                       <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Configura los parámetros del reporte</p>
                     </div>
                   </div>
-                  <button onClick={() => setIsFC03ModalOpen(false)} title="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
+                  <button onClick={() => setIsFC03ModalOpen(false)} title="Cerrar" aria-label="Cerrar" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 dark:hover:bg-white/10 dark:hover:text-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
                      <i className="fa-solid fa-xmark"></i>
                   </button>
                 </div>
