@@ -193,6 +193,7 @@ export default function InventarioView({
         <i className="fa-solid fa-qrcode text-indigo-600 dark:text-indigo-400"></i>
         <span>Lote QRs</span>
       </button>
+    </div>
 
       <button 
         onClick={openFC03Modal} 
@@ -202,7 +203,6 @@ export default function InventarioView({
         <i className="fa-solid fa-print text-amber-600"></i>
         <span>FC-03</span>
       </button>
-    </div>
 
       <div className="h-5 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 hidden sm:block shrink-0"></div>
 
