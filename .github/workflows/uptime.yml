@@ -31,7 +31,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          num=$(gh issue list --label downtime --state open --json number --jq '.[0].number // empty')
+          num=$(gh issue list --label downtime --state open --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
           echo "num=$num" >> "$GITHUB_OUTPUT"
 
       - name: Abrir o mantener aviso
@@ -39,6 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          gh label create downtime --description "Monitoreo uptime" --force 2>/dev/null || true
           if [ -z "${{ steps.buscar.outputs.num }}" ]; then
             gh issue create \
               --title "$ISSUE_TITLE" \

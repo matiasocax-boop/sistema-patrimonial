@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
 
@@ -29,6 +29,23 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
         doc: fc10Editing?.funcionarioDoc || '',
         cargo: fc10Editing?.funcionarioCargo || ''
     });
+    // Guardia anti-doble-clic: los botones Siguiente/Confirmar ocupan el mismo
+    // lugar; sin esto un doble clic salta del paso 2 al guardado sin ver el 3.
+    // bloqueoRef es síncrono (el state tarda un render en aplicarse y no frena
+    // el 2do clic del doble-clic). El submit se bloquea si pasó <1s del cambio.
+    const [puedeGuardar, setPuedeGuardar] = useState(false);
+    const enviandoRef = useRef(false);
+    const bloqueoRef = useRef(0);
+    const irPaso = (n) => { bloqueoRef.current = Date.now(); setStep(n); };
+    useEffect(() => {
+        if (step !== 3) {
+            setPuedeGuardar(false);
+            return;
+        }
+        bloqueoRef.current = Date.now();
+        const t = setTimeout(() => setPuedeGuardar(true), 800);
+        return () => clearTimeout(t);
+    }, [step]);
 
     useEffect(() => {
         setIsReturning(!!fc10Editing?.devolucionFecha);
@@ -47,6 +64,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                 }
             }
         }
+        bloqueoRef.current = Date.now();
         setStep(prev => Math.min(prev + 1, 3));
     };
 
@@ -121,7 +139,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                     <button type="button" onClick={continuarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-black bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer">Continuar</button>
                     <button type="button" onClick={limpiarBorradorFC} className="h-8 px-3.5 rounded-xl text-[11px] font-bold text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer">Descartar</button>
                   </div>
-                )}<form key={formKeyFC} onSubmit={async (e) => { const ok = await saveFC10(e); if (ok) limpiarBorradorFC(); }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} onKeyDown={handleKeyDown} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
+                )}<form key={formKeyFC} onSubmit={async (e) => { e.preventDefault(); if (step !== 3) return; if (Date.now() - bloqueoRef.current < 1000) return; if (enviandoRef.current) return; if (!puedeGuardar) return; enviandoRef.current = true; try { const ok = await saveFC10(e); if (ok) limpiarBorradorFC(); } finally { enviandoRef.current = false; } }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} onKeyDown={handleKeyDown} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
                     <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
                         
                         <div className="flex gap-2">
@@ -316,7 +334,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                         {step === 1 ? (
                             <button type="button" onClick={() => setIsFC10ModalOpen(false)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Cancelar</button>
                         ) : (
-                            <button type="button" onClick={() => setStep(step - 1)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Anterior</button>
+                            <button type="button" onClick={() => irPaso(step - 1)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Anterior</button>
                         )}
                         
                         {step < 3 ? (
@@ -324,7 +342,7 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                 Siguiente Paso <i className="fa-solid fa-arrow-right text-xs ml-1"></i>
                             </button>
                         ) : (
-                            <button type="submit" className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">
+                            <button type="submit" disabled={!puedeGuardar} title={puedeGuardar ? 'Confirmar y guardar' : 'Espere...'} className="inline-flex items-center justify-center gap-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] h-10 px-5 rounded-xl hover:bg-zinc-800 dark:hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
                                 <i className="fa-solid fa-floppy-disk text-xs mr-1"></i> Confirmar y Guardar
                             </button>
                         )}

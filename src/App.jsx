@@ -493,10 +493,35 @@ export default function App() {
   const asignarFuncionarioAUbicacion = async (funcId, ubicacionNombre) => {
     if (!funcId) return;
     try {
+      const func = funcionariosPadron.find(f => f.id === funcId);
       const { error } = await supabase.from('funcionarios').update({ ubicacion: ubicacionNombre || '' }).eq('id', funcId);
       if (error) throw error;
       setFuncionariosPadron(prev => prev.map(f => (f.id === funcId ? { ...f, ubicacion: ubicacionNombre || '' } : f)));
-      addToast(ubicacionNombre ? 'Funcionario asignado a la ubicación.' : 'Funcionario sin ubicación.', 'success');
+      // Cascada: los bienes a cargo del funcionario siguen su departamento.
+      // Sin esto el padrón decía "Contratos y Garantías" pero el bien quedaba
+      // con la ubicación vieja ("Seguimiento de Contratos").
+      let movidos = 0;
+      if (ubicacionNombre && func) {
+        const cedFunc = String(func.cedula || '').replace(/\D/g, '');
+        const nomFunc = normalizeStr(func.nombre || '');
+        const afectados = bienes.filter(b => {
+          if (b.dependencia !== dependenciaActual) return false;
+          if (normalizeStr(b.ubicacion || '') === normalizeStr(ubicacionNombre)) return false;
+          const cedBien = String(b.funcionarioDoc || '').replace(/\D/g, '');
+          if (cedFunc && cedBien && cedFunc === cedBien) return true;
+          return nomFunc && normalizeStr(b.funcionario || '') === nomFunc;
+        });
+        for (const b of afectados) {
+          const actualizado = { ...b, ubicacion: ubicacionNombre };
+          const { error: eBien } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', b.id);
+          if (!eBien) movidos++;
+        }
+        if (movidos > 0) {
+          const ids = new Set(afectados.map(b => b.id));
+          setBienes(prev => prev.map(b => (ids.has(b.id) ? { ...b, ubicacion: ubicacionNombre } : b)));
+        }
+      }
+      addToast(ubicacionNombre ? (movidos > 0 ? `Funcionario asignado. ${movidos} bien(es) actualizados.` : 'Funcionario asignado a la ubicación.') : 'Funcionario sin ubicación.', 'success');
     } catch (e) {
       addToast('No se pudo asignar.', 'error');
     }
