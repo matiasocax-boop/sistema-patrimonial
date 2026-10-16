@@ -20,7 +20,7 @@ import CommandPalette from './CommandPalette';
 import DependenciasModal from './modals/DependenciasModal';
 import UbicacionesModal from './modals/UbicacionesModal';
 import MantenimientoModal from './modals/MantenimientoModal';
-import { formatCurrency, formatDateText, formatCI, matchSearchWords } from '../utils/helpers';
+import { formatCurrency, formatDateText, formatCI, matchSearchWords, normalizeStr } from '../utils/helpers';
 
 // Cableado de modales y flotantes (extraído de App.jsx, Fase 6).
 // Componente presentacional: todo llega por props, sin estado propio.
@@ -178,7 +178,8 @@ export default function AppModals({
   confirmDependenciaChange,
   pendingDependencia,
   clearAllFilters, setSearchTerm, setSearchInput, setCurrentPage,
-  openFC03Modal
+  openFC03Modal,
+  fc10List, fc11List,
 }) {
   return (
     <>
@@ -587,6 +588,18 @@ export default function AppModals({
               : (esSolicitud
                 ? `Se enviará una notificación formal al administrador para evaluar la exclusión del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}".`
                 : `Esta acción modificará el estado del activo "${itemToDelete.item?.rotulo || 'S/Rótulo'}" a De Baja o lo removerá del inventario activo.`));
+        // Impacto: documentos y bienes vinculados al registro
+        const impacto = [];
+        if (!esSolicitud && (tipo === 'bien')) {
+          const nFc10 = (fc10List || []).filter(fc => fc.bienId === itemToDelete.id).length;
+          const nFc11 = (fc11List || []).filter(fc => fc.bienId === itemToDelete.id).length;
+          if (nFc10 > 0) impacto.push(nFc10 + (nFc10 === 1 ? ' acta FC-10' : ' actas FC-10'));
+          if (nFc11 > 0) impacto.push(nFc11 + (nFc11 === 1 ? ' traslado FC-11' : ' traslados FC-11'));
+        }
+        if (!esSolicitud && esFunc && itemToDelete.item?.nombre) {
+          const nBienes = (bienes || []).filter(b => normalizeStr(b.funcionario || '') === normalizeStr(itemToDelete.item.nombre)).length;
+          if (nBienes > 0) impacto.push(nBienes + (nBienes === 1 ? ' bien a su cargo' : ' bienes a su cargo'));
+        }
             return (
             <div className={STYLES.modalOverlay}>
                 <div className={STYLES.modalContent + " max-w-md p-6 sm:p-8 text-center bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl animate-slide-up"}>
@@ -602,6 +615,12 @@ export default function AppModals({
                     <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-4 leading-relaxed">
                         {descripcion}
                     </p>
+                    {impacto.length > 0 && (
+                      <p className="animate-fade-in mx-auto mb-4 flex w-fit items-center gap-1.5 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                        <i className="fa-solid fa-link text-[10px]"></i>
+                        Vinculado a {impacto.join(' y ')}
+                      </p>
+                    )}
 
                     {esSolicitud && (
                       <div className="text-left mb-6 space-y-1.5">

@@ -7,7 +7,7 @@ export default function Fc10View({
   filteredFC10, fc10Year, setFc10Year, fc10Month, setFc10Month,
   STYLES, setIsConsolidatedFC10ModalOpen, handleExportFC10CSV,
   isLoading, bienes, handleGenerateFC10PDF, openFC10Modal,
-  isAdmin, setItemToDelete
+  isAdmin, setItemToDelete, setActiveTab
 }) {
   return (
     <div className="animate-fade-in flex flex-col flex-1 space-y-6">
@@ -49,6 +49,14 @@ export default function Fc10View({
               </div>
               <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin asignaciones en el ciclo</h3>
               <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen actas FC-10 generadas en el periodo seleccionado.</p>
+              {setActiveTab && (
+                <button
+                  onClick={() => setActiveTab('inventario')}
+                  className="mt-4 inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
+                >
+                  <i className="fa-solid fa-boxes-stacked text-xs"></i> Asignar desde inventario
+                </button>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">

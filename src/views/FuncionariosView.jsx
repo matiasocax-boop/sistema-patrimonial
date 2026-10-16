@@ -181,6 +181,14 @@ export default function FuncionariosView({
                             <i className="fa-solid fa-users-slash text-2xl"></i>
                         </div>
                         <span className="text-sm font-bold text-zinc-400">No hay funcionarios registrados en esta dependencia.</span>
+                        <div>
+                          <button
+                            onClick={() => setIsNewFuncionarioModalOpen(true)}
+                            className="mt-4 inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
+                          >
+                            <i className="fa-solid fa-user-plus text-xs"></i> Registrar el primero
+                          </button>
+                        </div>
                     </td>
                   </tr>
                 )}

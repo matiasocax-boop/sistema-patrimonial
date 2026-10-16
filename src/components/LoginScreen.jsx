@@ -21,7 +21,8 @@ export default function LoginScreen({
     setDarkMode,
     appLogo,
     toasts,
-    isProcessing = false
+    isProcessing = false,
+    quitarToast = () => {}
 }) {
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -103,6 +104,14 @@ export default function LoginScreen({
             <div key={t.id} className="pointer-events-auto flex items-center gap-3 px-5 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-bold bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 transition-all animate-slide-up border border-white/10 dark:border-black/10">
               <i className={`fa-solid ${t.type === 'success' ? 'fa-circle-check text-emerald-400' : t.type === 'error' ? 'fa-circle-exclamation text-rose-400' : t.type === 'warning' ? 'fa-triangle-exclamation text-amber-400' : 'fa-circle-info text-sky-400'} text-base`}></i>
               <span className="flex-1">{t.message}</span>
+              {t.action && (
+                <button
+                  onClick={() => { try { t.action.onClick(); } catch {} quitarToast(t.id); }}
+                  className="shrink-0 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-white text-zinc-900 hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
           ))}
         </div>

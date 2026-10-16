@@ -66,6 +66,39 @@ export function useFcModals({
   const fileInputRef = useRef(null);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
   const [scanParaConteo, setScanParaConteo] = useState(false);
+  const borradoPendiente = useRef(null);
+  const ejecutarBorradoPendiente = async () => {
+    const plan = borradoPendiente.current;
+    borradoPendiente.current = null;
+    if (!plan) return;
+    try {
+      const res = await plan.remoto();
+      if (res && res.error) throw res.error;
+    } catch (e) {
+      plan.revertir();
+      notify('No se pudo completar. Se restauró el registro.', 'error');
+    }
+  };
+  const programarBorrado = (plan) => {
+    if (borradoPendiente.current) ejecutarBorradoPendiente();
+    plan.aplicar();
+    setItemToDelete(null);
+    setMotivoSolicitudBaja('');
+    borradoPendiente.current = plan;
+    notify(plan.etiqueta, 'success', {
+      duration: 6000,
+      action: {
+        label: 'Deshacer',
+        onClick: () => {
+          if (borradoPendiente.current !== plan) return;
+          borradoPendiente.current = null;
+          plan.revertir();
+          notify('Acción deshecha.', 'info');
+        }
+      }
+    });
+    setTimeout(() => { if (borradoPendiente.current === plan) ejecutarBorradoPendiente(); }, 6000);
+  };
 
   const openFichaBien = async (bien) => {
     if (!bien) return;
@@ -833,46 +866,79 @@ export function useFcModals({
                 });
               }
           } else {
+              // Borrado diferido con Deshacer (6s): aplica local ya, confirma remoto después.
+              const snapshot = item ? { ...item } : null;
+              const esBaja = type === 'bien' && item?.estadoConservacion !== 'De Baja';
+              let plan = null;
               if (type === 'bien') {
-                  if (item.estadoConservacion === 'De Baja') { 
-                    res = await supabase.from('bens').delete().eq('id', id); 
-                  } else { 
-                    res = await supabase.from('bens').update(conSello({ data: { ...item, estadoConservacion: 'De Baja' } })).eq('id', id); 
+                  if (esBaja) {
+                      plan = {
+                          etiqueta: 'Bien dado de baja.',
+                          aplicar: () => setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b)),
+                          revertir: () => snapshot && setBienes(prev => prev.map(b => b.id === id ? snapshot : b)),
+                          remoto: async () => {
+                              const r = await supabase.from('bens').update(conSello({ data: { ...item, estadoConservacion: 'De Baja' } })).eq('id', id);
+                              await registrarAuditoria({
+                                  usuario: currentUser?.username || 'Usuario',
+                                  dependencia: dependenciaActual,
+                                  accion: 'ELIMINACION_O_BAJA',
+                                  entidad: 'BIEN',
+                                  entidadId: id,
+                                  detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion, estadoPrevio: item?.estadoConservacion }
+                              });
+                              return r;
+                          }
+                      };
+                  } else {
+                      plan = {
+                          etiqueta: 'Registro eliminado.',
+                          aplicar: () => setBienes(prev => prev.filter(b => b.id !== id)),
+                          revertir: () => snapshot && setBienes(prev => (prev.some(b => b.id === id) ? prev : [...prev, snapshot])),
+                          remoto: async () => {
+                              const r = await supabase.from('bens').delete().eq('id', id);
+                              await registrarAuditoria({
+                                  usuario: currentUser?.username || 'Usuario',
+                                  dependencia: dependenciaActual,
+                                  accion: 'ELIMINACION_O_BAJA',
+                                  entidad: 'BIEN',
+                                  entidadId: id,
+                                  detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion, estadoPrevio: item?.estadoConservacion }
+                              });
+                              return r;
+                          }
+                      };
                   }
-
-                  await registrarAuditoria({
-                    usuario: currentUser?.username || 'Usuario',
-                    dependencia: dependenciaActual,
-                    accion: 'ELIMINACION_O_BAJA',
-                    entidad: 'BIEN',
-                    entidadId: id,
-                    detalles: { rotulo: item?.rotulo, descripcion: item?.descripcion, estadoPrevio: item?.estadoConservacion }
-                  });
               }
-              else if (type === 'fc10') res = await supabase.from('fc10').delete().eq('id', id);
-              else if (type === 'fc11') res = await supabase.from('fc11').delete().eq('id', id);
-              else if (type === 'fc04') res = await supabase.from('fc04').delete().eq('id', id);
+              else if (type === 'fc10' || type === 'fc11' || type === 'fc04') {
+                  const tabla = type;
+                  const quita = type === 'fc10' ? setFc10List : type === 'fc11' ? setFc11List : setFc04List;
+                  plan = {
+                      etiqueta: 'Documento eliminado.',
+                      aplicar: () => quita(prev => prev.filter(f => f.id !== id)),
+                      revertir: () => snapshot && quita(prev => (prev.some(f => f.id === id) ? prev : [...prev, snapshot])),
+                      remoto: () => supabase.from(tabla).delete().eq('id', id)
+                  };
+              }
               else if (type === 'usuario') {
                   if (itemToDelete.cargo === 'desarrollador' && !esDesarrollador) {
                       return notify('Solo el Desarrollador del Sistema gestiona esa cuenta.', 'error');
                   }
-                  res = await supabase.from('usuarios').delete().eq('username', username);
+                  plan = {
+                      etiqueta: 'Usuario eliminado.',
+                      aplicar: () => setUsuariosList(prev => prev.filter(u => u.username !== username)),
+                      revertir: () => snapshot && setUsuariosList(prev => (prev.some(u => u.username === snapshot.username) ? prev : [...prev, snapshot])),
+                      remoto: () => supabase.from('usuarios').delete().eq('username', username)
+                  };
               }
-              else if (type === 'funcionario') res = await supabase.from('funcionarios').delete().eq('id', id);
-
-              if (!res.error) notify("Acción completada", "success");
-          }
-          // Actualización local dirigida (evita una recarga total y ahorra transferencia)
-          if (res && !res.error) {
-              if (type === 'bien') {
-                  if (item.estadoConservacion === 'De Baja') setBienes(prev => prev.filter(b => b.id !== id));
-                  else setBienes(prev => prev.map(b => b.id === id ? { ...b, estadoConservacion: 'De Baja' } : b));
+              else if (type === 'funcionario') {
+                  plan = {
+                      etiqueta: 'Funcionario eliminado del padrón.',
+                      aplicar: () => setFuncionariosPadron(prev => prev.filter(f => f.id !== id)),
+                      revertir: () => snapshot && setFuncionariosPadron(prev => (prev.some(f => f.id === id) ? prev : [...prev, snapshot])),
+                      remoto: () => supabase.from('funcionarios').delete().eq('id', id)
+                  };
               }
-              else if (type === 'fc10') setFc10List(prev => prev.filter(f => f.id !== id));
-              else if (type === 'fc11') setFc11List(prev => prev.filter(f => f.id !== id));
-              else if (type === 'fc04') setFc04List(prev => prev.filter(f => f.id !== id));
-              else if (type === 'usuario') setUsuariosList(prev => prev.filter(u => u.username !== username));
-              else if (type === 'funcionario') setFuncionariosPadron(prev => prev.filter(f => f.id !== id));
+              if (plan) programarBorrado(plan);
           }
       } catch (e) { 
         notify("Error de red.", "error"); 
