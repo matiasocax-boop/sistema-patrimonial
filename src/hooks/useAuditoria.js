@@ -39,8 +39,10 @@ export function useAuditoria({
   const limpiarBusquedaAud = (texto) => String(texto || '').replace(/[%(),.]/g, ' ').replace(/\s+/g, ' ').trim();
   // Higiene de auditoría: retención de 5 días. Se ejecuta como máximo una
   // vez al día al entrar al libro (solo admin). Borra eventos con fecha
-  // anterior al corte, en lotes para no saturar.
+  // anterior al corte, en lotes para no saturar. Se conservan siempre las
+  // bajas, aprobaciones/rechazos y eliminaciones (rastro legal).
   const RETENCION_AUD_MS = 5 * 24 * 3600 * 1000;
+  const ACCIONES_SENSIBLES = /BAJA|APROB|RECHAZ|ELIMIN/;
   const purgarAuditoriaVieja = async () => {
     try {
       const key = 'aud_purge_ts';
@@ -49,9 +51,10 @@ export function useAuditoria({
       localStorage.setItem(key, String(Date.now()));
       const corte = new Date(Date.now() - RETENCION_AUD_MS).toISOString();
       for (;;) {
-        const { data, error } = await supabase.from('auditoria').select('id').lt('fecha', corte).limit(500);
+        const { data, error } = await supabase.from('auditoria').select('id,accion').lt('fecha', corte).limit(500);
         if (error || !data || data.length === 0) break;
-        await supabase.from('auditoria').delete().in('id', data.map(r => r.id));
+        const ids = data.filter(r => !ACCIONES_SENSIBLES.test(String(r.accion || ''))).map(r => r.id);
+        if (ids.length > 0) await supabase.from('auditoria').delete().in('id', ids);
         if (data.length < 500) break;
       }
     } catch (e) {}
