@@ -38,6 +38,29 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
   // Orden de la tabla: null = orden natural por rótulo; si no { campo, dir }.
   // campo: 'rotulo' | 'valor' | 'fecha'. dir: 'asc' | 'desc'.
   const [orden, setOrden] = useState(null);
+  // Tamaño de página configurable (10/20/50) + selección múltiple + vista.
+  const [itemsPorPagina, setItemsPorPagina] = useState(() => {
+    try { return parseInt(localStorage.getItem('inv_page_size') || '10', 10) || 10; } catch { return 10; }
+  });
+  const [seleccionados, setSeleccionados] = useState([]);
+  const [vistaInv, setVistaInv] = useState(() => {
+    try { return localStorage.getItem('inv_vista') || 'tabla'; } catch { return 'tabla'; }
+  });
+  const cambiarPaginaTam = useCallback((n) => {
+    setItemsPorPagina(n);
+    try { localStorage.setItem('inv_page_size', String(n)); } catch {}
+    setCurrentPage(1);
+  }, []);
+  const cambiarVistaInv = useCallback((v) => {
+    setVistaInv(v);
+    try { localStorage.setItem('inv_vista', v); } catch {}
+  }, []);
+  const toggleSeleccion = useCallback((id) => {
+    setSeleccionados(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  }, []);
+  const limpiarSeleccion = useCallback(() => setSeleccionados([]), []);
+  // Al cambiar los filtros o la dependencia, la selección vieja no aplica.
+  useEffect(() => { setSeleccionados([]); }, [dependenciaActual, searchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroSubcuenta, filtroFC10, filtroEstado]);
   const alternarOrden = useCallback((campo) => {
     setOrden(prev => {
       if (!prev || prev.campo !== campo) return { campo, dir: campo === 'valor' ? 'desc' : 'asc' };
@@ -52,6 +75,7 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1('');
     setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL');
     setFiltroEstado('ALL'); setFiltroPendiente(''); setSearchInput(''); setSearchTerm(''); setOrden(null); setCurrentPage(1);
+    setSeleccionados([]);
   }, []);
 
   const hasFilters = Boolean(
@@ -252,9 +276,9 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     return filtered;
   }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, filtroPendiente, debouncedSearchTerm, orden]);
 
-  const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * ITEMS_POR_PAGINA; return filteredBienes.slice(start, start + ITEMS_POR_PAGINA); }, [filteredBienes, currentPage]);
+  const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPorPagina; return filteredBienes.slice(start, start + itemsPorPagina); }, [filteredBienes, currentPage, itemsPorPagina]);
   const itemsPaginados = paginatedBienes;
-  const totalPages = Math.ceil(filteredBienes.length / ITEMS_POR_PAGINA);
+  const totalPages = Math.ceil(filteredBienes.length / itemsPorPagina);
 
   return {
     searchInput, setSearchInput, searchTerm, setSearchTerm, debouncedSearchTerm,
@@ -270,6 +294,8 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     guardarVistaActual, aplicarVista, eliminarVista,
     funcionariosUnicos, ubicacionesUnicas, aniosUnicos,
     subcuentasUnicas, analiticos1Unicos, analiticos2Unicos,
-    stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages
+    stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages,
+    itemsPorPagina, cambiarPaginaTam, seleccionados, toggleSeleccion, limpiarSeleccion,
+    vistaInv, cambiarVistaInv
   };
 }

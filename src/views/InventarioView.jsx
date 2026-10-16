@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PENDIENTE_LABELS, ESTADOS_CONSERVACION } from '../constants/appConstants';
 import FiltroCombo from '../components/FiltroCombo';
+import CompararBienesModal from '../components/CompararBienesModal';
 import { formatDateText } from '../utils/helpers';
 
 // Vista del inventario general (extraída de App.jsx, Fase 5).
@@ -68,7 +69,17 @@ export default function InventarioView({
   openFichaBien,
   openFC10Modal,
   openFC11Modal,
-  renderPagination
+  renderPagination,
+  seleccionados,
+  toggleSeleccion,
+  limpiarSeleccion,
+  vistaInv,
+  cambiarVistaInv,
+  lastMutatedBienId,
+  onDuplicar,
+  onBajaMasiva,
+  onQRLoteSeleccion,
+  STYLES
 }) {
   // Densidad y columnas visibles (preferencia local por usuario)
   const [densidad, setDensidad] = useState(() => {
@@ -119,6 +130,18 @@ export default function InventarioView({
     setOrden({ campo, dir });
     setCurrentPage(1);
   };
+  // Orden rápido por campo (clic en encabezado o aquí): asc -> desc -> natural
+  const ciclarOrden = (campo) => {
+    if (!orden || orden.campo !== campo) { setOrden({ campo, dir: campo === 'valor' ? 'desc' : 'asc' }); }
+    else if (orden.dir === 'asc') { setOrden({ campo, dir: 'desc' }); }
+    else { setOrden(null); }
+    setCurrentPage(1);
+  };
+  const flechaOrden = (campo) => (!orden || orden.campo !== campo) ? 'fa-sort' : (orden.dir === 'asc' ? 'fa-arrow-up-wide-short' : 'fa-arrow-down-wide-short');
+  const [comparando, setComparando] = useState(false);
+  const [confirmaBajaMasiva, setConfirmaBajaMasiva] = useState(false);
+  const bienesSeleccionados = itemsPaginados.filter(i => seleccionados.includes(i.id));
+  const selFueraPagina = seleccionados.length - bienesSeleccionados.length;
   // Chips de filtros activos con limpieza individual
   const limpiarPag = (fn) => () => { fn(); setCurrentPage(1); };
   const chips = [];
@@ -450,6 +473,30 @@ export default function InventarioView({
           ))}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hidden md:flex items-center rounded-xl border border-zinc-200 dark:border-white/10 overflow-hidden" title="Vista de resultados">
+            <button
+              onClick={() => cambiarVistaInv('tabla')} title="Vista tabla" aria-label="Vista tabla"
+              className={`flex h-9 w-9 items-center justify-center transition-all cursor-pointer ${vistaInv === 'tabla' ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+            >
+              <i className="fa-solid fa-table-list text-xs"></i>
+            </button>
+            <button
+              onClick={() => cambiarVistaInv('tarjetas')} title="Vista tarjetas" aria-label="Vista tarjetas"
+              className={`flex h-9 w-9 items-center justify-center transition-all cursor-pointer ${vistaInv === 'tarjetas' ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+            >
+              <i className="fa-solid fa-grip text-xs"></i>
+            </button>
+          </div>
+          <div className="hidden xl:flex items-center gap-1 shrink-0" title="Orden rápido">
+            {[['rotulo', 'Rótulo'], ['valor', 'Valor'], ['fecha', 'Fecha']].map(([campo, label]) => (
+              <button
+                key={campo} onClick={() => ciclarOrden(campo)} title={`Ordenar por ${label}`}
+                className={`inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${orden?.campo === campo ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+              >
+                {label} <i className={`fa-solid ${flechaOrden(campo)} text-[9px]`}></i>
+              </button>
+            ))}
+          </div>
           <select
             value={ordenActual} onChange={(e) => cambiarOrden(e.target.value)}
             title="Orden de la tabla"
@@ -494,13 +541,80 @@ export default function InventarioView({
           </div>
         </div>
       </div>
+                    {/* Barra de acciones en lote */}
+                    {seleccionados.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 px-4 sm:px-5 py-3 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 shadow-md animate-pop">
+                        <span className="text-[13px] font-bold tabular-nums">
+                          {seleccionados.length} seleccionado{seleccionados.length === 1 ? '' : 's'}{selFueraPagina > 0 ? ` (${selFueraPagina} en otras páginas)` : ''}
+                        </span>
+                        <span className="flex-1"></span>
+                        <button onClick={() => onQRLoteSeleccion && onQRLoteSeleccion()} title="Generar ZIP de etiquetas de la selección" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold bg-white/15 dark:bg-zinc-900/10 hover:bg-white/25 dark:hover:bg-zinc-900/20 transition-all cursor-pointer">
+                          <i className="fa-solid fa-qrcode text-[11px]"></i> QRs
+                        </button>
+                        <button onClick={() => setComparando(true)} disabled={seleccionados.length < 2 || seleccionados.length > 3} title="Comparar 2 o 3 bienes lado a lado" className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold bg-white/15 dark:bg-zinc-900/10 hover:bg-white/25 dark:hover:bg-zinc-900/20 transition-all cursor-pointer disabled:opacity-40">
+                          <i className="fa-solid fa-columns-compare text-[11px]"></i> Comparar
+                        </button>
+                        <button onClick={() => setConfirmaBajaMasiva(true)} title={isAdmin ? 'Dar de baja la selección' : 'Solicitar baja de la selección'} className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-bold bg-rose-500/90 hover:bg-rose-500 text-white transition-all cursor-pointer">
+                          <i className="fa-solid fa-trash-can text-[11px]"></i> Baja
+                        </button>
+                        <button onClick={limpiarSeleccion} title="Limpiar selección" aria-label="Limpiar selección" className="flex h-9 w-9 items-center justify-center rounded-xl hover:bg-white/15 dark:hover:bg-zinc-900/10 transition-all cursor-pointer">
+                          <i className="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                      </div>
+                    )}
                   <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden" data-tour="inv-table">
+                    {vistaInv === 'tarjetas' ? (
+                    <div className="p-4 sm:p-5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {itemsPaginados.map((item) => (
+                          <div key={item.id} className={`relative rounded-2xl border p-4 shadow-xs card-lift bg-white dark:bg-white/[0.03] ${lastMutatedBienId === item.id ? 'row-flash border-brand-primary/50' : 'border-zinc-200/70 dark:border-white/10'}`}>
+                            <div className="flex items-start gap-2.5">
+                              <input type="checkbox" checked={seleccionados.includes(item.id)} onChange={() => toggleSeleccion(item.id)} title="Seleccionar" aria-label={`Seleccionar ${item.rotulo}`} className="mt-1 h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer" />
+                              <div className="min-w-0 flex-1">
+                                <span className="font-mono font-semibold text-xs text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/10 px-2 py-0.5 rounded-lg">{item.rotulo || 'S/R'}</span>
+                                <p className="font-semibold text-zinc-900 dark:text-white text-sm leading-snug line-clamp-2 mt-1.5">{item.descripcion}</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 truncate"><i className="fa-solid fa-user-check text-emerald-500 text-[10px] mr-1"></i>{item.funcionario || 'Sin asignación'}</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate"><i className="fa-solid fa-location-dot text-rose-500 text-[10px] mr-1"></i>{item.ubicacion || 'Sin ubicación'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-zinc-100 dark:border-white/5">
+                              <button onClick={() => openFichaBien(item)} title="Ficha 360" aria-label="Ficha 360" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-timeline text-xs"></i></button>
+                              <button onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }} title="QR" aria-label="QR" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-qrcode text-xs"></i></button>
+                              <button onClick={() => openFC10Modal(item)} title="Asignación FC-10" aria-label="Asignación FC-10" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-file-signature text-xs"></i></button>
+                              <button onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }} title="Editar" aria-label="Editar" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
+                              <button onClick={() => onDuplicar && onDuplicar(item)} title="Duplicar registro" aria-label="Duplicar registro" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-copy text-xs"></i></button>
+                            </div>
+                          </div>
+                        ))}
+                        {itemsPaginados.length === 0 && (
+                          <div className="col-span-full p-12 text-center">
+                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
+                              <i className="fa-solid fa-boxes-packing text-2xl"></i>
+                            </div>
+                            <span className="text-sm font-bold text-zinc-400">No se encontraron bienes coincidentes con los filtros.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    ) : (
                     <div className="overflow-x-auto custom-scrollbar">
                       <table className="anim-rows w-full text-left border-collapse min-w-[900px]">
 
                                                   <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                           <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                            <th className="py-4 pl-6 sm:pl-8 pr-4 w-[38%]">Identificación y Descripción</th>
+                            <th className="py-4 pl-4 sm:pl-5 pr-1 w-[36px]">
+                              <input
+                                type="checkbox" title="Seleccionar página" aria-label="Seleccionar página"
+                                checked={itemsPaginados.length > 0 && itemsPaginados.every(i => seleccionados.includes(i.id))}
+                                onChange={(e) => { if (e.target.checked) { itemsPaginados.forEach(i => { if (!seleccionados.includes(i.id)) toggleSeleccion(i.id); }); } else { itemsPaginados.forEach(i => { if (seleccionados.includes(i.id)) toggleSeleccion(i.id); }); } }}
+                                className="h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer"
+                              />
+                            </th>
+                            <th className="py-4 pr-4 w-[38%]">
+                              <button onClick={() => ciclarOrden('rotulo')} title="Ordenar por rótulo" className="inline-flex items-center gap-1.5 uppercase tracking-widest hover:text-zinc-900 dark:hover:text-white transition-colors cursor-pointer">
+                                Identificación y Descripción <i className={`fa-solid ${flechaOrden('rotulo')} text-[9px]`}></i>
+                              </button>
+                            </th>
                             <th className="px-4 py-4 w-[28%]">Localización y Custodio</th>
                             <th className="px-4 py-4 w-[18%]">Condición y Estado</th>
                             <th className="py-4 pl-4 pr-6 sm:pr-8 text-right w-[16%]">Acciones</th>
@@ -520,10 +634,14 @@ export default function InventarioView({
                             };
 
                             return (
-                              <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group">
+                              <tr key={item.id} className={`hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group ${lastMutatedBienId === item.id ? 'row-flash' : ''}`}>
 
+                                {/* Selección */}
+                                <td className={`pl-4 sm:pl-5 pr-1 align-top ${compacto ? 'py-2' : 'py-4'}`}>
+                                  <input type="checkbox" checked={seleccionados.includes(item.id)} onChange={() => toggleSeleccion(item.id)} title="Seleccionar" aria-label={`Seleccionar ${item.rotulo}`} className="mt-1.5 h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer" />
+                                </td>
                                 {/* Columna 1: Identificación */}
-                                <td className={`pl-6 sm:pl-8 pr-4 align-top ${compacto ? 'py-2' : 'py-4'}`} >
+                                <td className={`pr-4 align-top ${compacto ? 'py-2' : 'py-4'}`} >
                                   <div className="flex items-start gap-3.5">
                                     <div className={`shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 text-xs ${compacto ? 'hidden' : 'mt-1 flex h-10 w-10'}`}>
                                       <i className="fa-solid fa-tag text-sm"></i>
@@ -607,7 +725,7 @@ export default function InventarioView({
                                     {/* Ficha 360 y trazabilidad */}
                                     <button
                                       onClick={() => openFichaBien(item)}
-                                      className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-400 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
+                                      className="h-9 w-9 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
                                       title="Ficha 360 y trazabilidad" aria-label="Ficha 360 y trazabilidad"
                                     >
                                       <i className="fa-solid fa-timeline text-xs"></i>
@@ -616,7 +734,7 @@ export default function InventarioView({
                                     {/* Generar QR */}
                                     <button 
                                       onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
-                                      className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                      className="h-9 w-9 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                       title="Generar Código QR" aria-label="Generar Código QR"
                                     >
                                       <i className="fa-solid fa-qrcode text-xs"></i>
@@ -625,7 +743,7 @@ export default function InventarioView({
                                     {/* Asignar FC-10 */}
                                     <button 
                                       onClick={() => openFC10Modal(item)}
-                                      className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                      className="h-9 w-9 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                       title="Asignación FC-10" aria-label="Asignación FC-10"
                                     >
                                       <i className="fa-solid fa-file-signature text-xs"></i>
@@ -634,16 +752,25 @@ export default function InventarioView({
                                     {/* Traslado FC-11 */}
                                     <button 
                                       onClick={() => openFC11Modal(item)}
-                                      className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                      className="h-9 w-9 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                       title="Traslado FC-11" aria-label="Traslado FC-11"
                                     >
                                       <i className="fa-solid fa-truck-fast text-xs"></i>
                                     </button>
 
+                                    {/* Duplicar registro */}
+                                    <button 
+                                      onClick={() => onDuplicar && onDuplicar(item)}
+                                      className="h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer hidden sm:inline-flex"
+                                      title="Duplicar registro (alta similar)" aria-label="Duplicar registro"
+                                    >
+                                      <i className="fa-solid fa-copy text-xs"></i>
+                                    </button>
+
                                     {/* Editar Bien */}
                                     <button 
                                       onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }}
-                                      className="h-8 w-8 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                      className="h-9 w-9 flex items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer"
                                       title="Editar Bien" aria-label="Editar Bien"
                                     >
                                       <i className="fa-solid fa-pen-to-square text-xs"></i>
@@ -658,7 +785,7 @@ export default function InventarioView({
                                           setItemToDelete({ type: 'requestBaja', id: item.id, item });
                                         }
                                       }}
-                                      className="h-8 w-8 flex items-center justify-center text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
+                                      className="h-9 w-9 flex items-center justify-center text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 hover:bg-rose-100 dark:hover:bg-rose-500/20 rounded-xl transition-all active:scale-90 cursor-pointer"
                                       title="Eliminar o Solicitar Baja" aria-label="Eliminar o Solicitar Baja"
                                     >
                                       <i className="fa-solid fa-trash-can text-xs"></i>
@@ -673,7 +800,7 @@ export default function InventarioView({
 
                           {itemsPaginados.length === 0 && (
                             <tr>
-                              <td colSpan="4" className="p-16 text-center">
+                              <td colSpan="5" className="p-16 text-center">
                                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
                                   <i className="fa-solid fa-boxes-packing text-2xl"></i>
                                 </div>
@@ -685,10 +812,40 @@ export default function InventarioView({
 
                       </table>
                     </div>
+                    )}
 
                     {/* Paginación Integrada */}
                     {renderPagination()}
                   </div>
+
+      {comparando && (
+        <CompararBienesModal
+          bienes={itemsPaginados.filter(i => seleccionados.includes(i.id)).slice(0, 3)}
+          onClose={() => setComparando(false)}
+          STYLES={STYLES}
+        />
+      )}
+      {confirmaBajaMasiva && (
+        <div className={STYLES.modalOverlay} onClick={() => setConfirmaBajaMasiva(false)}>
+          <div className={STYLES.modalContent + ' max-w-[380px] !p-0 overflow-hidden rounded-[24px] shadow-2xl border border-zinc-200/80 dark:border-darkbg-border animate-slide-up'} onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Confirmar baja masiva">
+            <div className="p-8 text-center bg-white dark:bg-darkbg-card">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-2xl mb-6 bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400">
+                <i className="fa-solid fa-trash-can text-xl"></i>
+              </div>
+              <h3 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white mb-3">
+                {isAdmin ? `¿Dar de baja ${seleccionados.length} bienes?` : `¿Solicitar baja de ${seleccionados.length} bienes?`}
+              </h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium leading-relaxed">
+                {isAdmin ? 'Pasarán a estado "De Baja" y quedará registro en auditoría.' : 'Se enviarán como solicitudes al administrador para su revisión.'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3 p-6 bg-zinc-50 dark:bg-darkbg-main border-t border-zinc-100 dark:border-darkbg-border">
+              <button onClick={() => setConfirmaBajaMasiva(false)} className="flex-1 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer">Cancelar</button>
+              <button onClick={() => { setConfirmaBajaMasiva(false); onBajaMasiva && onBajaMasiva(seleccionados); }} className="flex-1 h-10 px-5 rounded-xl text-[13px] font-bold text-white bg-rose-600 hover:bg-rose-700 transition-colors cursor-pointer">Confirmar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
                 </div>
   );

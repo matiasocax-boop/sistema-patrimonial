@@ -81,9 +81,10 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   }
 };
 
-  const handleBulkLabelPNGZip = async () => {
-    if (filteredBienes.length === 0) return notify("No hay bienes filtrados.", "warning");
-    setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...' });
+  const handleBulkLabelPNGZip = async (lista) => {
+    const objetivos = Array.isArray(lista) && lista.length > 0 ? lista : filteredBienes;
+    if (objetivos.length === 0) return notify("No hay bienes filtrados.", "warning");
+    setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...', pct: 0 });
 
     setTimeout(async () => {
       try {
@@ -92,14 +93,15 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         const folder = zip.folder(`Etiquetas_Completas_${cleanDepName}`);
         
         const CHUNK_SIZE = 8;
-        const totalBienes = filteredBienes.length;
+        const totalBienes = objetivos.length;
 
         for (let i = 0; i < totalBienes; i += CHUNK_SIZE) {
-          const chunk = filteredBienes.slice(i, i + CHUNK_SIZE);
+          const chunk = objetivos.slice(i, i + CHUNK_SIZE);
           
           setIsProcessing({ 
             active: true, 
-            text: `Generando etiquetas: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...` 
+            text: `Generando etiquetas: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...`,
+            pct: Math.round((Math.min(i + CHUNK_SIZE, totalBienes) / totalBienes) * 100)
           });
 
           const results = await Promise.all(
@@ -126,9 +128,9 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         }
         
         try {
-          const idsToUpdate = filteredBienes.map(b => b.id);
+          const idsToUpdate = objetivos.map(b => b.id);
           setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
-          for (const bien of filteredBienes) {
+          for (const bien of objetivos) {
             if (!bien.hasQR) {
               await supabase.from("bens").update(conSello({ data: { ...bien, hasQR: true } })).eq("id", bien.id);
             }
@@ -145,10 +147,11 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     }, 100);
   };
 
-  const handleBulkSimpleQRZip = async () => {
-    if (filteredBienes.length === 0) return notify("No hay bienes filtrados.", "warning");
+  const handleBulkSimpleQRZip = async (lista) => {
+    const objetivos = Array.isArray(lista) && lista.length > 0 ? lista : filteredBienes;
+    if (objetivos.length === 0) return notify("No hay bienes filtrados.", "warning");
     
-    setIsProcessing({ active: true, text: 'Iniciando compresión de QRs simples...' });
+    setIsProcessing({ active: true, text: 'Iniciando compresión de QRs simples...', pct: 0 });
 
     setTimeout(async () => {
       try {
@@ -157,14 +160,15 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         const folder = zip.folder(`QRs_Simples_${cleanDepName}`);
         
         const CHUNK_SIZE = 10;
-        const totalBienes = filteredBienes.length;
+        const totalBienes = objetivos.length;
 
         for (let i = 0; i < totalBienes; i += CHUNK_SIZE) {
-          const chunk = filteredBienes.slice(i, i + CHUNK_SIZE);
+          const chunk = objetivos.slice(i, i + CHUNK_SIZE);
           
           setIsProcessing({ 
             active: true, 
-            text: `Procesando QRs: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...` 
+            text: `Procesando QRs: ${Math.min(i + CHUNK_SIZE, totalBienes)} de ${totalBienes}...`,
+            pct: Math.round((Math.min(i + CHUNK_SIZE, totalBienes) / totalBienes) * 100)
           });
 
           const results = await Promise.all(
@@ -191,9 +195,9 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         }
         
         try {
-          const idsToUpdate = filteredBienes.map(b => b.id);
+          const idsToUpdate = objetivos.map(b => b.id);
           setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
-          for (const bien of filteredBienes) {
+          for (const bien of objetivos) {
             if (!bien.hasQR) {
               await supabase.from("bens").update(conSello({ data: { ...bien, hasQR: true } })).eq("id", bien.id);
             }

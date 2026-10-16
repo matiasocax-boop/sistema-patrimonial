@@ -30,7 +30,8 @@ export default function BienModal({
     const ubicacionDropdownRef = useRef(null);
 
     // Estado para autocompletado de descripción (aprende de bienes existentes)
-    const esNuevo = !bienEditing;
+    // esNuevo por id: un duplicado llega como objeto sin id y es un alta nueva.
+    const esNuevo = !bienEditing?.id;
     const { borrador, hayBorrador, guardarBorrador, limpiarBorrador } = useDraft('borrador_bien_nuevo', esNuevo);
     const [restaurado, setRestaurado] = useState(null);
     const [formKey, setFormKey] = useState(0);
@@ -218,11 +219,11 @@ export default function BienModal({
             <div className="flex justify-between items-center px-6 py-5 border-b border-zinc-100 dark:border-zinc-800/80 shrink-0 z-10">
               <div className="flex items-center gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
-                   <i className={`fa-solid ${bienEditing ? 'fa-pen-to-square' : 'fa-plus'} text-base`}></i>
+                   <i className={`fa-solid ${esNuevo ? 'fa-plus' : 'fa-pen-to-square'} text-base`}></i>
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-zinc-900 dark:text-white tracking-tight">
-                    {bienEditing ? 'Editar Bien Patrimonial' : 'Registrar Nuevo Bien'}
+                    {esNuevo ? 'Registrar Nuevo Bien' : 'Editar Bien Patrimonial'}
                   </h2>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Complete la información requerida para el inventario</p>
                 </div>
@@ -276,7 +277,7 @@ export default function BienModal({
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Rótulo / Código de Barra *</label>
-                    <input name="rotulo" required onBlur={(e) => validarRotulo(e.target.value)} onChange={() => rotuloError && setRotuloError('')} defaultValue={defecto('rotulo', bienEditing?.rotulo)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 104523" />
+                    <input name="rotulo" required onBlur={(e) => validarRotulo(e.target.value)} onChange={(e) => validarRotulo(e.target.value)} defaultValue={defecto('rotulo', bienEditing?.rotulo)} className={`${STYLES.input} tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} placeholder="Ej: 104523" />
                       {rotuloError && (
                         <p className="animate-fade-in mt-1.5 flex items-center gap-1.5 text-[11px] font-bold text-rose-600 dark:text-rose-400">
                           <i className="fa-solid fa-circle-exclamation text-[10px]"></i>{rotuloError}
@@ -473,7 +474,7 @@ export default function BienModal({
                   Cancelar
                 </button>
 
-                {!bienEditing && (
+                {!esNuevo && (
                     <button 
                       type="button" 
                       disabled={isSaving}
@@ -489,7 +490,7 @@ export default function BienModal({
                   disabled={isSaving}
                   className="inline-flex items-center justify-center h-10 px-5 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-[13px] hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary disabled:opacity-50"
                 >
-                  {isSaving ? 'Guardando...' : (bienEditing ? 'Actualizar Bien' : '+ Guardar Registro')}
+                  {isSaving ? 'Guardando...' : (esNuevo ? '+ Guardar Registro' : 'Actualizar Bien')}
                 </button>
               </div>
 

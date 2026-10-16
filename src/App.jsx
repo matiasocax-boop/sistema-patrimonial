@@ -268,7 +268,9 @@ export default function App() {
     guardarVistaActual, aplicarVista, eliminarVista,
     funcionariosUnicos, ubicacionesUnicas, aniosUnicos,
     subcuentasUnicas, analiticos1Unicos, analiticos2Unicos,
-    stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages
+    stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages,
+    itemsPorPagina, cambiarPaginaTam, seleccionados, toggleSeleccion, limpiarSeleccion,
+    vistaInv, cambiarVistaInv
   } = useInventarioFiltros({ bienes, dependenciaActual, fc10List, username: currentUser?.username, notify: addToast });
   // Sugerencias para autocompletado (memoizado: evita refiltrar miles de bienes en cada render)
   const sugerenciasBienesDep = useMemo(
@@ -526,6 +528,57 @@ export default function App() {
       addToast(ubicacionNombre ? (movidos > 0 ? `Funcionario asignado. ${movidos} bien(es) actualizados.` : 'Funcionario asignado a la ubicación.') : 'Funcionario sin ubicación.', 'success');
     } catch (e) {
       addToast('No se pudo asignar.', 'error');
+    }
+  };
+  // Resalta la fila recién creada/editada en el inventario.
+  const [lastMutatedBienId, setLastMutatedBienId] = useState(null);
+  const marcarBienMutado = (id) => {
+    setLastMutatedBienId(id);
+    setTimeout(() => setLastMutatedBienId(prev => (prev === id ? null : prev)), 4000);
+  };
+  // Duplicar bien: abre el formulario precargado (rótulo vacío) como alta nueva.
+  const duplicarBien = (item) => {
+    if (!item) return;
+    const { id, rotulo, hasFC10, hasQR, fotos, ...resto } = item;
+    setBienEditing({ ...resto, rotulo: '', hasFC10: false, hasQR: false, fotos: [] });
+    setIsBienModalOpen(true);
+  };
+  // QR en lote de la selección del inventario.
+  const qrLoteSeleccion = () => {
+    const lista = filteredBienes.filter(b => seleccionados.includes(b.id));
+    if (lista.length === 0) return addToast('Selecciona al menos un bien.', 'warning');
+    handleBulkLabelPNGZip(lista);
+  };
+  const bajaMasiva = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    setIsProcessing({ active: true, text: `Procesando ${ids.length} bienes...` });
+    try {
+      if (isAdmin) {
+        for (const b of bienes.filter(x => ids.includes(x.id))) {
+          await supabase.from('bens').update(conSello({ data: { ...b, estadoConservacion: 'De Baja' } })).eq('id', b.id);
+        }
+        setBienes(prev => prev.map(b => (ids.includes(b.id) ? { ...b, estadoConservacion: 'De Baja' } : b)));
+        await registrarAuditoria({
+          usuario: currentUser?.username || 'Admin', dependencia: dependenciaActual,
+          accion: 'ELIMINACION_O_BAJA', entidad: 'BIEN', entidadId: `${ids.length} bienes`,
+          detalles: { cantidad: ids.length, ids }
+        });
+        addToast(`${ids.length} bienes dados de baja.`, 'success');
+      } else {
+        const filas = ids.map(id => {
+          const b = bienes.find(x => x.id === id);
+          const sid = generateId();
+          return { id: sid, data: { id: sid, bienId: id, rotulo: b?.rotulo, descripcion: b?.descripcion, ubicacion: b?.ubicacion, funcionario: b?.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: dependenciaActual, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', motivo: 'Baja masiva desde inventario', created_at: new Date().toISOString() } };
+        });
+        await supabase.from('notificaciones').insert(filas);
+        setNotificaciones(prev => [...filas.map(f => ({ id: f.id, ...f.data })), ...prev]);
+        addToast(`${ids.length} solicitudes de baja enviadas.`, 'success');
+      }
+      limpiarSeleccion();
+    } catch (e) {
+      addToast('No se pudo completar la baja masiva.', 'error');
+    } finally {
+      setIsProcessing({ active: false, text: '' });
     }
   };
   const eliminarUbicacion = async (id, nombre) => {
@@ -852,7 +905,8 @@ useEffect(() => {
     setFc11List, setFc04List, setFuncionariosPadron, setUsuariosList,
     funcionariosPadron, notificaciones, estructurasDB, setEstructurasDB,
     itemToDelete, setItemToDelete, motivoSolicitudBaja, setMotivoSolicitudBaja, setPendingCSVImport,
-    resolveLogoImg: (...a) => resolveLogoImg(...a)
+    resolveLogoImg: (...a) => resolveLogoImg(...a),
+    onBienGuardado: marcarBienMutado
   });
   const timeStats = useMemo(() => { const currentDate = new Date(); const currentYear = currentDate.getFullYear(); const currentMonth = currentDate.getMonth(); const depBienes = bienes.filter(b => b.dependencia === dependenciaActual); const adqCounts = {}; let adqMax = 0; depBienes.forEach(b => { const { year } = parseDateInfo(b.fechaAdquisicion); if (year) { const parsedYear = parseInt(year); if (!isNaN(parsedYear) && parsedYear > 1900 && parsedYear < 2100) { adqCounts[year] = (adqCounts[year] || 0) + 1; } } }); const adqByYear = Object.keys(adqCounts).sort((a, b) => b - a).map(year => { if(adqCounts[year] > adqMax) adqMax = adqCounts[year]; return { year, count: adqCounts[year] }; }).slice(0, 4); let asigCurrentMonth = 0; let asigPreviousMonth = 0; const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1; const yearOfPrevMonth = currentMonth === 0 ? currentYear - 1 : currentYear; const depFC10 = fc10List.filter(fc => fc.dependencia === dependenciaActual); depFC10.forEach(fc => { const fechaAUsar = fc.entregadoFecha || fc.fechaGeneracion; if (fechaAUsar) { const parts = fechaAUsar.split('-'); if (parts.length >= 2) { const year = parseInt(parts[0]); const month = parseInt(parts[1]) - 1; if (year === currentYear && month === currentMonth) { asigCurrentMonth++; } else if (year === yearOfPrevMonth && month === prevMonth) { asigPreviousMonth++; } } } }); const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]; return { adqByYear, adqMax: adqMax === 0 ? 1 : adqMax, asigCurrentMonth, asigPreviousMonth, asigMax: Math.max(asigCurrentMonth, asigPreviousMonth) === 0 ? 1 : Math.max(asigCurrentMonth, asigPreviousMonth), currentMonthName: monthNames[currentMonth], prevMonthName: monthNames[prevMonth], asigCurrent: { year: String(currentYear), month: String(currentMonth + 1).padStart(2, '0') }, asigPrev: { year: String(yearOfPrevMonth), month: String(prevMonth + 1).padStart(2, '0') } }; }, [bienes, fc10List, dependenciaActual]);
   
@@ -1184,8 +1238,15 @@ useEffect(() => {
 
   const renderPagination = () => (
     <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
-      <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * ITEMS_POR_PAGINA + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * ITEMS_POR_PAGINA, filteredBienes.length)}</span> de {filteredBienes.length}</span>
-      <div className="flex gap-2">
+      <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPorPagina + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPorPagina, filteredBienes.length)}</span> de {filteredBienes.length}</span>
+      <div className="flex items-center gap-2">
+        <select
+          value={itemsPorPagina} onChange={(e) => cambiarPaginaTam(parseInt(e.target.value, 10))}
+          title="Registros por página"
+          className="rounded-xl bg-white dark:bg-darkbg-main px-2.5 h-9 text-xs font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border outline-none cursor-pointer"
+        >
+          {[10, 20, 50].map(n => <option key={n} value={n}>{n} / pág.</option>)}
+        </select>
         <button disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Anterior</button>
         <button disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Siguiente</button>
       </div>
@@ -1490,7 +1551,7 @@ if (publicBienId) {
                 {activeTab === 'dashboard' && (<DashboardView currentUser={currentUser} dependenciaActual={dependenciaActual} saludoBienvenida={saludoBienvenida} stats={stats} pendientes={pendientes} isLoading={isLoading} timeStats={timeStats} clearAllFilters={clearAllFilters} setActiveTab={setActiveTab} setFiltroQR={setFiltroQR} setFiltroFC10={setFiltroFC10} setFiltroPendiente={setFiltroPendiente} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} fileInputRef={fileInputRef} handleExportInventarioCSV={handleExportInventarioCSV} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setFc10Year={setFc10Year} setFc10Month={setFc10Month} />)}
 
                 {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
-                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
+                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onDuplicar={duplicarBien} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
 
                 {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} />)}
 

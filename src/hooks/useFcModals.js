@@ -32,7 +32,8 @@ export function useFcModals({
   itemToDelete, setItemToDelete, motivoSolicitudBaja, setMotivoSolicitudBaja, setPendingCSVImport,
   funcionariosPadron, notificaciones, estructurasDB, setEstructurasDB,
   setFichaBien, setEventosAuditFicha,
-  resolveLogoImg: _resolveLogoImg
+  resolveLogoImg: _resolveLogoImg,
+  onBienGuardado
 }) {
   // resolveLogoImg se define después en App: wrapper perezoso anti-TDZ.
   const resolveLogoImg = (...a) => _resolveLogoImg(...a);
@@ -447,8 +448,10 @@ export function useFcModals({
         }
     }
     
+    // Duplicado: bienEditing sin id se trata como alta nueva.
+    const esEdicion = Boolean(bienEditing?.id);
     const bienData = { 
-        id: bienEditing ? bienEditing.id : generateId(), 
+        id: esEdicion ? bienEditing.id : generateId(), 
         dependencia: dependenciaActual, 
         cuenta: formData.get('cuenta') || '', 
         subcuenta: formData.get('subcuenta') || '', 
@@ -464,7 +467,7 @@ export function useFcModals({
         ubicacion: formData.get('ubicacion').trim(), 
         estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', 
         vidaUtil: formData.get('vidaUtil') || '', 
-        hasFC10: bienEditing ? bienEditing.hasFC10 : false, 
+        hasFC10: esEdicion ? bienEditing.hasFC10 : false, 
         hasQR: formData.get('hasQR') === 'on',
         // Preservar fotos existentes (no vienen en el formulario)
         fotos: bienEditing?.fotos || []
@@ -488,7 +491,7 @@ export function useFcModals({
 
         let res;
         const payload = conSello({ id: bienData.id, data: bienData });
-        if (bienEditing) {
+        if (esEdicion) {
             res = await supabase.from('bens').update(payload).eq('id', bienData.id);
         } else {
             res = await supabase.from('bens').insert([payload]);
@@ -498,13 +501,13 @@ export function useFcModals({
             await registrarAuditoria({
                 usuario: currentUser?.username || 'Usuario',
                 dependencia: dependenciaActual,
-                accion: bienEditing ? 'MODIFICACION' : 'CREACION',
+                accion: esEdicion ? 'MODIFICACION' : 'CREACION',
                 entidad: 'BIEN',
                 entidadId: bienData.id,
                 detalles: {
                     rotulo: bienData.rotulo,
                     descripcion: bienData.descripcion,
-                    cambios: bienEditing ? { anterior: bienEditing, nuevo: bienData } : bienData
+                    cambios: esEdicion ? { anterior: bienEditing, nuevo: bienData } : bienData
                 }
             });
 
@@ -518,12 +521,13 @@ export function useFcModals({
             }
 
             setBienes(prev => {
-                if (bienEditing) {
+                if (esEdicion) {
                     return prev.map(b => b.id === bienData.id ? bienData : b);
                 } else {
                     return [bienData, ...prev];
                 }
             });
+            try { if (onBienGuardado) onBienGuardado(bienData.id); } catch {}
 
             const cacheActual = await localforage.getItem(`bienes_cache_${dependenciaActual}`) || [];
             let nuevoCache = [...cacheActual];
@@ -547,10 +551,10 @@ export function useFcModals({
                 notify("Bien guardado y actualizado con el padrón", "success"); 
             }
         } else {
-            notify("Error al guardar en el servidor.", "error");
+            notify("Error al guardar en el servidor.", "error", { action: { label: 'Reintentar', onClick: () => saveBien(null, keepOpen) } });
         }
     } catch (e) { 
-        notify("Error al guardar.", "error"); 
+        notify("Error al guardar.", "error", { action: { label: 'Reintentar', onClick: () => saveBien(null, keepOpen) } }); 
     } finally {
         setIsSaving(false);
         setIsProcessing({ active: false, text: '' });
