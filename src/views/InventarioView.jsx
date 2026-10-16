@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { PENDIENTE_LABELS, ESTADOS_CONSERVACION } from '../constants/appConstants';
 import { formatDateText } from '../utils/helpers';
 
@@ -22,6 +23,8 @@ export default function InventarioView({
   setSearchTerm,
   setSearchInput,
   setCurrentPage,
+  orden,
+  setOrden,
   filtroFuncionario,
   setFiltroFuncionario,
   funcionariosUnicos,
@@ -64,6 +67,58 @@ export default function InventarioView({
   openFC11Modal,
   renderPagination
 }) {
+  // Densidad y columnas visibles (preferencia local por usuario)
+  const [densidad, setDensidad] = useState(() => {
+    try { return localStorage.getItem('inv_densidad') || 'comoda'; } catch { return 'comoda'; }
+  });
+  const compacto = densidad === 'compacta';
+  const cambiarDensidad = () => {
+    const v = compacto ? 'comoda' : 'compacta';
+    setDensidad(v);
+    try { localStorage.setItem('inv_densidad', v); } catch {}
+  };
+  const [cols, setCols] = useState(() => {
+    try { return { fecha: true, cuenta: true, qr: true, ...JSON.parse(localStorage.getItem('inv_columnas') || '{}') }; }
+    catch { return { fecha: true, cuenta: true, qr: true }; }
+  });
+  const alternarCol = (k) => {
+    setCols(prev => {
+      const n = { ...prev, [k]: !prev[k] };
+      try { localStorage.setItem('inv_columnas', JSON.stringify(n)); } catch {}
+      return n;
+    });
+  };
+  const [menuCols, setMenuCols] = useState(false);
+  const ORDENES = [
+    { id: 'natural', label: 'Orden natural' },
+    { id: 'rotulo-asc', label: 'Rótulo A–Z' },
+    { id: 'rotulo-desc', label: 'Rótulo Z–A' },
+    { id: 'valor-desc', label: 'Mayor valor' },
+    { id: 'valor-asc', label: 'Menor valor' },
+    { id: 'fecha-desc', label: 'Más recientes' },
+    { id: 'fecha-asc', label: 'Más antiguos' }
+  ];
+  const ordenActual = !orden ? 'natural' : (orden.campo + '-' + orden.dir);
+  const cambiarOrden = (id) => {
+    if (id === 'natural') { setOrden(null); setCurrentPage(1); return; }
+    const [campo, dir] = id.split('-');
+    setOrden({ campo, dir });
+    setCurrentPage(1);
+  };
+  // Chips de filtros activos con limpieza individual
+  const limpiarPag = (fn) => () => { fn(); setCurrentPage(1); };
+  const chips = [];
+  if (searchTerm) chips.push({ id: 'q', label: searchTerm, limpiar: () => { setSearchTerm(''); setSearchInput(''); setCurrentPage(1); } });
+  if (filtroFuncionario) chips.push({ id: 'func', label: filtroFuncionario, limpiar: limpiarPag(() => setFiltroFuncionario('')) });
+  if (filtroUbicacion) chips.push({ id: 'ubi', label: filtroUbicacion, limpiar: limpiarPag(() => setFiltroUbicacion('')) });
+  if (filtroAnio) chips.push({ id: 'anio', label: 'Año ' + filtroAnio, limpiar: limpiarPag(() => setFiltroAnio('')) });
+  if (filtroSubcuenta) chips.push({ id: 'sub', label: 'Sub. ' + filtroSubcuenta, limpiar: limpiarPag(() => setFiltroSubcuenta('')) });
+  if (filtroAnalitico1) chips.push({ id: 'a1', label: 'An.1 ' + filtroAnalitico1, limpiar: limpiarPag(() => setFiltroAnalitico1('')) });
+  if (filtroAnalitico2) chips.push({ id: 'a2', label: 'An.2 ' + filtroAnalitico2, limpiar: limpiarPag(() => setFiltroAnalitico2('')) });
+  if (filtroFC10 !== 'ALL') chips.push({ id: 'fc10', label: 'FC-10: ' + (filtroFC10 === 'YES' ? 'Con acta' : 'Sin acta'), limpiar: limpiarPag(() => setFiltroFC10('ALL')) });
+  if (filtroEstado !== 'ALL') chips.push({ id: 'est', label: filtroEstado, limpiar: limpiarPag(() => setFiltroEstado('ALL')) });
+  if (filtroPendiente) chips.push({ id: 'pend', label: PENDIENTE_LABELS[filtroPendiente] || filtroPendiente, limpiar: limpiarPag(() => setFiltroPendiente('')) });
+  if (orden) chips.push({ id: 'ord', label: 'Orden: ' + (ORDENES.find(o => o.id === ordenActual)?.label || ordenActual), limpiar: () => cambiarOrden('natural') });
   return (
 <div className="space-y-6 animate-fade-in pb-12 font-sans text-slate-900 dark:text-slate-100">
 
@@ -331,19 +386,69 @@ export default function InventarioView({
   </div>
 
   {/* 3. TABLA Y LISTADO DE BIENES CON MATRIZ COMPLETA DE ACCIONES */}
-    {filtroPendiente && (
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Mostrando:</span>
-        <button
-          onClick={() => { setFiltroPendiente(''); setCurrentPage(1); }}
-          title="Quitar filtro de pendientes"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
-        >
-          {PENDIENTE_LABELS[filtroPendiente] || filtroPendiente}
-          <i className="fa-solid fa-xmark text-[10px]"></i>
-        </button>
+  {/* Chips de filtros + controles de vista */}
+    <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 flex-1 min-w-0">
+          {chips.length === 0 && (
+            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300 dark:text-zinc-600">Sin filtros</span>
+          )}
+          {chips.map(c => (
+            <button
+              key={c.id}
+              onClick={c.limpiar}
+              title={'Quitar filtro: ' + c.label}
+              className="inline-flex items-center gap-1.5 pl-3 pr-2 py-1.5 rounded-full text-xs font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none animate-pop"
+            >
+              <span className="max-w-[220px] truncate">{c.label}</span>
+              <i className="fa-solid fa-xmark text-[10px]"></i>
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <select
+            value={ordenActual} onChange={(e) => cambiarOrden(e.target.value)}
+            title="Orden de la tabla"
+            className="h-9 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary"
+          >
+            {ORDENES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+          </select>
+          <button
+            onClick={cambiarDensidad}
+            title={compacto ? 'Vista cómoda' : 'Vista compacta'}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+          >
+            <i className={'fa-solid text-xs ' + (compacto ? 'fa-arrows-up-down' : 'fa-arrows-up-down-left-right')}></i>
+          </button>
+          <div className="relative">
+            <button
+              onClick={() => setMenuCols(v => !v)}
+              title="Columnas visibles"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
+            >
+              <i className="fa-solid fa-table-columns text-xs"></i>
+            </button>
+            {menuCols && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuCols(false)}></div>
+                <div className="absolute right-0 z-50 mt-1.5 w-48 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl p-1.5 animate-pop">
+                  {[['fecha', 'Fecha de compra'], ['cuenta', 'Cuenta'], ['qr', 'Estado / QR']].map(([k, label]) => (
+                    <button
+                      key={k}
+                      onClick={() => alternarCol(k)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                    >
+                      <span className={'flex h-4 w-4 items-center justify-center rounded border ' + (cols[k] ? 'bg-brand-primary border-brand-primary text-white' : 'border-zinc-300 dark:border-zinc-600 text-transparent')}>
+                        <i className="fa-solid fa-check text-[9px]"></i>
+                      </span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
-    )}
                   <div className="bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/10 rounded-3xl shadow-sm overflow-hidden" data-tour="inv-table">
                     <div className="overflow-x-auto custom-scrollbar">
                       <table className="anim-rows w-full text-left border-collapse min-w-[900px]">
@@ -373,9 +478,9 @@ export default function InventarioView({
                               <tr key={item.id} className="hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group">
 
                                 {/* Columna 1: Identificación */}
-                                <td className="py-4 pl-6 sm:pl-8 pr-4 align-top">
+                                <td className={`pl-6 sm:pl-8 pr-4 align-top ${compacto ? 'py-2' : 'py-4'}`} >
                                   <div className="flex items-start gap-3.5">
-                                    <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 text-xs">
+                                    <div className={`shrink-0 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/5 text-zinc-600 dark:text-zinc-400 text-xs ${compacto ? 'hidden' : 'mt-1 flex h-10 w-10'}`}>
                                       <i className="fa-solid fa-tag text-sm"></i>
                                     </div>
                                     <div className="space-y-1">
@@ -383,17 +488,17 @@ export default function InventarioView({
                                         <span className="font-mono font-semibold text-xs text-zinc-900 dark:text-white bg-zinc-100 dark:bg-white/10 px-2 py-0.5 rounded-lg">
                                           {item.rotulo || 'S/R'}
                                         </span>
-                                        {item.fechaAdquisicion && (
+                                        {cols.fecha && item.fechaAdquisicion && (
                                           <span className="text-[10px] font-bold text-zinc-400 flex items-center gap-1">
                                             <i className="fa-regular fa-calendar text-[9px]"></i>
                                             {item.fechaAdquisicion}
                                           </span>
                                         )}
                                       </div>
-                                      <p className="font-semibold text-zinc-900 dark:text-white text-sm line-clamp-2 leading-snug">
+                                      <p className={`font-semibold text-zinc-900 dark:text-white text-sm leading-snug ${compacto ? 'line-clamp-1' : 'line-clamp-2'}`} >
                                         {item.descripcion}
                                       </p>
-                                      {item.cuenta && (
+                                      {cols.cuenta && item.cuenta && (
                                         <span className="inline-block text-[10px] font-medium text-zinc-400 bg-zinc-100 dark:bg-white/5 px-2 py-0.5 rounded-lg">
                                           #{item.cuenta}
                                         </span>
@@ -403,7 +508,7 @@ export default function InventarioView({
                                 </td>
 
                                 {/* Columna 2: Localización y Custodio */}
-                                <td className="px-4 py-4 align-top">
+                                <td className={`px-4 align-top ${compacto ? 'py-2' : 'py-4'}`} >
                                   <div className="space-y-1.5">
                                     <div className="flex items-center gap-2 text-xs font-bold text-zinc-800 dark:text-zinc-200">
                                       <i className="fa-solid fa-user-check text-emerald-500 text-xs shrink-0"></i>
@@ -428,13 +533,13 @@ export default function InventarioView({
                                 </td>
 
                                 {/* Columna 3: Condición y QR (Botón interactivo) */}
-                                <td className="px-4 py-4 align-middle">
+                                <td className={`px-4 align-middle ${compacto ? 'py-2' : 'py-4'}`} >
                                   <div className="flex flex-wrap items-center gap-2">
                                     <span className={`inline-flex items-center justify-center px-2.5 py-1 min-w-[76px] text-center rounded-xl text-[11px] font-bold border uppercase tracking-wider ${getCondicionBadge(item.estadoConservacion)}`}>
                                       {item.estadoConservacion || 'Regular'}
                                     </span>
 
-                                    <button 
+                                    {cols.qr && (<button 
                                       type="button"
                                       onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }}
                                       title={item.hasQR ? "Ver / Descargar Código QR" : "Generar Código QR"}
@@ -446,12 +551,12 @@ export default function InventarioView({
                                     >
                                       <i className="fa-solid fa-qrcode text-[10px]"></i>
                                       <span>{item.hasQR ? 'Con QR' : 'Sin QR'}</span>
-                                    </button>
+                                    </button>)}
                                   </div>
                                 </td>
 
                                 {/* Columna 4: Matriz Completa de Acciones Restaurada */}
-                                <td className="py-4 pl-4 pr-6 sm:pr-8 align-top text-right">
+                                <td className={`pl-4 pr-6 sm:pr-8 align-top text-right ${compacto ? 'py-2' : 'py-4'}`} >
                                   <div className="flex items-center justify-end gap-1.5">
 
                                     {/* Ficha 360 y trazabilidad */}

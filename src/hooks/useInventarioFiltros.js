@@ -35,11 +35,23 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
 
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Orden de la tabla: null = orden natural por rótulo; si no { campo, dir }.
+  // campo: 'rotulo' | 'valor' | 'fecha'. dir: 'asc' | 'desc'.
+  const [orden, setOrden] = useState(null);
+  const alternarOrden = useCallback((campo) => {
+    setOrden(prev => {
+      if (!prev || prev.campo !== campo) return { campo, dir: campo === 'valor' ? 'desc' : 'asc' };
+      if (prev.dir === 'asc') return { campo, dir: 'desc' };
+      return null;
+    });
+    setCurrentPage(1);
+  }, []);
+
   const clearAllFilters = useCallback(() => {
     setFiltroFuncionario(''); setFiltroUbicacion(''); setFiltroAnio('');
     setFiltroMes(''); setFiltroSubcuenta(''); setFiltroAnalitico1('');
     setFiltroAnalitico2(''); setFiltroQR('ALL'); setFiltroFC10('ALL');
-    setFiltroEstado('ALL'); setFiltroPendiente(''); setSearchInput(''); setSearchTerm(''); setCurrentPage(1);
+    setFiltroEstado('ALL'); setFiltroPendiente(''); setSearchInput(''); setSearchTerm(''); setOrden(null); setCurrentPage(1);
   }, []);
 
   const hasFilters = Boolean(
@@ -215,6 +227,20 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     }
 
     filtered.sort((a, b) => {
+        if (orden?.campo === 'valor') {
+          const va = parseInt(String(a.valorUnitario || '0').replace(/\D/g, ''), 10) || 0;
+          const vb = parseInt(String(b.valorUnitario || '0').replace(/\D/g, ''), 10) || 0;
+          return orden.dir === 'desc' ? vb - va : va - vb;
+        }
+        if (orden?.campo === 'fecha') {
+          const fa = String(a.fechaAdquisicion || '');
+          const fb = String(b.fechaAdquisicion || '');
+          return orden.dir === 'desc' ? fb.localeCompare(fa) : fa.localeCompare(fb);
+        }
+        if (orden?.campo === 'rotulo') {
+          const c = String(a.rotulo || '').localeCompare(String(b.rotulo || ''));
+          return orden.dir === 'desc' ? -c : c;
+        }
         const getSuffixNum = (rot) => { const str = String(rot || '').trim(); const match = str.match(/\d+$/); return match ? parseInt(match[0], 10) : 0; };
         const numA = getSuffixNum(a.rotulo);
         const numB = getSuffixNum(b.rotulo);
@@ -223,7 +249,7 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     });
 
     return filtered;
-  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, filtroPendiente, debouncedSearchTerm]);
+  }, [bienes, dependenciaActual, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroEstado, filtroQR, filtroFC10, filtroPendiente, debouncedSearchTerm, orden]);
 
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * ITEMS_POR_PAGINA; return filteredBienes.slice(start, start + ITEMS_POR_PAGINA); }, [filteredBienes, currentPage]);
   const itemsPaginados = paginatedBienes;
@@ -231,6 +257,7 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
 
   return {
     searchInput, setSearchInput, searchTerm, setSearchTerm, debouncedSearchTerm,
+    orden, setOrden, alternarOrden,
     filtroFuncionario, setFiltroFuncionario, filtroUbicacion, setFiltroUbicacion,
     filtroAnio, setFiltroAnio, filtroMes, setFiltroMes,
     filtroSubcuenta, setFiltroSubcuenta, filtroAnalitico1, setFiltroAnalitico1,
