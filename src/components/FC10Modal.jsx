@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
+import { buscarFC10Catalogo } from '../constants/fc10Catalogo';
 
 export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos }) {
     const esNuevoFC = !fc10Editing;
@@ -135,6 +136,17 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     const matchPadronActual = resolverFuncionario(funcData.nombre);
     const coincidePadron = !!matchPadronActual;
     const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);
+
+    // Catálogo de repartición/dependencia/área para autocompletar código.
+    const [reparticionBusqueda, setReparticionBusqueda] = useState('');
+    const [dependenciaBusqueda, setDependenciaBusqueda] = useState('');
+    const [areaBusqueda, setAreaBusqueda] = useState('');
+    const [reparticionSel, setReparticionSel] = useState(null);
+    const [dependenciaSel, setDependenciaSel] = useState(null);
+    const [areaSel, setAreaSel] = useState(null);
+    const filasReparticion = buscarFC10Catalogo(reparticionBusqueda).slice(0, 12);
+    const filasDependencia = buscarFC10Catalogo(dependenciaBusqueda).slice(0, 12);
+    const filasArea = buscarFC10Catalogo(areaBusqueda).slice(0, 12);
 
     return (
         <div className={STYLES.modalOverlay}>
