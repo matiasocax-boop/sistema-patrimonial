@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import localforage from 'localforage';
 import { conSello } from '../services/syncBienes';
@@ -26,6 +27,27 @@ export function usePdfHandlers({
   setBienes, setIsQRModalOpen, setIsConsolidatedFC10ModalOpen,
   resolveLogoImg
 }) {
+  // Cerrojo de trabajos pesados (ZIP de etiquetas, PDFs consolidados).
+  //
+  // Estos handlers usan setTimeout para no bloquear el render, así que un
+  // doble clic lanzaba DOS generaciones en paralelo: competían por el
+  // setIsProcessing global (el progreso salta de un trabajo al otro) y el usuario
+  // terminaba con descargas duplicadas o contradictorias. Con 1800 bienes por
+  // dependencia eso además hunde el navegador.
+  const trabajoEnCurso = useRef(false);
+  const conCerrojo = async (queHacer) => {
+    if (trabajoEnCurso.current) {
+      notify('Ya hay una generación en curso. Esperá a que termine.', 'warning');
+      return;
+    }
+    trabajoEnCurso.current = true;
+    try {
+      await queHacer();
+    } finally {
+      trabajoEnCurso.current = false;
+    }
+  };
+
   const marcarBienConQR = async (bienId) => {
     if (!bienId) return;
     const bienActual = bienes.find(b => b.id === bienId);
@@ -84,6 +106,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
   const handleBulkLabelPNGZip = async (lista) => {
     const objetivos = Array.isArray(lista) && lista.length > 0 ? lista : filteredBienes;
     if (objetivos.length === 0) return notify("No hay bienes filtrados.", "warning");
+    return conCerrojo(async () => {
     setIsProcessing({ active: true, text: 'Iniciando generación masiva de etiquetas...', pct: 0 });
 
     setTimeout(async () => {
@@ -145,12 +168,13 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         setIsQRModalOpen(false);
       }
     }, 100);
+    });
   };
 
   const handleBulkSimpleQRZip = async (lista) => {
     const objetivos = Array.isArray(lista) && lista.length > 0 ? lista : filteredBienes;
     if (objetivos.length === 0) return notify("No hay bienes filtrados.", "warning");
-    
+    return conCerrojo(async () => {
     setIsProcessing({ active: true, text: 'Iniciando compresión de QRs simples...', pct: 0 });
 
     setTimeout(async () => {
@@ -196,14 +220,27 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         
         try {
           const idsToUpdate = objetivos.map(b => b.id);
-          setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
+          // Escrituras masivas: se cuentan los fallos en lugar de asumir que
+          // todas entraron. supabase-js resuelve con { error } y no lanza, así
+          // que sin esto el ZIP se descargaba "con éxito" aunque los QR no se
+          // hubieran guardado en la base.
+          let fallos = 0;
           for (const bien of objetivos) {
             if (!bien.hasQR) {
-              await supabase.from("bens").update(conSello({ data: { ...bien, hasQR: true } })).eq("id", bien.id);
+              const r = await supabase.from("bens").update(conSello({ data: { ...bien, hasQR: true } })).eq("id", bien.id);
+              if (r.error) fallos++;
             }
           }
-        } catch (e) { console.error("Error bulk simple QR:", e); }
-        notify("Archivo ZIP de QRs generado con éxito", "success");
+          setBienes(prev => prev.map(b => idsToUpdate.includes(b.id) ? { ...b, hasQR: true } : b));
+          if (fallos > 0) {
+            notify(`ZIP generado, pero ${fallos} QR no se pudieron guardar en la base.`, "warning");
+          } else {
+            notify("Archivo ZIP de QRs generado con éxito", "success");
+          }
+        } catch (e) {
+          console.error("Error bulk simple QR:", e);
+          notify("Hubo un error al generar el ZIP de QRs.", "error");
+        }
       } catch (error) {
         console.error("Error en ZIP QR:", error);
         notify("Hubo un error al generar el archivo ZIP.", "error");
@@ -212,6 +249,7 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         setIsQRModalOpen(false);
       }
     }, 100);
+    });
   };
 
   const handleGenerateFC04PDF = (fc) => {

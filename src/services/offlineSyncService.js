@@ -1,91 +1,88 @@
 import localforage from 'localforage';
 import { supabase } from '../supabaseClient';
 import { conSello } from './syncBienes';
+import {
+  encolarAccion, procesarCola, quitarExitosas, contarPendientes
+} from './offlineQueue';
 
 const QUEUE_KEY = 'pending_offline_actions';
 
-// Encolar acción localmente
+// Mutex: impide que dos sincronizados corran a la vez. El evento 'online' y el
+// intervalo de reintento pueden dispararse casi juntos y, sin esto, el segundo
+// leería la cola con la del primero todavía en curso.
+let sincronizando = false;
+
+// Encolar acción localmente.
 export const enqueueOfflineAction = async (action) => {
   try {
-    const currentQueue = (await localforage.getItem(QUEUE_KEY)) || [];
-    currentQueue.push({
-      ...action,
-      timestamp: new Date().toISOString()
-    });
-    await localforage.setItem(QUEUE_KEY, currentQueue);
-    console.log('📦 Acción guardada en cola offline:', action);
+    const actual = (await localforage.getItem(QUEUE_KEY)) || [];
+    // Se vuelve a leer y a escribir la cola completa: si hay un sincronizado en
+    // curso, su escritura final solo quita lo que él procesó, así que la acción
+    // nueva sobrevive.
+    await localforage.setItem(QUEUE_KEY, encolarAccion(actual, action));
   } catch (error) {
     console.error('❌ Error al guardar en cola offline:', error);
   }
 };
 
-// Cantidad de acciones guardadas localmente sin sincronizar
+// Cantidad de acciones guardadas localmente sin sincronizar.
 export const getOfflineQueueLength = async () => {
   try {
-    const q = (await localforage.getItem(QUEUE_KEY)) || [];
-    return q.length;
+    return contarPendientes((await localforage.getItem(QUEUE_KEY)) || []);
   } catch {
     return 0;
   }
 };
 
-// Sincronizar cola al recuperar señal
+/**
+ * Sincroniza la cola al recuperar señal.
+ *
+ * Escribe POR DIFERENCIA: procesa, y al final relee la cola vigente para quitar
+ * únicamente las claves que se sincronizaron. Antes se escribía la cola
+ * "restante" calculada al principio, y cualquier acción que el usuario hubiera
+ * encolado durante la espera se perdía en silencio.
+ */
 export const processOfflineQueue = async (onSuccessCallback) => {
   if (!navigator.onLine) return;
+  if (sincronizando) return; // ya hay una pasada en curso
 
+  sincronizando = true;
   try {
-    const currentQueue = (await localforage.getItem(QUEUE_KEY)) || [];
-    if (currentQueue.length === 0) return;
+    const cola = (await localforage.getItem(QUEUE_KEY)) || [];
+    if (cola.length === 0) return;
 
-    console.log(`🚀 Procesando ${currentQueue.length} acciones pendientes...`);
-    const remainingQueue = [];
-    let syncedCount = 0;
-
-    for (const item of currentQueue) {
-      try {
-        // Tipo desconocido: antes caía en `res = { error: null }` y el ítem se
-        // contaba como sincronizado y se borraba de la cola (pérdida silenciosa).
-        const conocido = ['SAVE_BIEN', 'DELETE_BIEN', 'SAVE_FC10'].includes(item.type);
-        if (!conocido) {
-          console.warn('⚠️ Acción offline de tipo desconocido, se conserva en la cola:', item.type);
-          remainingQueue.push(item);
-          continue;
-        }
-
-        let res = { error: null };
-
-        if (item.type === 'SAVE_BIEN') {
-          // Aseguramos el payload en formato JSONB que usa Supabase.
-          // `conSello` es obligatorio: sin `updated_at` el cambio no entra en el
-          // delta de los demás equipos hasta la resincronización total (24 h).
-          const payload = conSello({ id: item.payload.id, data: item.payload });
-          res = await supabase.from('bens').upsert([payload]);
-        } else if (item.type === 'DELETE_BIEN') {
-          res = await supabase.from('bens').delete().eq('id', item.payload.id);
-        } else if (item.type === 'SAVE_FC10') {
-          const payload = { id: item.payload.id, data: item.payload };
-          res = await supabase.from('fc10').upsert([payload]);
-        }
-
-        if (res?.error) {
-          console.error('❌ Error al sincronizar ítem en Supabase:', res.error);
-          remainingQueue.push(item);
-        } else {
-          syncedCount++;
-        }
-      } catch (err) {
-        console.error('❌ Error de red durante la sincronización:', err);
-        remainingQueue.push(item);
+    const enviar = async (item) => {
+      if (item.type === 'SAVE_BIEN') {
+        // conSello es obligatorio: sin updated_at el cambio no entra en el
+        // delta de los demás equipos hasta la resincronización total (24 h).
+        return supabase.from('bens').upsert([conSello({ id: item.payload.id, data: item.payload })]);
       }
+      if (item.type === 'DELETE_BIEN') {
+        return supabase.from('bens').delete().eq('id', item.payload.id);
+      }
+      if (item.type === 'SAVE_FC10') {
+        // fc10 no usa delta: se recarga entera, por eso no lleva conSello.
+        return supabase.from('fc10').upsert([{ id: item.payload.id, data: item.payload }]);
+      }
+      return { error: new Error(`tipo no soportado: ${item.type}`) };
+    };
+
+    const { exitosas, fallidas } = await procesarCola(cola, enviar);
+
+    if (exitosas.length > 0) {
+      // Releer antes de escribir: entre la lectura inicial y ahora pueden
+      // haber entrado acciones nuevas, y esas no se deben tocar.
+      const vigente = (await localforage.getItem(QUEUE_KEY)) || [];
+      await localforage.setItem(QUEUE_KEY, quitarExitosas(vigente, exitosas));
     }
 
-    // Actualizamos la cola con los que no pudieron enviarse
-    await localforage.setItem(QUEUE_KEY, remainingQueue);
-
-    if (syncedCount > 0 && onSuccessCallback) {
-      onSuccessCallback(syncedCount);
+    if (fallidas.length > 0) {
+      console.warn(`⚠️ ${fallidas.length} acción(es) offline siguen pendientes.`);
     }
+    if (exitosas.length > 0 && onSuccessCallback) onSuccessCallback(exitosas.length);
   } catch (error) {
     console.error('❌ Error general procesando la cola offline:', error);
+  } finally {
+    sincronizando = false;
   }
 };
