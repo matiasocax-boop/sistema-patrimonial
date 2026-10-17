@@ -197,15 +197,24 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                     Paso 1: Dependencia Organizacional
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Entidad</label>
+                                        <input name="entidad" value="UNIVERSIDAD NACIONAL DE PILAR" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                    </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Unidad</label>
-                                        <input name="unidad" required defaultValue={defectoFC('unidad', (fc10Editing?.unidad || savedOrg.unidad))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Entidad</label>
+                                        <input name="entidadCod" value="28" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                    </div>
+                                    <div></div>
+                                    <div>
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Unidad Jerárquica</label>
+                                        <input name="unidad" required defaultValue={defectoFC('unidad', (fc10Editing?.unidad || savedOrg.unidad || (dependenciaActual === 'Rectorado' ? 'Rectorado' : '')))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Unidad</label>
-                                        <input name="unidadCod" required defaultValue={defectoFC('unidadCod', (fc10Editing?.unidadCod || savedOrg.unidadCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input name="unidadCod" required defaultValue={defectoFC('unidadCod', (fc10Editing?.unidadCod || savedOrg.unidadCod || (dependenciaActual === 'Rectorado' ? '03' : '')))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
-                                    <div>
+                                    <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Repartición</label>
                                         <input name="reparticion" required defaultValue={defectoFC('reparticion', (fc10Editing?.reparticion || savedOrg.reparticion))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
@@ -213,15 +222,15 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Repart.</label>
                                         <input name="reparticionCod" required defaultValue={defectoFC('reparticionCod', (fc10Editing?.reparticionCod || savedOrg.reparticionCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia</label>
+                                    <div className="md:col-span-2">
+                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia (Organizacional)</label>
                                         <input name="dependenciaOrg" required defaultValue={defectoFC('dependenciaOrg', (fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Depend.</label>
                                         <input name="dependenciaCod" required defaultValue={defectoFC('dependenciaCod', (fc10Editing?.dependenciaCod || savedOrg.dependenciaCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
-                                    <div>
+                                    <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área</label>
                                         <input name="area" required defaultValue={defectoFC('area', (fc10Editing?.area || savedOrg.area))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
                                     </div>
