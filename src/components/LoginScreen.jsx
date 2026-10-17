@@ -27,6 +27,12 @@ export default function LoginScreen({
   const [showRecoveryModal, setShowRecoveryModal] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
 
+  // Bloq Mayús: se detecta tanto al presionar como al soltar, porque el estado
+  // puede cambiar entre ambos eventos (teclatoggle).
+  const detectarCaps = (e) => {
+    try { setCapsLock(!!(e.getModifierState && e.getModifierState('CapsLock'))); } catch { /* navegador sin soporte */ }
+  };
+
   return (
     <div className={`${darkMode ? 'dark' : ''} min-h-dvh flex w-full bg-[#0a1c38] dark:bg-[#070f22] font-sans transition-colors duration-300 relative overflow-hidden`}>
 
@@ -147,7 +153,7 @@ export default function LoginScreen({
         {/* Tarjeta de acceso */}
         <main className="relative z-10 flex-1 flex items-center justify-center px-6 pb-6">
           <div className="w-full max-w-md">
-            <div className={`bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-black/20 relative flex flex-col ${loginError ? 'animate-shake border-rose-300 dark:border-rose-900' : 'animate-slide-up'}`}>
+            <div className={`bg-white dark:bg-darkbg-card rounded-3xl border border-zinc-200/80 dark:border-darkbg-border p-8 sm:p-10 shadow-xl shadow-black/20 relative flex flex-col ${loginError ? 'animate-shake border-rose-300 dark:border-rose-900' : 'login-card-in'}`}>
 
               {/* Acento superior animado */}
               <div className="pointer-events-none absolute inset-x-10 -top-px h-px bg-gradient-to-r from-transparent via-brand-primary/70 to-transparent"></div>
@@ -166,8 +172,8 @@ export default function LoginScreen({
 
               <form onSubmit={handleLogin} className="w-full space-y-5">
                 {loginError && (
-                  <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 p-4 text-xs text-rose-700 dark:text-rose-300 font-bold flex items-center gap-3 border border-rose-200 dark:border-rose-900/50 animate-slide-up">
-                    <i className="fa-solid fa-circle-exclamation text-base text-rose-500 shrink-0"></i>
+                  <div id="login-error" role="alert" className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 p-4 text-xs text-rose-700 dark:text-rose-300 font-bold flex items-center gap-3 border border-rose-200 dark:border-rose-900/50 animate-slide-up">
+                    <i className="fa-solid fa-circle-exclamation text-base text-rose-500 shrink-0" aria-hidden="true"></i>
                     <span>Credenciales inválidas. Verifique su usuario y contraseña.</span>
                   </div>
                 )}
@@ -181,11 +187,15 @@ export default function LoginScreen({
                     <input
                       type="text"
                       id="user"
+                      name="username"
                       value={loginUser}
                       onChange={e => setLoginUser(e.target.value)}
+                      onKeyDown={detectarCaps}
                       required
                       autoComplete="username"
                       disabled={isProcessing}
+                      aria-invalid={loginError || undefined}
+                      aria-describedby={loginError ? 'login-error' : undefined}
                       className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-4 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal disabled:opacity-60"
                       placeholder="ej. admin / funcionario"
                     />
@@ -210,12 +220,16 @@ export default function LoginScreen({
                     <input
                       type={showPassword ? "text" : "password"}
                       id="pass"
+                      name="password"
                       value={loginPass}
                       onChange={e => setLoginPass(e.target.value)}
-                      onKeyUp={e => { try { setCapsLock(!!(e.getModifierState && e.getModifierState('CapsLock'))); } catch {} }}
+                      onKeyDown={detectarCaps}
+                      onKeyUp={detectarCaps}
                       required
                       autoComplete="current-password"
                       disabled={isProcessing}
+                      aria-invalid={loginError || undefined}
+                      aria-describedby={loginError ? 'login-error' : undefined}
                       className="block w-full rounded-2xl border border-zinc-200/90 bg-zinc-50 dark:bg-darkbg-main pl-11 pr-11 py-3.5 text-xs font-bold text-zinc-900 dark:text-white focus:border-brand-primary focus:bg-white dark:focus:bg-darkbg-card focus:outline-none focus:ring-4 focus:ring-brand-primary/10 dark:border-darkbg-border transition-all placeholder:text-zinc-400 placeholder:font-normal disabled:opacity-60"
                       placeholder="••••••••"
                     />
@@ -240,7 +254,8 @@ export default function LoginScreen({
                   <button
                     type="submit"
                     disabled={isProcessing}
-                    className="group w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-70 disabled:cursor-wait disabled:hover:translate-y-0"
+                    aria-busy={isProcessing || undefined}
+                    className="group btn-press w-full rounded-2xl bg-brand-primary px-6 py-3.5 text-xs font-black text-white hover:bg-brand-hover focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus:outline-none transition-all cursor-pointer flex justify-center items-center gap-2 shadow-lg shadow-brand-primary/25 hover:shadow-xl hover:-translate-y-px active:translate-y-0 disabled:opacity-70 disabled:cursor-wait disabled:hover:translate-y-0"
                   >
                     {isProcessing ? (
                       <>

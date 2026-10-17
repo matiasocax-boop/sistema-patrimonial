@@ -68,11 +68,11 @@ export default function ConsolidadoFC10Modal({ isOpen, onClose, bienes, dependen
                               .map(b => b.funcionario)
                     ))
                     .filter(funcNombre => {
-                        if (!searchConsolidadoModal.trim()) return true;
-                        const termino = searchConsolidadoModal.toLowerCase().trim();
+                        if (!searchConsolidadoModal || !searchConsolidadoModal.trim()) return true;
+                        const termino = String(searchConsolidadoModal || '').toLowerCase().trim();
                         const infoPadron = funcionariosPadron.find(f => f.dependencia === dependenciaActual && normalizeStr(f.nombre) === normalizeStr(funcNombre));
-                        const cedulaStr = infoPadron ? String(infoPadron.cedula).toLowerCase() : '';
-                        return funcNombre.toLowerCase().includes(termino) || cedulaStr.includes(termino);
+                        const cedulaStr = infoPadron ? String(infoPadron.cedula || '').toLowerCase() : '';
+                        return String(funcNombre || '').toLowerCase().includes(termino) || cedulaStr.includes(termino);
                     })
                     .map(funcNombre => {
                         let bienesFiltrados = bienes.filter(b => b.dependencia === dependenciaActual && normalizeStr(b.funcionario) === normalizeStr(funcNombre) && b.estadoConservacion !== 'De Baja');

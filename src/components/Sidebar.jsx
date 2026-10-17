@@ -3,7 +3,7 @@ import { getLogoPorDependencia, APP_VERSION } from '../utils/helpers';
 import { useIdioma } from '../utils/i18n';
 
 export default function Sidebar({ 
-    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, esDesarrollador, solicitudesBaja, dependenciaActual, onExportBackup,
+    isSidebarOpen, setIsSidebarOpen, appLogo, activeTab, setActiveTab, isAdmin, esDesarrollador, solicitudesBaja, dependenciaActual, onExportBackup, onOpenRestore,
     mantenimiento, onOpenMantenimiento, onOpenDependencias
 }) {
     const { t } = useIdioma();
@@ -144,6 +144,21 @@ export default function Sidebar({
                                 </span>
                                 <span className="flex-1 text-left tracking-tight truncate">Copia de Seguridad (.json)</span>
                                 <i className="fa-solid fa-download text-[11px] text-zinc-300 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0"></i>
+                            </button>
+                            {/* Restaurar: el otro lado de la copia. Sin esto el
+                                respaldo era un archivo que nadie podía volver
+                                a aplicar sin entrar al panel de Supabase. */}
+                            <button
+                                type="button"
+                                onClick={() => { if (onOpenRestore) onOpenRestore(); setIsSidebarOpen(false); }}
+                                className="group flex w-full items-center gap-3 rounded-xl px-3 h-11 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/[0.06] hover:text-zinc-900 dark:hover:text-white border border-transparent hover:border-zinc-200 dark:hover:border-white/10 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand-primary mt-1"
+                                title="Volver a cargar en el sistema un archivo .json de copia de seguridad"
+                            >
+                                <span className="flex items-center justify-center w-7 shrink-0 text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-200">
+                                    <i className="fa-solid fa-clock-rotate-left text-[15px]"></i>
+                                </span>
+                                <span className="flex-1 text-left tracking-tight truncate">Restaurar Copia</span>
+                                <i className="fa-solid fa-upload text-[11px] text-zinc-300 group-hover:text-zinc-500 dark:group-hover:text-zinc-300 shrink-0"></i>
                             </button>
                             {esDesarrollador && (
                             <button

@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../supabaseClient';
 import { POLL_NOTIFICACIONES_MS, REALTIME_BENS_ACTIVO, REALTIME_NOTIF_ACTIVO, POLL_NOTIF_ROWS } from '../services/supabaseFreeTier';
+import { crearGuardaGeneracion } from '../utils/concurrencia';
 import localforage from 'localforage';
 import { debeResyncTotal, fusionarBienes, ahoraISO } from '../services/syncBienes';
 import { normalizeStr } from '../utils/helpers';
 import { processOfflineQueue, getOfflineQueueLength } from '../services/offlineSyncService';
+import { escaparFiltroPostgrest, rolDesdeCargo, rolEsPrivilegiado } from '../utils/postgrest';
 
 // Sincronización de datos: fetch inicial (total + delta), realtime,
 // notificaciones y modo offline (extraído de App.jsx, Fase 6).
@@ -17,7 +19,7 @@ import { processOfflineQueue, getOfflineQueueLength } from '../services/offlineS
 //   setUsuariosList, setFuncionariosPadron, setDbError, setIsLoading,
 //   setFichaBien: setters que viven en App.
 export function useRealtimeSync({
-  notify, currentUser, dependenciaActual, isAuthenticated, isAdmin,
+  notify, currentUser, setCurrentUser, dependenciaActual, isAuthenticated, isAdmin,
   handleLogout, setBienes, setFc10List, setFc11List, setFc04List,
   setEstructurasDB, setUsuariosList, setFuncionariosPadron,
   setDbError, setIsLoading, setFichaBien
@@ -25,6 +27,30 @@ export function useRealtimeSync({
   const [notificaciones, setNotificaciones] = useState([]);
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Guardas de concurrencia. Van en refs para que sobrevivan a los renders
+  // (si fueran estado, cada render crearía una nueva y la cuenta no serviría).
+  // - guardaGen: invalida cargas viejas cuando el usuario cambia de dependencia.
+  // - guarda:    invalida la carga al desmontar o cerrar sesión.
+  const guardaGenRef = useRef(null);
+  if (!guardaGenRef.current) guardaGenRef.current = crearGuardaGeneracion();
+  const guardaGen = guardaGenRef.current;
+
+  const guardaRef = useRef(null);
+  if (!guardaRef.current) guardaRef.current = crearGuardaGeneracion();
+  const guarda = guardaRef.current;
+
+  // Al cambiar de dependencia, la carga anterior deja de ser válida: aunque su
+  // petición ya esté en camino, su resultado corresponde a otra dependencia y no
+  // debe llegar a la pantalla.
+  const depAnteriorRef = useRef(dependenciaActual);
+  useEffect(() => {
+    if (depAnteriorRef.current !== dependenciaActual) {
+      depAnteriorRef.current = dependenciaActual;
+      guardaGen.invalidar();
+      guarda.invalidar();
+    }
+  }, [dependenciaActual]);
 
   // Higiene de notificaciones: retención de 2 días. Solo se borra lo ya
   // visto (leídas) y las solicitudes resueltas; lo no leído y lo pendiente
@@ -35,7 +61,9 @@ export function useRealtimeSync({
   // Fetch acotado: solo mías + broadcast + solicitudes pendientes, con
   // límite. Antes era `select('*')` de toda la tabla para todos.
   const queryNotificacionesAcotadas = () => {
-    const u = String(currentUser?.username || '').replace(/[,()]/g, '');
+    const u = currentUser?.username
+      ? escaparFiltroPostgrest(currentUser.username)
+      : '';
     const filtros = u
       ? `data->>usuarioDestino.eq.${u},data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`
       : `data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`;
@@ -74,8 +102,16 @@ export function useRealtimeSync({
   };
 
   const fetchData = useCallback(async (isSilent = false) => {
+    // Toma turno de carga. Si el usuario cambia de dependencia mientras esta
+    // corre, arranca otra que toma un turno mayor: cuando la vieja llegue, ya
+    // no podrá escribir y no pisará los datos nuevos.
+    const turno = guardaGen.siguiente();
+    // Se declara FUERA del try: un `const` dentro del bloque try NO es visible
+    // en el `finally` (son ámbitos léxicos distintos) y `clearTimeout(timeoutId)`
+    // lanzaba ReferenceError en cada carga de datos.
+    let timeoutId = null;
     try {
-      if (!isSilent) setIsLoading(true);
+      if (!isSilent && guarda.vigente(turno)) setIsLoading(true);
 
     // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
@@ -91,18 +127,32 @@ export function useRealtimeSync({
           return;
         }
 
-        const esAdminEnDB = dbUser.cargo === 'admin';
-        if (currentUser.role === 'admin' && !esAdminEnDB) {
+        const roleDb = rolDesdeCargo(dbUser.cargo);
+        if (rolEsPrivilegiado(currentUser.role) && !rolEsPrivilegiado(dbUser.cargo)) {
           notify("Se detectó una alteración no autorizada en los permisos de sesión.", "error");
           handleLogout();
           return;
         }
+        if (
+          currentUser.role !== roleDb
+          || currentUser.cargo !== dbUser.cargo
+          || (dbUser.dependencia && currentUser.dependencia !== dbUser.dependencia)
+        ) {
+          const actualizado = {
+            ...currentUser,
+            cargo: dbUser.cargo,
+            role: roleDb,
+            dependencia: dbUser.dependencia || currentUser.dependencia
+          };
+          setCurrentUser(actualizado);
+          try { localStorage.setItem('current_user', JSON.stringify(actualizado)); } catch (e) { /* ignore */ }
+        }
       }
     // --- FIN DE VALIDACIÓN DE ROL ---
 
-    const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout de red')), 8000)
-      );
+    let vencido = false;
+    timeoutId = setTimeout(() => { vencido = true; }, 8000);
+    const sigueVigente = () => !vencido && guarda.vigente(turno);
 
       const fetchPromise = (async () => {
         // --- BIENES: descarga total solo si hace falta, si no delta por updated_at ---
@@ -148,8 +198,10 @@ export function useRealtimeSync({
           // Si ninguna fila trae sello (datos legacy), el punto de sync es "ahora":
           // desde aquí, toda edición ya sale sellada y entra en el delta.
           await localforage.setItem(META_BIENES, { updated_at: maxUpdatedAt || ahoraISO(), actualizadoEn: Date.now() });
+          if (!sigueVigente()) return;
           setBienes(inventarioFinal);
         } else {
+          if (!sigueVigente()) return;
           setBienes([]);
         }
         } else {
@@ -163,6 +215,7 @@ export function useRealtimeSync({
           const { lista, maxUpdatedAt } = fusionarBienes(cacheBienes, cambios || [], dependenciaActual);
           await localforage.setItem(CACHE_BIENES, lista);
           await localforage.setItem(META_BIENES, { updated_at: maxUpdatedAt || metaBienes.updated_at, actualizadoEn: Date.now() });
+          if (!sigueVigente()) return;
           setBienes(lista);
         }
 
@@ -170,7 +223,7 @@ export function useRealtimeSync({
         // se pedía la tabla COMPLETA (sin filtro) y se filtraba en el cliente,
         // lo que arrastraba los traslados de todas las dependencias — cada fila
         // incluye un snapshot completo del bien — y los mostraba la Ficha 360.
-        const escDep = dependenciaActual.replace(/[,()]/g, '');
+        const escDep = escaparFiltroPostgrest(dependenciaActual);
         const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([
             supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
             supabase.from('fc11').select('id, data')
@@ -198,38 +251,45 @@ export function useRealtimeSync({
             });
         };
 
-        setFc10List(parseDirect(resFc10.data)); 
+        // Punto único de decisión: si meanwhile arrancó otra carga, esta ya no escribe.
+        if (!sigueVigente()) return;
+
+        setFc10List(parseDirect(resFc10.data));
         setFc11List(parseDirect(resFc11.data));
-        setFc04List(parseDirect(resFc04.data)); 
+        setFc04List(parseDirect(resFc04.data));
         setEstructurasDB(parseDirect(resEstructuras.data));
-        
+
         const notifData = resAuditoria.data || [];
         setNotificaciones(notifData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-        
+
         setUsuariosList(resUsuarios.data || []);
-        
+
         const funcsData = resFuncionarios.data || [];
         setFuncionariosPadron(funcsData.map(item => item.data ? (typeof item.data === 'string' ? JSON.parse(item.data) : item.data) : item));
-        
+
         setDbError(false);
       })();
 
-      await Promise.race([fetchPromise, timeoutPromise]);
+      await fetchPromise;
+      if (vencido && !isSilent && guarda.vigente(turno)) setDbError(true);
 
     } catch (error) { 
         console.error("Error crítico de datos:", error);
-        if (!isSilent) setDbError(true);
+        if (!isSilent && guarda.vigente(turno)) setDbError(true);
         
         try {
             const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
-            if (cachedBienes && cachedBienes.length > 0) {
+            if (guarda.vigente(turno) && cachedBienes && cachedBienes.length > 0) {
                 setBienes(cachedBienes);
             }
         } catch (e) {}
-    } finally { 
-        setIsLoading(false); 
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        // Solo la carga vigente apaga el spinner: si una vieja termina después,
+        // no debe apagar el estado de carga de la que está realmente corriendo.
+        if (guarda.vigente(turno)) setIsLoading(false);
     }
-  }, [dependenciaActual, currentUser, handleLogout]);
+  }, [dependenciaActual, currentUser, handleLogout, notify, setCurrentUser]);
 
   // --- MOTOR DE ARRANQUE DE DATOS ---
   useEffect(() => { 
@@ -283,6 +343,11 @@ export function useRealtimeSync({
               // removeChannel(null) es seguro, pero se evita la llamada suelta.
               if (notifChannel) supabase.removeChannel(notifChannel);
               if (bensChannel) supabase.removeChannel(bensChannel);
+              // Al cerrar sesión (el efecto se desmonta) se invalidan las cargas
+              // en vuelo: si resolvieran después escribirían datos sobre un
+              // componente que ya no tiene sesión.
+              guardaGen.invalidar();
+              guarda.invalidar();
           };
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
@@ -394,7 +459,9 @@ export function useRealtimeSync({
   const sondearNotificaciones = async () => {
       try {
           if (typeof document !== 'undefined' && document.hidden) return;
-          const u = String(currentUser?.username || '').replace(/[,()]/g, '');
+          const u = currentUser?.username
+            ? escaparFiltroPostgrest(currentUser.username)
+            : '';
           const filtros = u
             ? `data->>usuarioDestino.eq.${u},data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`
             : `data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`;

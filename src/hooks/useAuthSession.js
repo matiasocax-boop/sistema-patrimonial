@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { INACTIVITY_LIMIT_MS } from '../constants/appConstants';
+import { leerUsuarioLocal, sesionMarcadaLocal } from '../utils/sesionLocal';
+import { normalizarEntradaAcceso, validarPassword, construirSesion } from '../utils/authInput';
 
 // Sesión y autenticación (extraído de App.jsx, Fase 6).
 // Autosuficiente a propósito: incluye dependenciaActual, isProcessing y
 // showLogoutConfirm para no crear referencias circulares por orden de
 // declaración. Único parámetro: notify (addToast estable).
 export function useAuthSession({ notify }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
-  const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => sesionMarcadaLocal());
+  const [currentUser, setCurrentUser] = useState(() => leerUsuarioLocal());
 
   // Admin solo por rol. Antes comparaba además `cargo === 'cargo'`, que no es un
   // rol sino el nombre del campo: cualquier registro con ese texto quedaba como
@@ -87,19 +89,31 @@ export function useAuthSession({ notify }) {
     return () => { vivo = false; try { sub.subscription.unsubscribe(); } catch (e) {} };
   }, []);
 
-  const handleLogin = async (e) => { 
-    e.preventDefault(); 
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setIsProcessing({ active: true, text: 'Verificando credenciales...' });
+
+    // Validación y normalización antes de tocar la red: evita mandar basura a
+    // Supabase y da una respuesta inmediata cuando falta un campo.
+    const acceso = normalizarEntradaAcceso(loginUser);
+    if (!acceso.ok) {
+      setLoginError(true);
+      notify(acceso.error, 'error');
+      setIsProcessing({ active: false, text: '' });
+      return;
+    }
+    const clave = validarPassword(loginPass);
+    if (!clave.ok) {
+      notify(clave.error, 'error');
+      setIsProcessing({ active: false, text: '' });
+      return;
+    }
 
     try {
         // Acepta usuario o email completo (el email siempre es usuario@unp.edu.py)
-        const entrada = loginUser.trim();
-        const esEmail = entrada.includes('@');
-        const emailAcceso = esEmail ? entrada.toLowerCase() : `${entrada.toLowerCase()}@unp.edu.py`;
-        const nombreUsuario = esEmail ? entrada.split('@')[0] : entrada;
         // Sesión real con Supabase Auth
         const { error: errorAuth } = await supabase.auth.signInWithPassword({
-            email: emailAcceso,
+            email: acceso.emailAcceso,
             password: loginPass
         });
 
@@ -119,7 +133,7 @@ export function useAuthSession({ notify }) {
         const { data: perfil, error: errorPerfil } = await supabase
             .from('usuarios')
             .select('username, nombre, cargo, dependencia')
-            .eq('username', nombreUsuario)
+            .eq('username', acceso.nombreUsuario)
             .maybeSingle();
 
         if (errorPerfil || !perfil) {
@@ -130,13 +144,7 @@ export function useAuthSession({ notify }) {
             return;
         }
 
-        const userSession = {
-            username: perfil.username,
-            nombre: perfil.nombre,
-            cargo: perfil.cargo,
-            role: perfil.cargo === 'admin' ? 'admin' : perfil.cargo === 'desarrollador' ? 'dev' : 'user',
-            dependencia: perfil.dependencia || 'Rectorado'
-        };
+        const userSession = construirSesion(perfil);
 
         localStorage.setItem('is_logged_in', 'true'); 
         localStorage.setItem('current_user', JSON.stringify(userSession)); 
@@ -184,17 +192,14 @@ useEffect(() => {
     if (inactivityTimer) clearTimeout(inactivityTimer);
     events.forEach(event => window.removeEventListener(event, resetTimer));
   };
-}, [isAuthenticated]);
+}, [isAuthenticated, handleLogout, notify]);
 
-// Bypass de desarrollador (?mant=off): permite trabajar durante el mantenimiento
+// El muro de mantenimiento solo lo salta una sesión con cargo desarrollador.
+// Un `?mant=off` público (o un leftover en sessionStorage) ya no abre la app.
 if (typeof window !== 'undefined') {
-  try {
-    if (new URLSearchParams(window.location.search).get('mant') === 'off') {
-      sessionStorage.setItem('mant_bypass', '1');
-    }
-  } catch (e) {}
+  try { sessionStorage.removeItem('mant_bypass'); } catch (e) { /* ignore */ }
 }
-const mantBypass = typeof window !== 'undefined' && sessionStorage.getItem('mant_bypass') === '1';
+const mantBypass = false;
 
 // Auto-reparación de rol: si el mantenimiento está activo y la sesión local no
 // refleja el rol desarrollador, se verifica en vivo contra la base (cubre

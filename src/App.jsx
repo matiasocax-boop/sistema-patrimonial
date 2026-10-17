@@ -31,11 +31,14 @@ import { useFuncionarios } from './hooks/useFuncionarios';
 import { useAuthSession } from './hooks/useAuthSession';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useFcModals } from './hooks/useFcModals';
+import { useRestoreBackup } from './hooks/useRestoreBackup';
 import AppModals from './components/AppModals';
+import RestoreBackupModal from './components/RestoreBackupModal';
 import { useInventarioFiltros, ITEMS_POR_PAGINA } from './hooks/useInventarioFiltros';
 import { numeroALetras } from './utils/numeroLetras';
 import { extraerCodigoQR } from './utils/qr';
 import { pendienteDeFirma } from './utils/fc10Firmas';
+import { detectarCambios, fusionarSobreFresco, detectarConflictos, describirCampos } from './services/escrituraSegura';
 import { normalizarBien, tieneValor } from './utils/bienPublico';
 import MaintenanceScreen from './components/MaintenanceScreen';
 import AyudaView from './views/AyudaView';
@@ -108,9 +111,12 @@ export default function App() {
     if (saved === 'light') return false;
     try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return true; }
   });
-  // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
-  useEffect(() => {
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  // Solo persiste cuando el usuario elige tema. Si se escribiera en el primer
+  // render, `theme` pasaría a dark/light y el sistema dejaría de gobernar.
+  const fijarTemaUsuario = useCallback((valor) => {
+    const next = typeof valor === 'function' ? valor(darkMode) : valor;
+    setDarkMode(next);
+    try { localStorage.setItem('theme', next ? 'dark' : 'light'); } catch (e) { /* ignore */ }
   }, [darkMode]);
   // Escuchar cambios del tema del sistema SOLO si el usuario no fijó uno manual.
   useEffect(() => {
@@ -677,7 +683,9 @@ export default function App() {
       c: 'fc04', a: 'fc10', t: 'fc11', u: 'usuarios', h: 'ayuda', b: 'aprobaciones'
     };
     const onKey = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      if (!e || typeof e.key !== 'string') return;
+      const k = e.key.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && k === 'k') {
         e.preventDefault();
         setCmdOpen(v => !v);
         return;
@@ -697,7 +705,7 @@ export default function App() {
         setIsAtajosOpen(true);
         return;
       }
-      if ((e.key.toLowerCase() === 'n') && !escribiendo && !cmdOpen && !isAtajosOpen) {
+      if ((k === 'n') && !escribiendo && !cmdOpen && !isAtajosOpen) {
         if (activeTab !== 'inventario') return;
         if (document.querySelector('.modalOverlay')) return;
         e.preventDefault();
@@ -708,11 +716,11 @@ export default function App() {
       // Secuencias g+letra para navegar (con ventana de 800ms)
       if (escribiendo || cmdOpen) return;
       const ahora = Date.now();
-      if (e.key.toLowerCase() === 'g') { ultimaTeclaG.current = ahora; return; }
-      if (ahora - ultimaTeclaG.current < 800 && TABS_ATAJO[e.key.toLowerCase()]) {
+      if (k === 'g') { ultimaTeclaG.current = ahora; return; }
+      if (ahora - ultimaTeclaG.current < 800 && TABS_ATAJO[k]) {
         ultimaTeclaG.current = 0;
         e.preventDefault();
-        setActiveTab(TABS_ATAJO[e.key.toLowerCase()]);
+        setActiveTab(TABS_ATAJO[k]);
       }
     };
     window.addEventListener('keydown', onKey);
@@ -959,7 +967,7 @@ useEffect(() => {
     fetchData, cargarNotificaciones, sondearNotificaciones, fusionarNotificacion,
     markAsRead, markAllAsRead, misNotificaciones, unreadCount
   } = useRealtimeSync({
-    notify: addToast, currentUser, dependenciaActual, isAuthenticated, isAdmin,
+    notify: addToast, currentUser, setCurrentUser, dependenciaActual, isAuthenticated, isAdmin,
     handleLogout, setBienes, setFc10List, setFc11List, setFc04List,
     setEstructurasDB, setUsuariosList, setFuncionariosPadron,
     setDbError, setIsLoading, setFichaBien
@@ -1000,7 +1008,6 @@ useEffect(() => {
     clearAllFilters, setSearchTerm, setSearchInput, setActiveTab, setCurrentPage,
     agregarCodigoConteo, cargarNotificaciones,
     setIsScannerOpen, setDependenciaActual, setNotificaciones, setFc10List,
-  setFichaBien, setEventosAuditFicha,
   setFichaBien, setEventosAuditFicha,
     setFc11List, setFc04List, setFuncionariosPadron, setUsuariosList,
     funcionariosPadron, notificaciones, estructurasDB, setEstructurasDB,
@@ -1043,16 +1050,39 @@ useEffect(() => {
   }, [notificaciones, dependenciaActual, isAdmin]);
   // Resolver solicitud de eliminación del padrón (solo admin, desde Aprobaciones)
   const resolverSolicitudFuncionario = async (notif, aprobar) => {
+      // Orden de operaciones corregido. Antes se marcaba la solicitud como
+      // APROBADA y después se intentaba borrar al funcionario, sin comprobar
+      // ninguno de los dos. Si el DELETE fallaba, el funcionario seguía en la
+      // base pero la solicitud ya no aparecía pendiente para nadie: quedaba
+      // huérfano y sin forma de reintentar desde la interfaz.
+      //
+      // Ahora se hace al revés: primero el borrado (que es lo que puede fallar
+      // de verdad), y solo después se cierra la solicitud. Si algo falla, la
+      // solicitud sigue pendiente y se puede volver a intentar.
+      const snapshot = notif;
       try {
           setIsProcessing({ active: true, text: aprobar ? 'Aprobando eliminación...' : 'Rechazando solicitud...' });
           const estadoNuevo = aprobar ? 'APROBADO' : 'RECHAZADO';
-          const notifActualizada = { ...notif, estado: estadoNuevo, resueltoPor: currentUser?.username || 'Admin', resueltoFecha: new Date().toISOString() };
-          setNotificaciones(prev => prev.map(n => n.id === notif.id ? notifActualizada : n));
-          await supabase.from('notificaciones').update({ data: notifActualizada }).eq('id', notif.id);
+
+          // 1. Borrar al funcionario (solo si se aprueba) y comprobar.
           if (aprobar && notif.funcionarioId) {
-              await supabase.from('funcionarios').delete().eq('id', notif.funcionarioId);
+              const { error: errFun } = await supabase.from('funcionarios').delete().eq('id', notif.funcionarioId);
+              if (errFun) throw new Error(`no se pudo eliminar al funcionario: ${errFun.message}`);
+          }
+
+          // 2. Cerrar la solicitud, ahora que el paso crítico salió bien.
+          const notifActualizada = { ...notif, estado: estadoNuevo, resueltoPor: currentUser?.username || 'Admin', resueltoFecha: new Date().toISOString() };
+          const { error: errNotif } = await supabase.from('notificaciones').update({ data: notifActualizada }).eq('id', notif.id);
+          if (errNotif) throw new Error(`no se pudo cerrar la solicitud: ${errNotif.message}`);
+
+          // Reflejar en el estado local recién cuando la base confirmó.
+          setNotificaciones(prev => prev.map(n => (n.id === notif.id ? notifActualizada : n)));
+          if (aprobar && notif.funcionarioId) {
               setFuncionariosPadron(prev => prev.filter(f => f.id !== notif.funcionarioId));
           }
+
+          // 3. Avisar al solicitante. Si esto falla, la resolución ya está
+          //    firme: se informa pero no se rompe lo anterior.
           const solicitanteUsername = notif.solicitante || 'Usuario';
           const notifId = generateId();
           const notifUsuario = {
@@ -1063,8 +1093,14 @@ useEffect(() => {
                   : `Tu solicitud de eliminar a "${notif.nombre || ''}" del padrón fue RECHAZADA.`,
               leido: false, fecha: new Date().toISOString()
           };
-          setNotificaciones(prev => [notifUsuario, ...prev]);
-          await supabase.from('notificaciones').insert([{ id: notifId, data: notifUsuario }]);
+          const { error: errAviso } = await supabase.from('notificaciones').insert([{ id: notifId, data: notifUsuario }]);
+          if (errAviso) {
+              console.error('No se pudo notificar al solicitante:', errAviso);
+              addToast(`La solicitud se resolvió, pero no se pudo avisar a ${solicitanteUsername}.`, 'warning');
+          } else {
+              setNotificaciones(prev => [notifUsuario, ...prev]);
+          }
+
           await registrarAuditoria({
               usuario: currentUser?.username || 'Admin', dependencia: dependenciaActual,
               accion: aprobar ? 'APROBAR_BAJA_FUNCIONARIO' : 'RECHAZAR_BAJA_FUNCIONARIO',
@@ -1073,7 +1109,10 @@ useEffect(() => {
           });
           addToast(aprobar ? 'Funcionario eliminado y notificado.' : 'Solicitud rechazada y notificada.', 'success');
       } catch (e) {
-          addToast('Error al procesar la resolución.', 'error');
+          // La solicitud vuelve a quedar pendiente: se puede reintentar. El
+          // estado local tampoco se toca, así la lista sigue mostrando lo real.
+          setNotificaciones(prev => prev.map(n => (n.id === snapshot.id ? snapshot : n)));
+          addToast(`No se pudo resolver la solicitud: ${e.message || 'error desconocido'}. Sigue pendiente.`, 'error');
       } finally {
           setIsProcessing({ active: false, text: '' });
       }
@@ -1168,6 +1207,12 @@ useEffect(() => {
     resolveLogoImg: (...a) => resolveLogoImg(...a)
   });
 
+  // Restauración de respaldos (el camino de vuelta del backup). Se monta siempre
+  // pero solo se abre desde el Sidebar, que es zona de admin.
+  const restore = useRestoreBackup({
+    notify: addToast, registrarAuditoria, currentUser, dependenciaActual
+  });
+
   const exportarCSV = () => { guardarUltimaExport('csv'); handleExportInventarioCSV(); };
   const exportarExcel = () => { guardarUltimaExport('xlsx'); handleExportInventarioExcel(); };
   const repetirUltimaExportacion = () => {
@@ -1189,12 +1234,33 @@ useEffect(() => {
     setBienes(prev => prev.map(b => (b.id === bien.id ? actualizado : b)));
     marcarBienMutado(bien.id);
     try {
-      const { error } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', bien.id);
+      // Escritura protegida: se relee la fila y se aplica SOLO el campo que
+      // cambió. Mandar el objeto entero pisaba lo que otro equipo hubiera
+      // tocado mientras tanto (por ejemplo, una foto subida desde el celular).
+      const { data: filaFresca, error: errLectura } = await supabase
+        .from('bens').select('data').eq('id', bien.id).maybeSingle();
+      if (errLectura) throw errLectura;
+
+      const cambios = detectarCambios(bien, actualizado);
+      const enBase = filaFresca?.data
+        ? (typeof filaFresca.data === 'string' ? JSON.parse(filaFresca.data) : filaFresca.data)
+        : null;
+
+      if (enBase) {
+        const conflictos = detectarConflictos(bien, enBase, cambios);
+        if (conflictos.length > 0) {
+          addToast(`Alguien más cambió ${describirCampos(conflictos)} mientras editabas. Se aplicó tu cambio sobre la versión actual.`, 'warning');
+        }
+      }
+
+      const aEscribir = enBase ? fusionarSobreFresco(enBase, cambios, actualizado) : actualizado;
+      const { error } = await supabase.from('bens').update(conSello({ data: aEscribir })).eq('id', bien.id);
       if (error) throw error;
+      setBienes(prev => prev.map(b => (b.id === bien.id ? { id: b.id, ...aEscribir } : b)));
       await registrarAuditoria({
         usuario: currentUser?.username || 'Usuario', dependencia: dependenciaActual,
         accion: 'CAMBIO_ESTADO', entidad: 'BIEN', entidadId: bien.id,
-        detalles: { rotulo: bien.rotulo, estadoPrevio: previo, estadoNuevo }
+        detalles: { rotulo: bien.rotulo, estadoPrevio: previo, estadoNuevo, campos: Object.keys(cambios) }
       });
       addToast(`${bien.rotulo || 'Bien'} → ${estadoNuevo}.`, 'success');
     } catch (e) {
@@ -1511,7 +1577,7 @@ if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador && !mostr
 }
 if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador && mostrarLoginDev) {
   return (
-      <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} isProcessing={isProcessing.active} />
+      <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={fijarTemaUsuario} appLogo={appLogo} toasts={toasts} isProcessing={isProcessing.active} />
   );
 }
 if (rutaDesconocida && !publicBienId) {
@@ -1750,7 +1816,7 @@ if (publicBienId) {
 
   if (!isAuthenticated) {
       return (
-          <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} isProcessing={isProcessing.active} />
+          <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={fijarTemaUsuario} appLogo={appLogo} toasts={toasts} isProcessing={isProcessing.active} />
       );
   }
 
@@ -1814,7 +1880,7 @@ if (publicBienId) {
           )}
         </div>
       )}
-      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} esDesarrollador={esDesarrollador} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} />
+      <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} appLogo={appLogo} activeTab={activeTab} setActiveTab={setActiveTab} isAdmin={isAdmin} esDesarrollador={esDesarrollador} solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} onExportBackup={() => setConfirmBackupModal(true)} mantenimiento={mantenimiento} onOpenMantenimiento={() => setIsMantenimientoModalOpen(true)} onOpenDependencias={() => setIsDependenciasModalOpen(true)} onOpenRestore={restore.openRestore} />
       
       <div className="flex flex-1 flex-col min-w-0 bg-zinc-50 dark:bg-darkbg-main relative">
           {dbError && (
@@ -1825,7 +1891,7 @@ if (publicBienId) {
             </div>
           )}
 
-          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={setDarkMode} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} actasPorFirmarCount={actasPorFirmarCount} />
+          <Header setIsSidebarOpen={setIsSidebarOpen} activeTab={activeTab} setActiveTab={setActiveTab} setIsScannerOpen={setIsScannerOpen} dependenciaActual={dependenciaActual} setDependenciaActual={requestDependenciaChange} todasDependencias={todasDependencias} clearAllFilters={clearAllFilters} darkMode={darkMode} setDarkMode={fijarTemaUsuario} isNotifOpen={isNotifOpen} setIsNotifOpen={setIsNotifOpen} unreadCount={unreadCount} misNotificaciones={misNotificaciones} markAsRead={markAsRead} onMarkAllRead={markAllAsRead} currentUser={currentUser} isAdmin={isAdmin} handleLogout={() => setShowLogoutConfirm(true)} actasPorFirmarCount={actasPorFirmarCount} />
 
           <main id="contenido" className="flex-1 overflow-y-auto custom-scrollbar">
             <div key={activeTab} className="tab-enter mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 min-h-full flex flex-col">
@@ -1852,9 +1918,10 @@ if (publicBienId) {
 
       {/* Modales y componentes flotantes (carga diferida) */}
       <Suspense fallback={null}>
-      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} setDarkMode={setDarkMode} setIsAtajosOpen={setIsAtajosOpen} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} repetirUltimaExportacion={repetirUltimaExportacion} ultimaExportacion={ultimaExportacion} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} estructurasDB={estructurasDB} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} previsualizarCSVBienes={previsualizarCSVBienes} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List}  modoCampo={modoCampo} setModoCampo={setModoCampo} ultimoEscaneo={ultimoEscaneo} setUltimoEscaneo={setUltimoEscaneo} openFichaBien={openFichaBien} />
+      <AppModals STYLES={STYLES} isCSVPreviewOpen={isCSVPreviewOpen} setIsCSVPreviewOpen={setIsCSVPreviewOpen} confirmCSVImportFuncionarios={confirmCSVImportFuncionarios} csvPreviewData={csvPreviewData} isFuncionarioModalOpen={isFuncionarioModalOpen} setIsFuncionarioModalOpen={setIsFuncionarioModalOpen} funcionarioToEdit={funcionarioToEdit} saveFuncionarioEdit={saveFuncionarioEdit} ubicacionesDep={ubicacionesDep} isScannerOpen={isScannerOpen} setIsScannerOpen={setIsScannerOpen} setScanParaConteo={setScanParaConteo} scanParaConteo={scanParaConteo} conteoCodigos={conteoCodigos} isQRModalOpen={isQRModalOpen} setIsQRModalOpen={setIsQRModalOpen} isBulkQR={isBulkQR} qrTargetBien={qrTargetBien} handleDownloadLabelPNG={handleDownloadLabelPNG} handleDownloadSimpleQR={handleDownloadSimpleQR} handleBulkLabelPNGZip={handleBulkLabelPNGZip} handleBulkSimpleQRZip={handleBulkSimpleQRZip} setDarkMode={fijarTemaUsuario} setIsAtajosOpen={setIsAtajosOpen} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} repetirUltimaExportacion={repetirUltimaExportacion} ultimaExportacion={ultimaExportacion} isFC03ModalOpen={isFC03ModalOpen} setIsFC03ModalOpen={setIsFC03ModalOpen} fc03Config={fc03Config} setFc03Config={setFc03Config} fc03FuncionarioTexto={fc03FuncionarioTexto} setFc03FuncionarioTexto={setFc03FuncionarioTexto} showFC03FuncDropdown={showFC03FuncDropdown} setShowFC03FuncDropdown={setShowFC03FuncDropdown} ubicacionesUnicas={ubicacionesUnicas} funcionariosPadron={funcionariosPadron} dependenciaActual={dependenciaActual} executeGenerateFC03={executeGenerateFC03} isFC04ModalOpen={isFC04ModalOpen} setIsFC04ModalOpen={setIsFC04ModalOpen} fc04Editing={fc04Editing} saveFC04={saveFC04} fc10Month={fc10Month} fc10Year={fc10Year} ORIGENES_FC04={ORIGENES_FC04} fc04SinMovimiento={fc04SinMovimiento} setFc04SinMovimiento={setFc04SinMovimiento} handleAddFC04Item={handleAddFC04Item} fc04Items={fc04Items} handleFC04ItemChange={handleFC04ItemChange} handleRemoveFC04Item={handleRemoveFC04Item} isFC10ModalOpen={isFC10ModalOpen} setIsFC10ModalOpen={setIsFC10ModalOpen} fc10TargetBien={fc10TargetBien} fc10Editing={fc10Editing} saveFC10={saveFC10} funcionariosConDatos={funcionariosConDatos} estructurasDB={estructurasDB} isFC11ModalOpen={isFC11ModalOpen} setIsFC11ModalOpen={setIsFC11ModalOpen} fc11TargetBien={fc11TargetBien} fc11Editing={fc11Editing} saveFC11={saveFC11} todasDependencias={todasDependencias} isUsuarioModalOpen={isUsuarioModalOpen} isAdmin={isAdmin} setIsUsuarioModalOpen={setIsUsuarioModalOpen} usuarioEditing={usuarioEditing} saveUsuario={saveUsuario} esDesarrollador={esDesarrollador} isBienModalOpen={isBienModalOpen} setIsBienModalOpen={setIsBienModalOpen} bienEditing={bienEditing} setBienEditing={setBienEditing} bienFormRef={bienFormRef} saveBien={saveBien} isSaving={isSaving} ESTADOS_CONSERVACION={ESTADOS_CONSERVACION} sugerenciasBienesDep={sugerenciasBienesDep} padronDep={padronDep} fichaBien={fichaBien} setFichaBien={setFichaBien} setEventosAuditFicha={setEventosAuditFicha} eventosFicha={eventosFicha} subirFotoBien={subirFotoBien} eliminarFotoBien={eliminarFotoBien} subiendoFoto={subiendoFoto} tourPaso={tourPaso} pasosTour={pasosTour} setTourPaso={setTourPaso} cerrarTour={cerrarTour} setActiveTab={setActiveTab} cmdOpen={cmdOpen} setCmdOpen={setCmdOpen} bienes={bienes} irTabGlobal={irTabGlobal} isDependenciasModalOpen={isDependenciasModalOpen} setIsDependenciasModalOpen={setIsDependenciasModalOpen} dependenciasList={dependenciasList} DEPENDENCIAS_UNP={DEPENDENCIAS_UNP} dependenciasDetectadas={dependenciasDetectadas} conteosDependencia={conteosDependencia} guardarDependencia={guardarDependencia} eliminarDependencia={eliminarDependencia} fusionarDependencia={fusionarDependencia} isSavingDep={isSavingDep} verPadronDependencia={verPadronDependencia} ubicacionesList={ubicacionesList} conteosUbicacion={conteosUbicacion} guardarUbicacion={guardarUbicacion} eliminarUbicacion={eliminarUbicacion} asignarFuncionarioAUbicacion={asignarFuncionarioAUbicacion} isUbicacionesModalOpen={isUbicacionesModalOpen} setIsUbicacionesModalOpen={setIsUbicacionesModalOpen} isSavingUbicacion={isSavingUbicacion} isMantenimientoModalOpen={isMantenimientoModalOpen} setIsMantenimientoModalOpen={setIsMantenimientoModalOpen} mantenimiento={mantenimiento} saveMantenimiento={saveMantenimiento} isSavingMant={isSavingMant} showLogoutConfirm={showLogoutConfirm} setShowLogoutConfirm={setShowLogoutConfirm} handleLogout={handleLogout} resolucionBaja={resolucionBaja} setResolucionBaja={setResolucionBaja} submitResolucionBaja={submitResolucionBaja} motivoResolucion={motivoResolucion} setMotivoResolucion={setMotivoResolucion} itemToDelete={itemToDelete} setItemToDelete={setItemToDelete} motivoSolicitudBaja={motivoSolicitudBaja} setMotivoSolicitudBaja={setMotivoSolicitudBaja} confirmDeleteAction={confirmDeleteAction} confirmBackupModal={confirmBackupModal} setConfirmBackupModal={setConfirmBackupModal} handleExportBackupGeneral={handleExportBackupGeneral} pendingCSVImport={pendingCSVImport} setPendingCSVImport={setPendingCSVImport} fileInputRef={fileInputRef} fileInputFuncionariosRef={fileInputFuncionariosRef} executeProcessBienesCSV={executeProcessBienesCSV} executeProcessFuncionariosCSV={executeProcessFuncionariosCSV} previsualizarCSVBienes={previsualizarCSVBienes} showChangelog={showChangelog} setShowChangelog={setShowChangelog} isConsolidatedFC10ModalOpen={isConsolidatedFC10ModalOpen} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleGenerateConsolidatedFC10PDF={handleGenerateConsolidatedFC10PDF} isNewFuncionarioModalOpen={isNewFuncionarioModalOpen} setIsNewFuncionarioModalOpen={setIsNewFuncionarioModalOpen} handleSaveManualFuncionario={handleSaveManualFuncionario} showUnsavedChangesModal={showUnsavedChangesModal} setShowUnsavedChangesModal={setShowUnsavedChangesModal} showDependenciaConfirm={showDependenciaConfirm} setShowDependenciaConfirm={setShowDependenciaConfirm} confirmDependenciaChange={confirmDependenciaChange} pendingDependencia={pendingDependencia} clearAllFilters={clearAllFilters} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} openFC03Modal={openFC03Modal}  fc10List={fc10List} fc11List={fc11List}  modoCampo={modoCampo} setModoCampo={setModoCampo} ultimoEscaneo={ultimoEscaneo} setUltimoEscaneo={setUltimoEscaneo} openFichaBien={openFichaBien} />
       </Suspense>
       <AtajosModal isOpen={isAtajosOpen} onClose={() => setIsAtajosOpen(false)} STYLES={STYLES} />
+      <RestoreBackupModal restore={restore} />
     </div>
   );
 }

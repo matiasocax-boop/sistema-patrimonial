@@ -27,7 +27,7 @@ export const toInputDateFormat = (val) => {
   }
   return '';
 };
-export const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = estado.toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
+export const getEstadoAbbr = (estado) => { if(!estado) return '-'; const e = String(estado).toLowerCase(); if(e.includes('muy')) return 'MB'; if(e.includes('bueno')) return 'B'; if(e.includes('regular')) return 'R'; if(e.includes('malo')) return 'M'; if(e.includes('inutilizable')) return 'I'; if(e.includes('baja')) return 'DB'; return estado; };
 // Acento de color por dependencia (hash estable del nombre -> tono HSL).
 // Se usa como variable CSS --dep-accent para detalles de identidad.
 export const colorPorDependencia = (dependencia) => {
@@ -184,7 +184,7 @@ export const convertirImagenABase64 = async (url) => {
 };
 export const getLogoPorDependencia = (dependencia, ext = 'png') => {
     if (!dependencia) return `/publiclogo_unp.${ext}`;
-    const dep = dependencia.toLowerCase();
+    const dep = String(dependencia).toLowerCase();
 
     if (dep.includes('agropecuarias')) return `/publiclogo_agro.${ext}`;
     if (dep.includes('aplicadas')) return `/publiclogo_aplicadas.${ext}`;

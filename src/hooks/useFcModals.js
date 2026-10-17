@@ -190,7 +190,7 @@ export function useFcModals({
             { content: '', colSpan: 4 }
         ]);
         tableRows.push([
-            { content: `SON GUARANIES: ${numeroALetras(totalValor).toLowerCase()}`, colSpan: 16, styles: { fontStyle: 'bold', halign: 'left', cellPadding: 2 } }
+            { content: `SON GUARANIES: ${String(numeroALetras(totalValor) || '').toLowerCase()}`, colSpan: 16, styles: { fontStyle: 'bold', halign: 'left', cellPadding: 2 } }
         ]);
         
         doc.autoTable({ 

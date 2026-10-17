@@ -89,7 +89,7 @@ export default function ExportScheduleMenu({ onEjecutarAhora, disabled }) {
 
             <p className="px-1 pt-2.5 pb-1 text-[10px] text-zinc-400 dark:text-zinc-500 leading-relaxed">
               {activa
-                ? `Se genera ${etiquetaFrecuencia.toLowerCase()} al abrir el sistema y queda listo para descargar.`
+                ? `Se genera ${String(etiquetaFrecuencia || '').toLowerCase()} al abrir el sistema y queda listo para descargar.`
                 : 'La programación está desactivada. Usá “Generar ahora” para una exportación puntual.'}
             </p>
 

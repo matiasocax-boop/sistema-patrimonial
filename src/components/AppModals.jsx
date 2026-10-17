@@ -160,6 +160,7 @@ export default function AppModals({
   confirmBackupModal,
   setConfirmBackupModal,
   handleExportBackupGeneral,
+  restore,
   pendingCSVImport,
   setPendingCSVImport,
   fileInputRef,

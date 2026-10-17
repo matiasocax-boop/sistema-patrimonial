@@ -184,10 +184,37 @@ select:focus {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes app-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes app-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Entrada de la tarjeta de login: un pelín más profunda y con rebote amortiguado. */
+@keyframes app-login-card {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .animate-fade-in { animation: app-fade-in 0.45s ease both; }
 .animate-slide-up { animation: app-slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-up { animation: app-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-scale-in { animation: app-scale-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.login-card-in { animation: app-login-card 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .animate-shake { animation: app-shake 0.45s ease both; }
 .animate-pop { animation: app-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Pistas de compositor: evita parpadeos al arrancar las animaciones grandes. */
+.login-kenburns,
+.login-orb-a,
+.login-orb-b,
+.login-float {
+  will-change: transform;
+}
 
 /* Spinner del botón de login (usa currentColor) */
 .login-spinner {
@@ -242,6 +269,9 @@ select:focus {
     width: 100%;
   }
 }
+
+/* Secciones ancladas: dejan espacio para el header fijo al saltar con #hash */
+[id] { scroll-margin-top: 72px; }
 
 /* Fondo del login: zoom lento institucional + orbes a la deriva */
 .login-kenburns { animation: app-kenburns 36s ease-in-out infinite alternate; }
@@ -342,6 +372,9 @@ html.font-lg { font-size: 18px; }
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,
+  .animate-fade-up,
+  .animate-scale-in,
+  .login-card-in,
   .animate-shake,
   .animate-pop,
   .tab-enter,

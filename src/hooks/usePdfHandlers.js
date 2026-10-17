@@ -493,20 +493,25 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
 
       const backupData = {
         metadata: {
-          version: "2.1",
+          version: "2.2",
           sistema: "Sistema de Gestión Patrimonial UNP",
           fechaGeneracion: new Date().toISOString(),
           generadoPor: currentUser?.username || "Admin",
           totalBienes: bienesDb.length,
           totalFuncionarios: funcionariosDb.length,
-          warning: "Este archivo contiene datos personales de funcionarios (cedulas) y detalles de bienes patrimoniales. Tratarlo como informacion sensible."
+          warning: "Este archivo contiene datos personales de funcionarios (cedulas) y detalles de bienes patrimoniales. Tratarlo como informacion sensible.",
+          notaUsuarios: "Los usuarios NO incluyen contrasena (vive en Supabase Auth). La dependencia se incluye: sin ella el usuario perderia acceso a su inventario al restaurar."
         },
         bienes: bienesDb,
         fc10: fc10Db,
         fc11: fc11Db,
         fc04: fc04Db,
         estructuras: estructurasDb,
-        usuarios: usuariosDb.map(u => ({ username: u.username, nombre: u.nombre, cargo: u.cargo, rol: u.rol })),
+        // 'dependencia' ES el campo que decide a qué inventario accede cada
+        // usuario. Antes este mapeo guardaba 'rol' (columna que no existe) y
+        // dropeaba la dependencia: un respaldo restaurado dejaba a todos los
+        // usuarios sin inventario asignado.
+        usuarios: usuariosDb.map(u => ({ username: u.username, nombre: u.nombre, cargo: u.cargo, dependencia: u.dependencia })),
         funcionarios: funcionariosDb,
         notificaciones: notifDb,
         auditoria: auditDb

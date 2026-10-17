@@ -1,0 +1,56 @@
+# ============================================================================
+# Despliegue a Vercel (producción)
+# ============================================================================
+# Orden garantizado: primero corre el workflow CI (lint + tests + build) y
+# solo si pasa se ejecuta el deploy. Así un push con tests rotos no puede
+# llegar a producción.
+#
+# Requiere estos secrets en el repositorio (Settings > Secrets and variables
+# > Actions):
+#   VERCEL_TOKEN       token de Vercel (Account Settings > Tokens)
+#   VERCEL_ORG_ID      Organization/Team ID (ver .vercel/project.json)
+#   VERCEL_PROJECT_ID  Project ID (ver .vercel/project.json)
+#
+# IMPORTANTE: si el proyecto está conectado por Git Integration, Vercel también
+# intenta deployar solo. Para que este pipeline sea la única puerta, desactivá
+# el auto-deploy de Git en Vercel (Project Settings > Git > Vercel Git
+# Integration) o dejá habilitado "Wait for GitHub Checks" y protegé main con
+# el chequeo `verificacion`.
+# ============================================================================
+name: Deploy Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    # Reutiliza el workflow CI: mismo lint + tests + build.
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy a producción
+        uses: amondnet/vercel-action@v25
+        id: vercel
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./
+
+      - name: URL de producción
+        run: echo "Deploy: ${{ steps.vercel.outputs.preview-url }}"
