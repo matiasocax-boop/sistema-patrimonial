@@ -228,27 +228,97 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Repartición</label>
-                                        <input name="reparticion" required defaultValue={defectoFC('reparticion', (fc10Editing?.reparticion || savedOrg.reparticion))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input
+                                            name="reparticion" required
+                                            value={reparticionBusqueda}
+                                            onChange={(e) => { setReparticionBusqueda(e.target.value); setReparticionSel(null); }}
+                                            onFocus={() => setReparticionBusqueda(reparticionBusqueda)}
+                                            placeholder="Escribe para buscar (nombre o código)…"
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                        />
+                                        {reparticionBusqueda && !reparticionSel && filasReparticion.length > 0 && (
+                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
+                                                {filasReparticion.map((r, i) => (
+                                                    <button
+                                                        key={r.nombre + i} type="button"
+                                                        onClick={() => { setReparticionBusqueda(r.nombre); setReparticionSel(r); }}
+                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                                                    >
+                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
+                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {reparticionSel && (
+                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {reparticionSel.codigo}</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Repart.</label>
-                                        <input name="reparticionCod" required defaultValue={defectoFC('reparticionCod', (fc10Editing?.reparticionCod || savedOrg.reparticionCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input name="reparticionCod" required value={reparticionSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia (Organizacional)</label>
-                                        <input name="dependenciaOrg" required defaultValue={defectoFC('dependenciaOrg', (fc10Editing?.dependenciaOrg || savedOrg.dependenciaOrg))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input
+                                            name="dependenciaOrg" required
+                                            value={dependenciaBusqueda}
+                                            onChange={(e) => { setDependenciaBusqueda(e.target.value); setDependenciaSel(null); }}
+                                            placeholder="Escribe para buscar (nombre o código)…"
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                        />
+                                        {dependenciaBusqueda && !dependenciaSel && filasDependencia.length > 0 && (
+                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
+                                                {filasDependencia.map((r, i) => (
+                                                    <button
+                                                        key={r.nombre + i} type="button"
+                                                        onClick={() => { setDependenciaBusqueda(r.nombre); setDependenciaSel(r); }}
+                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                                                    >
+                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
+                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {dependenciaSel && (
+                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {dependenciaSel.codigo}</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Depend.</label>
-                                        <input name="dependenciaCod" required defaultValue={defectoFC('dependenciaCod', (fc10Editing?.dependenciaCod || savedOrg.dependenciaCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input name="dependenciaCod" required value={dependenciaSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área</label>
-                                        <input name="area" required defaultValue={defectoFC('area', (fc10Editing?.area || savedOrg.area))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input
+                                            name="area" required
+                                            value={areaBusqueda}
+                                            onChange={(e) => { setAreaBusqueda(e.target.value); setAreaSel(null); }}
+                                            placeholder="Escribe para buscar (nombre o código)…"
+                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                        />
+                                        {areaBusqueda && !areaSel && filasArea.length > 0 && (
+                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
+                                                {filasArea.map((r, i) => (
+                                                    <button
+                                                        key={r.nombre + i} type="button"
+                                                        onClick={() => { setAreaBusqueda(r.nombre); setAreaSel(r); }}
+                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
+                                                    >
+                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
+                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {areaSel && (
+                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {areaSel.codigo}</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Área</label>
-                                        <input name="areaCod" required defaultValue={defectoFC('areaCod', (fc10Editing?.areaCod || savedOrg.areaCod))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <input name="areaCod" required value={areaSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                     </div>
                                 </div>
                             </div>
