@@ -6,7 +6,8 @@ export default function Header({
     setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen,
     dependenciaActual, setDependenciaActual, todasDependencias, clearAllFilters,
     darkMode, setDarkMode, isNotifOpen, setIsNotifOpen, unreadCount,
-    misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout
+    misNotificaciones, markAsRead, onMarkAllRead, currentUser, isAdmin, handleLogout,
+    actasPorFirmarCount
 }) {
     const [filtroNotif, setFiltroNotif] = useState('todas');
     const { lang, setLang, t } = useIdioma();
@@ -63,14 +64,30 @@ export default function Header({
              </div>
 
              <div className="flex items-center gap-2 sm:gap-3">
-                <button 
-                    onClick={() => setIsScannerOpen(true)} 
+                <button
+                    onClick={() => setIsScannerOpen(true)}
                     title="Escanear código QR"
                     data-tour="scan"
                     className="hidden md:inline-flex items-center gap-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 px-4 h-10 rounded-xl text-[13px] font-bold transition-all cursor-pointer active:scale-95 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                 >
                     <i className="fa-solid fa-qrcode text-xs"></i> Escanear QR
                 </button>
+
+                {/* Actas FC-10 esperando firma. Va en el header porque el
+                    recordatorio tiene que aparecer desde cualquier módulo: si
+                    solo viviera en el dashboard o en FC-10, se pasarian
+                    semanas sin mirar. */}
+                {actasPorFirmarCount > 0 && (
+                    <button
+                        onClick={() => setActiveTab('fc10')}
+                        title={`${actasPorFirmarCount} acta(s) esperando firma`}
+                        className="relative inline-flex items-center gap-2 h-10 px-3.5 rounded-xl bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/25 hover:bg-amber-500/25 transition-all cursor-pointer active:scale-95 focus-visible:ring-2 focus-visible:ring-amber-500 outline-none"
+                    >
+                        <i className="fa-solid fa-file-signature text-xs"></i>
+                        <span className="hidden sm:inline text-[13px] font-bold tabular-nums">{actasPorFirmarCount}</span>
+                        <span className="hidden lg:inline text-[12px] font-bold">por firmar</span>
+                    </button>
+                )}
                 <button
                     onClick={() => setIsScannerOpen(true)}
                     title="Escanear código QR" aria-label="Escanear código QR"

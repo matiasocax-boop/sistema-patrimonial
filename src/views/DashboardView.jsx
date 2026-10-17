@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AnimatedNumber from '../components/AnimatedNumber';
 import SimpleBar from '../components/SimpleBar';
+import { pendienteDeFirma } from '../utils/fc10Firmas';
 
 // Vista del panel principal (extraída de App.jsx, Fase 5).
 export default function DashboardView({
@@ -9,8 +10,17 @@ export default function DashboardView({
   setFiltroQR, setFiltroFC10, setFiltroPendiente, setFiltroAnio, setFiltroMes, setCurrentPage,
   setBienEditing, setIsBienModalOpen, fileInputRef, handleExportInventarioCSV,
   setIsBulkQR, setQrTargetBien, setIsQRModalOpen, openFC03Modal,
-  setFc10Year, setFc10Month
+  setFc10Year, setFc10Month,
+  fc10List, bienes
 }) {
+  // Actas que esperan una firma, con el dato de a quién le toca. Es la bandeja
+  // de trabajo del circuito: sin esto, saber que hay algo pendiente obligaba
+  // a entrar al módulo de FC-10 y buscarlo a mano.
+  const actasPorFirmar = useMemo(() => (fc10List || [])
+    .filter(fc => !fc.devolucionFecha && pendienteDeFirma(fc))
+    .map(fc => ({ fc, bien: (bienes || []).find(b => b.id === fc.bienId) || null, pendiente: pendienteDeFirma(fc) }))
+    .sort((a, b) => (a.pendiente.orden - b.pendiente.orden)
+      || String(a.fc.entregadoFecha || '').localeCompare(String(b.fc.entregadoFecha || ''))), [fc10List, bienes]);
   // Atajo del panel hacia Inventario: limpia filtros, aplica el nuevo y vuelve
   // a la página 1. Sin el reset, si venías en la página 5 la tabla quedaba vacía.
   const irInventario = (aplicar) => {
@@ -195,6 +205,79 @@ export default function DashboardView({
         </button>
 
       </div>
+      )}
+
+      {/* 2A. ACTAS POR FIRMAR
+          Bandeja de trabajo del circuito de firmas. Va arriba de todo porque es
+          la unica accion del sistema que depende de un tercero (que firme en
+          Acrobat) y sin recordatorio se pierde: hay que entrar al modulo de
+          FC-10 para saber que falta, y eso no va a pasar solo. */}
+      {actasPorFirmar.length > 0 && (
+        <div className="bg-white dark:bg-white/[0.04] rounded-3xl border border-amber-200/70 dark:border-amber-400/25 shadow-sm overflow-hidden" data-tour="dash-firmas">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 py-4 bg-amber-500/[0.07] border-b border-amber-500/20">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white">
+                <i className="fa-solid fa-file-signature text-sm"></i>
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  Actas por firmar
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black tabular-nums bg-amber-500 text-white">
+                    {actasPorFirmar.length}
+                  </span>
+                </h2>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  {actasPorFirmar.length === 1
+                    ? 'Un acta esperando que registres la firma que ya hiciste en Acrobat.'
+                    : `${actasPorFirmar.length} actas esperando que registres las firmas.`}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setActiveTab('fc10')}
+              className="inline-flex items-center gap-2 h-9 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[12px] font-bold transition-all active:scale-95 cursor-pointer shrink-0"
+            >
+              Gestionar <i className="fa-solid fa-arrow-right text-[10px]"></i>
+            </button>
+          </div>
+
+          {/* Lista compacta: qué falta en cada acta. */}
+          <div className="divide-y divide-zinc-100 dark:divide-white/5">
+            {actasPorFirmar.slice(0, 5).map(({ fc, bien, pendiente }) => (
+              <button
+                key={fc.id}
+                onClick={() => setActiveTab('fc10')}
+                className="w-full flex items-center gap-3 px-5 sm:px-6 py-3 text-left hover:bg-amber-500/[0.04] transition-colors cursor-pointer"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <i className="fa-solid fa-pen text-[10px]"></i>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-bold text-zinc-900 dark:text-white truncate">
+                    {pendiente.nombre || pendiente.puesto}
+                    <span className="font-semibold text-zinc-400 dark:text-zinc-500"> · {pendiente.puesto}</span>
+                  </span>
+                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                    {bien?.rotulo || 'S/R'} · {bien?.descripcion || fc.funcionarioNombre || ''}
+                  </span>
+                </span>
+                <span className="shrink-0 hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                  <i className={`fa-solid ${pendiente.orden === 1 ? 'fa-user-tie' : 'fa-user-check'}`}></i>
+                  Firma {pendiente.orden}
+                </span>
+                <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300 dark:text-zinc-600 shrink-0"></i>
+              </button>
+            ))}
+            {actasPorFirmar.length > 5 && (
+              <button
+                onClick={() => setActiveTab('fc10')}
+                className="w-full px-5 sm:px-6 py-2.5 text-left text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:bg-amber-500/[0.04] transition-colors cursor-pointer"
+              >
+                Ver las {actasPorFirmar.length} actas en el módulo FC-10
+              </button>
+            )}
+          </div>
+        </div>
       )}
 
       {/* 2B. BANDEJA DE PENDIENTES */}

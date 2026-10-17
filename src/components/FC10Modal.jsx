@@ -627,80 +627,90 @@ const valorOrgExplicito = (campo) => {
                                 </div>
                             </div>
                         </div>
-                        <div id="step-3" className={step === 3 ? "block animate-fade-in" : "hidden"}>
-                            <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 rounded-l-[24px]"></div>
-                                <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
-                                    <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-500 dark:bg-amber-900/20 flex items-center justify-center border border-amber-100 dark:border-amber-800"><i className="fa-solid fa-clipboard-check"></i></div>
-                                    Paso 3: Detalles de Asignación
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+<div id="step-3" className={step === 3 ? "block animate-fade-in" : "hidden"} space-y-4>
+                            {/* Datos de la entrega */}
+                            <div className="rounded-2xl border border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card overflow-hidden">
+                                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-white/10">
+                                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Datos de la entrega</h3>
+                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        Cuándo y dónde se entrega el bien al funcionario responsable.
+                                    </p>
+                                </div>
+                                <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
                                     <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Lugar de Entrega</label>
-                                        <input name="entregadoLugar" required defaultValue={defectoFC('entregadoLugar', (fc10Editing?.entregadoLugar || 'Pilar'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Lugar de entrega</label>
+                                        <input name="entregadoLugar" required defaultValue={defectoFC('entregadoLugar', (fc10Editing?.entregadoLugar || 'Pilar'))} className={STYLES.input} />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha Asignación</label>
-                                        <input type="date" name="entregadoFecha" required defaultValue={defectoFC('entregadoFecha', (fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Fecha de asignación</label>
+                                        <input type="date" name="entregadoFecha" required defaultValue={defectoFC('entregadoFecha', (fc10Editing?.entregadoFecha || new Date().toISOString().split('T')[0]))} className={`${STYLES.input} tabular-nums`} />
                                     </div>
                                     <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado del Bien</label>
-                                        <input name="estadoConservacion" required defaultValue={defectoFC('estadoConservacion', (fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cantidad</label>
+                                        <input name="cantidad" required defaultValue={defectoFC('cantidad', (fc10Editing?.cantidad || '1'))} readOnly className={`${STYLES.input} text-zinc-400 dark:text-zinc-500`} />
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cantidad</label>
-                                        <input name="cantidad" required defaultValue={defectoFC('cantidad', (fc10Editing?.cantidad || '1'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary text-zinc-500`} readOnly />
+                                    <div className="sm:col-span-3">
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Estado del bien al entregar</label>
+                                        <input name="estadoConservacion" required defaultValue={defectoFC('estadoConservacion', (fc10Editing?.estadoConservacion || fc10TargetBien.estadoConservacion))} className={STYLES.input} />
                                     </div>
-                                    <div className="md:col-span-4">
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observaciones Adicionales</label>
-                                        <input name="observaciones" defaultValue={defectoFC('observaciones', (fc10Editing?.observaciones))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                    <div className="sm:col-span-3">
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Observaciones</label>
+                                        <input name="observaciones" placeholder="Opcional" defaultValue={defectoFC('observaciones', (fc10Editing?.observaciones))} className={STYLES.input} />
                                     </div>
                                     <input type="hidden" name="valorTotal" value={fc10TargetBien.valorUnitario} />
                                 </div>
                             </div>
 
-                            {/* DEVOLUCIÓN */}
+                            {/* Devolución: solo al editar un acta ya existente. Va
+                                aparte y apagada hasta que se marque, porque es una
+                                acción mayor (libera el bien) y no debe quedar a
+                                la vista como si fuera parte del alta. */}
                             {fc10Editing && (
-                                <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section mt-8">
-                                    <div className="absolute top-0 left-0 w-1.5 h-full bg-rose-500 rounded-l-[24px]"></div>
-                                    
-                                    <label className="flex items-center gap-3 cursor-pointer group/check w-fit">
-                                        <input type="checkbox" checked={isReturning} onChange={(e) => setIsReturning(e.target.checked)} className="h-5 w-5 rounded border-zinc-300 text-brand-primary focus:ring-brand-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer transition-transform group-hover/check:scale-110" />
-                                        <span className="text-sm font-black text-zinc-800 dark:text-zinc-200 uppercase tracking-wider">Registrar Devolución y Liberar Bien</span>
+                                <div className={`rounded-2xl border overflow-hidden transition-colors ${
+                                    isReturning
+                                        ? 'border-rose-500/30 bg-rose-50/40 dark:bg-rose-950/10'
+                                        : 'border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card'
+                                }`}>
+                                    <label className="flex items-center gap-3 px-5 py-4 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={isReturning}
+                                            onChange={(e) => setIsReturning(e.target.checked)}
+                                            className="h-4 w-4 rounded border-zinc-300 dark:border-zinc-600 text-rose-600 focus:ring-rose-500 focus-visible:outline-none cursor-pointer shrink-0"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className={`text-xs font-bold ${isReturning ? 'text-rose-700 dark:text-rose-400' : 'text-zinc-900 dark:text-white'}`}>
+                                                Registrar devolución y liberar el bien
+                                            </p>
+                                            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                                El funcionario devuelve el bien y queda sin asignar. El acta no se cierra.
+                                            </p>
+                                        </div>
                                     </label>
-                                    
+
                                     {isReturning && (
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 animate-fade-in mt-6 pt-6 border-t border-zinc-100 dark:border-darkbg-border">
+                                        <div className="px-5 pb-5 pt-4 border-t border-rose-500/20 grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in">
                                             <div>
-                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Lugar Devolución</label>
-                                                <input name="devolucionLugar" required={isReturning} defaultValue={defectoFC('devolucionLugar', (fc10Editing?.devolucionLugar || 'Pilar'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-rose-400 dark:text-rose-500/70 mb-1.5">Lugar</label>
+                                                <input name="devolucionLugar" required defaultValue={defectoFC('devolucionLugar', (fc10Editing?.devolucionLugar || 'Pilar'))} className={STYLES.input} />
                                             </div>
                                             <div>
-                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Fecha Devolución</label>
-                                                <input type="date" name="devolucionFecha" required={isReturning} defaultValue={defectoFC('devolucionFecha', (fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer tabular-nums`} />
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-rose-400 dark:text-rose-500/70 mb-1.5">Fecha</label>
+                                                <input type="date" name="devolucionFecha" required defaultValue={defectoFC('devolucionFecha', (fc10Editing?.devolucionFecha || new Date().toISOString().split('T')[0]))} className={`${STYLES.input} tabular-nums`} />
                                             </div>
                                             <div>
-                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Receptor (Nombre)</label>
-                                                <input name="devolucionReceptor" required={isReturning} defaultValue={defectoFC('devolucionReceptor', (fc10Editing?.devolucionReceptor))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-rose-400 dark:text-rose-500/70 mb-1.5">Cargo del receptor</label>
+                                                <input name="devolucionCargoReceptor" defaultValue={defectoFC('devolucionCargoReceptor', (fc10Editing?.devolucionCargoReceptor))} className={STYLES.input} />
                                             </div>
-                                            <div>
-                                                <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Receptor</label>
-                                                <input name="devolucionCargoReceptor" required={isReturning} defaultValue={defectoFC('devolucionCargoReceptor', (fc10Editing?.devolucionCargoReceptor))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
+                                            <div className="sm:col-span-3">
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-rose-400 dark:text-rose-500/70 mb-1.5">Nombre de quien recibe</label>
+                                                <input name="devolucionReceptor" defaultValue={defectoFC('devolucionReceptor', (fc10Editing?.devolucionReceptor))} className={STYLES.input} />
                                             </div>
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
-
-                        {/* Los dos nombres viajan por inputs ocultos: SelectorPersona es un control
-                            propio y no emite un input con name, pero saveFC10 los
-                            lee del FormData. */}
-                        <input type="hidden" name="funcionarioNombre" value={funcData.nombre} readOnly />
-                        <input type="hidden" name="jefeInmediatoNombre" value={jefeData.nombre} readOnly />
-                        {/* Los dos nombres viajan por inputs ocultos: SelectorPersona
-                            es un control propio y no emite un input con name, pero
-                            saveFC10 los lee del FormData. */}
                         <input type="hidden" name="funcionarioNombre" value={funcData.nombre} readOnly />
                         <input type="hidden" name="jefeInmediatoNombre" value={jefeData.nombre} readOnly />
                     </div>
