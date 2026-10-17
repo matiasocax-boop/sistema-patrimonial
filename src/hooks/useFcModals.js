@@ -423,9 +423,13 @@ export function useFcModals({
     setIsSaving(true);
     setIsProcessing({ active: true, text: 'Guardando y sincronizando activo...' });
 
-    const formData = new FormData(form); 
-    const rotuloInput = formData.get('rotulo').trim(); 
-    const isDuplicate = bienes.some(b => b.rotulo.toLowerCase() === rotuloInput.toLowerCase() && b.dependencia === dependenciaActual && (!bienEditing || b.id !== bienEditing.id)); 
+    const formData = new FormData(form);
+    const rotuloInput = String(formData.get('rotulo') ?? '').trim();
+    // Sin el_String()_ los bienes importados de CSV que vinieron sin rótulo
+    // rompían con "Cannot read properties of undefined (reading 'toLowerCase')".
+    const normRotulo = (v) => String(v ?? '').trim().toLowerCase();
+    const isDuplicate = bienes.some(b => normRotulo(b.rotulo) === normRotulo(rotuloInput) && b.rotulo
+        && normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && (!bienEditing || b.id !== bienEditing.id)); 
     if (isDuplicate) { 
         notify(`El rótulo "${rotuloInput}" ya está registrado en esta dependencia.`, "error"); 
         setIsSaving(false);
@@ -433,7 +437,7 @@ export function useFcModals({
         return; 
     }
 
-    const funcNombre = formData.get('funcionario').trim();
+    const funcNombre = String(formData.get('funcionario') ?? '').trim();
     let funcDoc = formData.get('funcionarioDoc')?.trim() || '';
     let funcCargo = formData.get('funcionarioCargo')?.trim() || '';
 
@@ -460,11 +464,11 @@ export function useFcModals({
         descripcion: formData.get('descripcion'), 
         fechaAdquisicion: formData.get('fechaAdquisicion'), 
         rotulo: rotuloInput, 
-        valorUnitario: formData.get('valorUnitario').replace(/\./g, ''), 
+        valorUnitario: String(formData.get('valorUnitario') ?? '').replace(/\./g, ''), 
         funcionario: funcNombre, 
         funcionarioDoc: funcDoc, 
         funcionarioCargo: funcCargo, 
-        ubicacion: formData.get('ubicacion').trim(), 
+        ubicacion: String(formData.get('ubicacion') ?? '').trim(), 
         estadoConservacion: formData.get('estadoConservacion') || 'Muy bueno', 
         vidaUtil: formData.get('vidaUtil') || '', 
         hasFC10: esEdicion ? bienEditing.hasFC10 : false, 
@@ -657,7 +661,7 @@ export function useFcModals({
           const updatedBienes = [];
           
           for (const item of fc04Items) {
-              const existingBien = bienes.find(b => b.rotulo.toLowerCase() === item.rotulo.toLowerCase() && b.dependencia === dependenciaActual);
+              const existingBien = bienes.find(b => normRotulo(b.rotulo) === normRotulo(item.rotulo) && b.rotulo && normalizeStr(b.dependencia) === normalizeStr(dependenciaActual));
               if (isBaja) { 
                   if (existingBien) updatedBienes.push({ ...existingBien, estadoConservacion: 'De Baja' }); 
               } else if (!existingBien && (fc04Data.origenMovimiento === 'A' || fc04Data.origenMovimiento === 'C/D')) { 
