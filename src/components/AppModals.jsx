@@ -1,4 +1,5 @@
 import { lazyConReintento } from '../utils/lazyConReintento';
+import FiltroCombo from './FiltroCombo';
 const BienModal = lazyConReintento(() => import('./BienModal'));
 const FC04Modal = lazyConReintento(() => import('./FC04Modal'));
 const FC10Modal = lazyConReintento(() => import('./FC10Modal'));

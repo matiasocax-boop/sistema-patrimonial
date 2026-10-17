@@ -9,6 +9,12 @@ import { registrarAuditoria } from '../services/auditService';
 import { enqueueOfflineAction } from '../services/offlineSyncService';
 import { FORMATO_PDF } from '../constants/appConstants';
 
+// Normalización de rótulo para comparar bienes. Vive a nivel de módulo porque
+// la usan dos guardados distintos (saveBien y saveFC04); antes estaba definida
+// dentro de saveBien y saveFC04 la referenciaba sin verla definida, lo que
+// tiraba ReferenceError al guardar un FC-04 con bienes.
+const normRotulo = (v) => String(v ?? '').trim().toLowerCase();
+
 // Modales de fichas y formularios: apertura, guardado y borrado
 // (extraído de App.jsx, Fase 6). Último dominio del split.
 //
@@ -427,7 +433,6 @@ export function useFcModals({
     const rotuloInput = String(formData.get('rotulo') ?? '').trim();
     // Sin el_String()_ los bienes importados de CSV que vinieron sin rótulo
     // rompían con "Cannot read properties of undefined (reading 'toLowerCase')".
-    const normRotulo = (v) => String(v ?? '').trim().toLowerCase();
     const isDuplicate = bienes.some(b => normRotulo(b.rotulo) === normRotulo(rotuloInput) && b.rotulo
         && normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && (!bienEditing || b.id !== bienEditing.id)); 
     if (isDuplicate) { 

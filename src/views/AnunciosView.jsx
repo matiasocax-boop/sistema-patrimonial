@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import FiltroCombo from '../components/FiltroCombo';
 
 // Módulo Anuncios (solo desarrollador): envía avisos a todos los usuarios
 // o a uno específico. La entrega usa la tabla `notificaciones` existente

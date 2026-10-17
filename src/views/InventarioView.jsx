@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { PENDIENTE_LABELS, ESTADOS_CONSERVACION } from '../constants/appConstants';
 import FiltroCombo from '../components/FiltroCombo';
 import CompararBienesModal from '../components/CompararBienesModal';
+import KanbanBienes from '../components/KanbanBienes';
+import EmptyState from '../components/EmptyState';
+import ExportScheduleMenu from '../components/ExportScheduleMenu';
 import { formatDateText } from '../utils/helpers';
 import { useIdioma } from '../utils/i18n';
 
@@ -79,6 +82,9 @@ export default function InventarioView({
   lastMutatedBienId,
   onBajaMasiva,
   onQRLoteSeleccion,
+  onMoverEstado,
+  onCopiarLink,
+  onExportarProgramado,
   STYLES
 }) {
   // Densidad y columnas visibles (preferencia local por usuario)
@@ -484,7 +490,24 @@ export default function InventarioView({
             >
               <i className="fa-solid fa-grip text-xs"></i>
             </button>
+            <button
+              onClick={() => cambiarVistaInv('kanban')} title="Vista tablero (Kanban por estado)" aria-label="Vista tablero Kanban"
+              className={`flex h-9 w-9 items-center justify-center transition-all cursor-pointer ${vistaInv === 'kanban' ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900' : 'text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10'}`}
+            >
+              <i className="fa-solid fa-table-columns text-xs"></i>
+            </button>
           </div>
+          {hasFilters && onCopiarLink && (
+            <button
+              onClick={onCopiarLink}
+              title="Copiar un link con estos filtros aplicados"
+              className="inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl border border-zinc-200 dark:border-white/10 text-[11px] font-bold text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-200 transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            >
+              <i className="fa-solid fa-link text-[10px]"></i>
+              <span className="hidden sm:inline">Copiar link</span>
+            </button>
+          )}
+          <ExportScheduleMenu onEjecutarAhora={onExportarProgramado} />
           <div className="hidden xl:flex items-center gap-1 shrink-0" title="Orden rápido">
             {[['rotulo', 'Rótulo'], ['valor', 'Valor'], ['fecha', 'Fecha']].map(([campo, label]) => (
               <button
@@ -585,14 +608,41 @@ export default function InventarioView({
                           </div>
                         ))}
                         {itemsPaginados.length === 0 && (
-                          <div className="col-span-full p-12 text-center">
-                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
-                              <i className="fa-solid fa-boxes-packing text-2xl"></i>
-                            </div>
-                            <span className="text-sm font-bold text-zinc-400">No se encontraron bienes coincidentes con los filtros.</span>
+                          <div className="col-span-full">
+                            <EmptyState
+                              icon={hasFilters ? 'fa-filter-circle-xmark' : 'fa-boxes-packing'}
+                              titulo={hasFilters ? 'Ningún bien coincide con los filtros' : 'Todavía no hay bienes cargados'}
+                              descripcion={hasFilters
+                                ? 'Probá con menos filtros o restablecelos para ver todo el inventario.'
+                                : 'Importá un CSV con la plantilla o creá el primer registro a mano.'}
+                              accionLabel={hasFilters ? 'Restablecer filtros' : 'Añadir bien'}
+                              onAccion={hasFilters ? clearAllFilters : () => { setBienEditing(null); setIsBienModalOpen(true); }}
+                            />
                           </div>
                         )}
                       </div>
+                    </div>
+                    ) : vistaInv === 'kanban' ? (
+                    /* Kanban: una columna por estado, arrastrar para reclasificar */
+                    <div className="p-4 sm:p-5 bg-zinc-50/50 dark:bg-black/10">
+                      {filteredBienes.length === 0 ? (
+                        <EmptyState
+                          icon={hasFilters ? 'fa-filter-circle-xmark' : 'fa-boxes-packing'}
+                          titulo={hasFilters ? 'Ningún bien coincide con los filtros' : 'Todavía no hay bienes cargados'}
+                          descripcion={hasFilters
+                            ? 'Probá con menos filtros o restablecelos para ver todo el inventario.'
+                            : 'Importá un CSV con la plantilla o creá el primer registro a mano.'}
+                          accionLabel={hasFilters ? 'Restablecer filtros' : 'Añadir bien'}
+                          onAccion={hasFilters ? clearAllFilters : () => { setBienEditing(null); setIsBienModalOpen(true); }}
+                        />
+                      ) : (
+                        <KanbanBienes
+                          bienes={filteredBienes}
+                          onMover={onMoverEstado}
+                          onOpenFicha={openFichaBien}
+                          isAdmin={isAdmin}
+                        />
+                      )}
                     </div>
                     ) : (
                     <div className="overflow-x-auto custom-scrollbar">
@@ -789,11 +839,16 @@ export default function InventarioView({
 
                           {itemsPaginados.length === 0 && (
                             <tr>
-                              <td colSpan="5" className="p-16 text-center">
-                                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3 shadow-inner">
-                                  <i className="fa-solid fa-boxes-packing text-2xl"></i>
-                                </div>
-                                <span className="text-sm font-bold text-zinc-400">No se encontraron bienes coincidentes con los filtros.</span>
+                              <td colSpan="5" className="p-0">
+                                <EmptyState
+                                  icon={hasFilters ? 'fa-filter-circle-xmark' : 'fa-boxes-packing'}
+                                  titulo={hasFilters ? 'Ningún bien coincide con los filtros' : 'Todavía no hay bienes cargados'}
+                                  descripcion={hasFilters
+                                    ? 'Probá con menos filtros o restablecelos para ver todo el inventario.'
+                                    : 'Importá un CSV con la plantilla o creá el primer registro a mano.'}
+                                  accionLabel={hasFilters ? 'Restablecer filtros' : 'Añadir bien'}
+                                  onAccion={hasFilters ? clearAllFilters : () => { setBienEditing(null); setIsBienModalOpen(true); }}
+                                />
                               </td>
                             </tr>
                           )}

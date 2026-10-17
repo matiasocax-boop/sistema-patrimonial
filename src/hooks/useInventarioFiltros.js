@@ -89,6 +89,87 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     filtroQR !== 'ALL' || filtroFC10 !== 'ALL' || filtroEstado !== 'ALL' || filtroPendiente
   );
 
+  // ==========================================================================
+  // FILTROS COMPARTIBLES POR URL (?q=&estado=&dep=...)
+  // --------------------------------------------------------------------------
+  // Al aplicar filtros se escriben en el query string; al montar (o al
+  // cambiar la dependencia) se leen. Así un link abre exactamente la vista
+  // que compartiste. Se usa replaceState para no llenar el historial del
+  // navegador con cada pulsación del usuario.
+  // ==========================================================================
+  const URL_KEYS = {
+    q: 'searchTerm', func: 'filtroFuncionario', ubi: 'filtroUbicacion',
+    anio: 'filtroAnio', mes: 'filtroMes', sub: 'filtroSubcuenta',
+    a1: 'filtroAnalitico1', a2: 'filtroAnalitico2',
+    qr: 'filtroQR', fc10: 'filtroFC10', est: 'filtroEstado', pend: 'filtroPendiente'
+  };
+  // Setters y valores actuales, resueltos por reflection sobre el scope del hook
+  // para no duplicar la lista de estados a mano (menos sitios que se desincronicen).
+  const SETTERS = {
+    searchTerm: setSearchTerm, filtroFuncionario: setFiltroFuncionario,
+    filtroUbicacion: setFiltroUbicacion, filtroAnio: setFiltroAnio, filtroMes: setFiltroMes,
+    filtroSubcuenta: setFiltroSubcuenta, filtroAnalitico1: setFiltroAnalitico1,
+    filtroAnalitico2: setFiltroAnalitico2, filtroQR: setFiltroQR,
+    filtroFC10: setFiltroFC10, filtroEstado: setFiltroEstado, filtroPendiente: setFiltroPendiente
+  };
+  const VALORES = {
+    searchTerm: debouncedSearchTerm, filtroFuncionario, filtroUbicacion,
+    filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2,
+    filtroQR, filtroFC10, filtroEstado, filtroPendiente
+  };
+  const leerUrl = useCallback(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const salida = {};
+      for (const [clave, estado] of Object.entries(URL_KEYS)) {
+        const v = p.get(clave);
+        if (v !== null && v !== '') salida[estado] = v;
+      }
+      return salida;
+    } catch (e) { return {}; }
+  }, []);
+
+  // Aplicar al montar. Se hace una sola vez al cambiar de usuario/dependencia
+  // para no pisar los filtros que la persona está escribiendo en ese momento.
+  const [urlAplicada, setUrlAplicada] = useState(false);
+  useEffect(() => {
+    if (urlAplicada) { setUrlAplicada(false); return; }
+    const desdeUrl = leerUrl();
+    if (Object.keys(desdeUrl).length === 0) return;
+    setUrlAplicada(true);
+    for (const [estado, valor] of Object.entries(desdeUrl)) {
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      (SETTERS[estado]?.(valor));
+    }
+    if (desdeUrl.searchTerm) setSearchInput(desdeUrl.searchTerm);
+  }, [dependenciaActual, username, leerUrl]);
+
+  // Espejar los filtros actuales hacia la URL.
+  useEffect(() => {
+    if (!urlAplicada) return;
+    try {
+      const p = new URLSearchParams(window.location.search);
+      for (const [clave, estado] of Object.entries(URL_KEYS)) {
+        const valor = VALORES[estado];
+        // Los estados "vacíos" no viajan: la URL queda legible.
+        if (valor === '' || valor === null || valor === undefined || valor === 'ALL') p.delete(clave);
+        else p.set(clave, String(valor));
+      }
+      const qs = p.toString();
+      const nueva = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+      window.history.replaceState(null, '', nueva);
+    } catch (e) { /* el navegador puede bloquear replaceState; no es crítico */ }
+  }, [
+    searchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes,
+    filtroSubcuenta, filtroAnalitico1, filtroAnalitico2,
+    filtroQR, filtroFC10, filtroEstado, filtroPendiente, urlAplicada
+  ]);
+
+  // "Copiar link" de la vista actual.
+  const urlFiltrosActual = useCallback(() => {
+    try { return window.location.href; } catch (e) { return ''; }
+  }, []);
+
   // Vistas guardadas por usuario (foto de filtros con nombre)
   const [vistasGuardadas, setVistasGuardadas] = useState(() => {
     try { return JSON.parse(localStorage.getItem(`vistas_${username || 'anon'}`) || '[]'); } catch (e) { return []; }
@@ -315,6 +396,6 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     subcuentasUnicas, analiticos1Unicos, analiticos2Unicos,
     stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages,
     itemsPorPagina, cambiarPaginaTam, seleccionados, toggleSeleccion, limpiarSeleccion,
-    vistaInv, cambiarVistaInv
+    vistaInv, cambiarVistaInv, urlFiltrosActual
   };
 }

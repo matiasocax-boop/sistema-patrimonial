@@ -51,6 +51,13 @@ import DashboardView from './views/DashboardView';
 import InventarioView from './views/InventarioView';
 import { processOfflineQueue, enqueueOfflineAction } from './services/offlineSyncService';
 import { registrarAuditoria } from './services/auditService';
+import ErrorView from './views/ErrorView';
+import KioskBar, { BotonPantallaCompleta, parseIdleSegundos } from './components/KioskBar';
+import {
+  obtenerProgramacion, guardarProgramacion, tocaEjecutar,
+  construirCSVInventario, nombreArchivoInventario,
+  descargarYArchivar, registrarPendiente, descargarBlob
+} from './services/exportSchedule';
 // Nota: papaparse y qrcode se importan dinámicamente donde se usan para no
 // inflar el bundle inicial (ver executeProcessBienesCSV y pdfGenerators).
 // Nota: STYLES y constantes globales viven en constants/appConstants
@@ -59,6 +66,15 @@ import { registrarAuditoria } from './services/auditService';
 export default function App() {
   const urlParams = new URLSearchParams(window.location.search);
   const publicBienId = urlParams.get('id') || urlParams.get('bienId');
+  // Rutas conocidas del sistema. Si la URL no corresponde a ninguna y tampoco
+  // es la vista pública de un bien, se muestra el 404 en vez de un shell vacío.
+  const RUTAS_CONOCIDAS = ['escaner', 'inventario', 'dashboard', 'usuarios', 'ayuda', 'auditoria', 'panel', 'kiosco'];
+  const rutaActual = String(window.location.pathname || '/').replace(/^\/+|\/+$/g, '');
+  const rutaDesconocida = rutaActual !== '' && !RUTAS_CONOCIDAS.includes(rutaActual.toLowerCase());
+  // Modo kiosco: se activa con ?kiosk=1 en el link del QR. Agrega temporizador de
+  // inactividad y controles de exhibition; no cambia cómo se leen los datos.
+  const kioscoActivo = urlParams.get('kiosk') === '1';
+  const kioscoIdle = kioscoActivo ? parseIdleSegundos(window.location.search) : 0;
   
   const [publicBienData, setPublicBienData] = useState(null);
   const [publicFotoAmpliada, setPublicFotoAmpliada] = useState(null);
@@ -81,11 +97,34 @@ export default function App() {
   const [appLogo, setAppLogo] = useState(() => localStorage.getItem('logoOficial'));
   
   
-  const [darkMode, setDarkMode] = useState(() => { const saved = localStorage.getItem('theme'); if (saved !== null) return saved === 'dark'; return true; });
+  // Modo oscuro: 3 estados posibles. Sin elección guardada, sigue la preferencia
+  // del sistema (prefers-color-scheme) y se actualiza solo si el usuario la cambia
+  // mientras la app está abierta. Antes caía siempre en `true` (oscuro).
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    try { return window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return true; }
+  });
   // Persistir el tema en cada cambio (antes solo se guardaba desde el login y se perdía al refrescar)
   useEffect(() => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
+  // Escuchar cambios del tema del sistema SOLO si el usuario no fijó uno manual.
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia('(prefers-color-scheme: dark)'); } catch (e) { return; }
+    const alCambiar = (e) => {
+      const saved = localStorage.getItem('theme');
+      if (saved !== 'dark' && saved !== 'light') setDarkMode(e.matches);
+    };
+    if (mq.addEventListener) mq.addEventListener('change', alCambiar);
+    else if (mq.addListener) mq.addListener(alCambiar); // Safari < 14
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', alCambiar);
+      else if (mq.removeListener) mq.removeListener(alCambiar);
+    };
+  }, []);
   // Arranque limpio: permite un futuro auto-reintento de chunks ante deploys intermedios
   useEffect(() => {
     try { sessionStorage.removeItem('chunk_reintentado'); } catch (e) {}
@@ -271,7 +310,7 @@ export default function App() {
     subcuentasUnicas, analiticos1Unicos, analiticos2Unicos,
     stats, pendientes, filteredBienes, paginatedBienes, itemsPaginados, totalPages,
     itemsPorPagina, cambiarPaginaTam, seleccionados, toggleSeleccion, limpiarSeleccion,
-    vistaInv, cambiarVistaInv
+    vistaInv, cambiarVistaInv, urlFiltrosActual
   } = useInventarioFiltros({ bienes, dependenciaActual, fc10List, username: currentUser?.username, notify: addToast });
   // Sugerencias para autocompletado (memoizado: evita refiltrar miles de bienes en cada render)
   const sugerenciasBienesDep = useMemo(
@@ -1071,6 +1110,82 @@ useEffect(() => {
   // Reintento de importación CSV de bienes (guarda el último archivo).
   const ultimoArchivoBienesRef = useRef(null);
 
+  // --- KANBAN: cambiar estado de conservación de un bien -------------------
+  // Es la única escritura directa sobre 'bens' originada por el tablero: el
+  // resto de ediciones pasan por BienModal. Se marca el bien mutado para que la
+  // tabla que quedó detrásDestello (row-flash) y se registra en auditoría.
+  const moverEstadoBien = async (bien, estadoNuevo) => {
+    const previo = bien.estadoConservacion;
+    if (previo === estadoNuevo) return;
+    const actualizado = { ...bien, estadoConservacion: estadoNuevo };
+    // Optimista: la tarjeta cambia de columna al instante y se revierte si Supabase falla.
+    setBienes(prev => prev.map(b => (b.id === bien.id ? actualizado : b)));
+    marcarBienMutado(bien.id);
+    try {
+      const { error } = await supabase.from('bens').update(conSello({ data: actualizado })).eq('id', bien.id);
+      if (error) throw error;
+      await registrarAuditoria({
+        usuario: currentUser?.username || 'Usuario', dependencia: dependenciaActual,
+        accion: 'CAMBIO_ESTADO', entidad: 'BIEN', entidadId: bien.id,
+        detalles: { rotulo: bien.rotulo, estadoPrevio: previo, estadoNuevo }
+      });
+      addToast(`${bien.rotulo || 'Bien'} → ${estadoNuevo}.`, 'success');
+    } catch (e) {
+      setBienes(prev => prev.map(b => (b.id === bien.id ? bien : b)));
+      addToast('No se pudo cambiar el estado.', 'error');
+    }
+  };
+
+  // --- FILTROS COMPARTIBLES: copiar link de la vista actual -----------------
+  const copiarLinkFiltros = async () => {
+    const url = urlFiltrosActual();
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      addToast('Link copiado. Quien lo abra verá estos filtros.', 'success');
+    } catch (e) {
+      // clipboard puede estar bloqueado en http:// o sin permiso: cae al prompt.
+      window.prompt('Copiá este link para compartir la vista filtrada:', url);
+    }
+  };
+
+  // --- EXPORTACIÓN PROGRAMADA ---------------------------------------------
+  // Genera el reporte con el formato configurado, lo descarga y deja copia.
+  const ejecutarExportacionProgramada = async (silencioso = false) => {
+    const cfg = obtenerProgramacion();
+    const formato = cfg?.formato || 'csv';
+    const lista = filteredBienes.length > 0 ? filteredBienes : bienes.filter(b => b.dependencia === dependenciaActual);
+    if (!lista || lista.length === 0) {
+      if (!silencioso) addToast('No hay bienes para exportar.', 'warning');
+      return;
+    }
+    try {
+      setIsProcessing({ active: true, text: 'Generando reporte programado...' });
+      const nombre = nombreArchivoInventario(dependenciaActual, formato, 'prog');
+      const blob = construirCSVInventario(lista, dependenciaActual);
+      descargarYArchivar({ nombre, tipo: 'inventario', formato, blob });
+      guardarProgramacion({ ultimaEjecucion: Date.now() });
+      if (!silencioso) addToast(`Reporte generado: ${nombre}`, 'success');
+    } catch (e) {
+      if (!silencioso) addToast('No se pudo generar el reporte programado.', 'error');
+    } finally {
+      setIsProcessing({ active: false, text: '' });
+    }
+  };
+
+  // Al cargar con datos y sesión activa: si la programación ya venció, generar.
+  const programacionRevisada = useRef(false);
+  useEffect(() => {
+    if (programacionRevisada.current) return;
+    if (isLoading || !isAuthenticated || !dependenciaActual) return;
+    programacionRevisada.current = true;
+    const cfg = obtenerProgramacion();
+    if (tocaEjecutar(cfg)) {
+      // Diferido para no competir con la carga inicial de bienes.
+      setTimeout(() => ejecutarExportacionProgramada(true), 1200);
+    }
+  }, [isLoading, isAuthenticated, dependenciaActual]);
+
 
 
 
@@ -1270,6 +1385,9 @@ if (mantenimiento?.en_mantenimiento && !mantBypass && !esDesarrollador && mostra
       <LoginScreen handleLogin={handleLogin} loginUser={loginUser} setLoginUser={setLoginUser} loginPass={loginPass} setLoginPass={setLoginPass} showPassword={showPassword} setShowPassword={setShowPassword} loginError={loginError} darkMode={darkMode} setDarkMode={setDarkMode} appLogo={appLogo} toasts={toasts} isProcessing={isProcessing.active} />
   );
 }
+if (rutaDesconocida && !publicBienId) {
+  return <ErrorView variante="404" onAccion={() => { window.location.href = window.location.origin; }} />;
+}
 if (publicBienId) {
   return (
     <div className="h-dvh overflow-y-auto bg-slate-100 flex flex-col items-center p-3 sm:p-6 text-slate-900 font-sans selection:bg-blue-600 selection:text-white custom-scrollbar">
@@ -1460,6 +1578,33 @@ if (publicBienId) {
         </div>
 
       </div>
+      {/* Controles de exhibition: pantalla completa siempre; barra de kiosco solo en ?kiosk=1 */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="flex-1" />
+          <BotonPantallaCompleta />
+          {!kioscoActivo && (
+            <a
+              href={`?id=${encodeURIComponent(publicBienId)}&kiosk=1`}
+              title="Abrir en modo kiosco (pantalla completa con temporizador)"
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-xl border border-slate-200 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50 active:scale-95 transition-all cursor-pointer"
+            >
+              <i className="fa-solid fa-display text-[10px]"></i>
+              <span className="hidden sm:inline">Kiosco</span>
+            </a>
+          )}
+        </div>
+
+        {kioscoActivo && (
+          <KioskBar
+            idleSegundos={kioscoIdle}
+            onSalir={() => { window.location.href = window.location.origin; }}
+            onEscanearOtro={() => {
+              // Vuelve al inicio, que es donde vive el botón de escáner.
+              window.location.href = window.location.origin;
+            }}
+          />
+        )}
+
       {publicFotoAmpliada && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-zinc-950/90 backdrop-blur-sm" onClick={() => setPublicFotoAmpliada(null)}>
           <img src={publicFotoAmpliada} alt="Foto ampliada del activo" className="max-h-[90dvh] max-w-full rounded-2xl shadow-2xl object-contain" />
@@ -1558,7 +1703,7 @@ if (publicBienId) {
                 {activeTab === 'dashboard' && (<DashboardView currentUser={currentUser} dependenciaActual={dependenciaActual} saludoBienvenida={saludoBienvenida} stats={stats} pendientes={pendientes} isLoading={isLoading} timeStats={timeStats} clearAllFilters={clearAllFilters} setActiveTab={setActiveTab} setFiltroQR={setFiltroQR} setFiltroFC10={setFiltroFC10} setFiltroPendiente={setFiltroPendiente} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setCurrentPage={setCurrentPage} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} fileInputRef={fileInputRef} handleExportInventarioCSV={handleExportInventarioCSV} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setFc10Year={setFc10Year} setFc10Month={setFc10Month} />)}
 
                 {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
-                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
+                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} onMoverEstado={moverEstadoBien} onCopiarLink={copiarLinkFiltros} onExportarProgramado={() => ejecutarExportacionProgramada(false)} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
 
                 {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} />)}
 
