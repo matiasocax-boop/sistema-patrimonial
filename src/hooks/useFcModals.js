@@ -5,6 +5,10 @@ import { conSello } from '../services/syncBienes';
 import { normalizeStr, formatDateText, formatCurrency, getEstadoAbbr, generateId } from '../utils/helpers';
 import { numeroALetras } from '../utils/numeroLetras';
 import { extraerCodigoQR } from '../utils/qr';
+import {
+  ESTADOS_FC10, ESTADO_NUEVO_FC10, estadoInicialFC10, estaPendiente,
+  pendienteDeFirma, registrarFirma, habilitaFC10EnBien, ESTADO_INFO
+} from '../utils/fc10Firmas';
 import { registrarAuditoria } from '../services/auditService';
 import { enqueueOfflineAction } from '../services/offlineSyncService';
 import { FORMATO_PDF } from '../constants/appConstants';
@@ -700,9 +704,21 @@ export function useFcModals({
     localStorage.setItem('unp_last_org_data', JSON.stringify(orgDataToSave)); 
     
     const valorTotalForm = String(formData.get('valorTotal') ?? '').replace(/\./g, '');
-    const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod'), funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: valorTotalForm, observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10' }; 
-    const isDevuelto = !!fcData.devolucionFecha; 
-    const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: !isDevuelto, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
+    // Un FC-10 nuevo nace SIEMPRE en ESPERA_FIRMA_1 (firma el funcionario y
+    // después su jefe). Editar uno ya existente nunca reinicia el ciclo: se
+    // conserva el estado y las firmas ya registradas.
+    const estadoAlGuardar = fc10Editing
+        ? (fc10Editing.estadoFirma || ESTADOS_FC10.CERRADO)
+        : ESTADO_NUEVO_FC10;
+    const firmasAlGuardar = fc10Editing?.firmas || undefined;
+
+    const fcData = { id: fc10Editing ? fc10Editing.id : generateId(), bienId: fc10TargetBien.id, dependencia: dependenciaActual, fechaGeneracion: new Date().toISOString().split('T')[0], entidad: "UNIVERSIDAD NACIONAL DE PILAR", entidadCod: "28", unidad: formData.get('unidad'), unidadCod: formData.get('unidadCod'), reparticion: formData.get('reparticion'), reparticionCod: formData.get('reparticionCod'), dependenciaOrg: formData.get('dependenciaOrg'), dependenciaCod: formData.get('dependenciaCod'), area: formData.get('area'), areaCod: formData.get('areaCod'), funcionarioNombre: formData.get('funcionarioNombre'), funcionarioDoc: formData.get('funcionarioDoc'), funcionarioCargo: formData.get('funcionarioCargo'), jefeInmediatoNombre: formData.get('jefeInmediatoNombre'), jefeInmediatoDoc: formData.get('jefeInmediatoDoc'), jefeInmediatoCargo: formData.get('jefeInmediatoCargo'), estadoConservacion: formData.get('estadoConservacion'), cantidad: formData.get('cantidad') || '1', valorTotal: valorTotalForm, observaciones: formData.get('observaciones'), entregadoLugar: formData.get('entregadoLugar'), entregadoFecha: formData.get('entregadoFecha'), devolucionLugar: formData.get('devolucionLugar'), devolucionFecha: formData.get('devolucionFecha'), devolucionReceptor: formData.get('devolucionReceptor'), devolucionCargoReceptor: formData.get('devolucionCargoReceptor'), tipoRegistro: 'FC10', estadoFirma: estadoAlGuardar, ...(firmasAlGuardar ? { firmas: firmasAlGuardar } : {}) };
+    const isDevuelto = !!fcData.devolucionFecha;
+    // El bien SOLO se marca con FC-10 cuando el acta cerró con ambas firmas.
+    // Mientras tanto sigue en la bandeja de pendientes, que es donde queda
+    // trabajo real por hacer.
+    const actaCerrada = habilitaFC10EnBien(fcData);
+    const updatedBien = { ...fc10TargetBien, estadoConservacion: fcData.estadoConservacion, hasFC10: isDevuelto ? false : actaCerrada, funcionario: isDevuelto ? '' : fcData.funcionarioNombre, ubicacion: isDevuelto ? '' : fc10TargetBien.ubicacion };
     const payloadFC10 = { id: fcData.id, data: fcData };
 
     try { 
@@ -734,9 +750,88 @@ export function useFcModals({
         setFc10List(prev => fc10Editing ? prev.map(f => f.id === fcData.id ? fcData : f) : [fcData, ...prev]); 
         setBienes(prev => prev.map(b => b.id === updatedBien.id ? updatedBien : b)); 
         setIsFC10ModalOpen(false); 
-        notify(isDevuelto ? "Devolución registrada" : "FC-10 Guardado exitosamente", "success");
+        if (isDevuelto) notify("Devolución registrada", "success");
+        else if (!fc10Editing) notify(`FC-10 creado. ${ESTADO_INFO[estadoAlGuardar].descripcion}`, "success");
+        else notify("FC-10 actualizado", "success");
         return true; 
     } catch (error) { console.error(error); notify("Error al guardar.", "error"); return false; }
+  };
+
+  /**
+   * Registra la firma que el FC-10 está esperando.
+   *
+   * El acto de firmar ocurre en Acrobat con el certificado de MITIC; lo que
+   * hace el sistema es dejar constancia de que ese trámite ya se completó.
+   * Solo quien lleva el trámite (el usuario logueado) puede marcarlo, y el
+   * sistema guarda su usuario y la fecha para la auditoría.
+   *
+   * Al cerrar el ciclo recién ahí se marca el bien con hasFC10: true.
+   */
+  const registrarFirmaFC10 = async (fc) => {
+      if (!fc || !fc.id) return false;
+      const estadoActual = estadoInicialFC10(fc);
+      if (estadoActual === ESTADOS_FC10.CERRADO) {
+          notify('Esta acta ya está cerrada con ambas firmas.', 'warning');
+          return false;
+      }
+      const pendiente = pendienteDeFirma(fc);
+      // Un borrador todavía no salió a firmar: primero se envía.
+      if (!pendiente) {
+          notify('El acta todavía no se envió a firmar. Guardá los cambios primero.', 'warning');
+          return false;
+      }
+
+      const actualizado = registrarFirma(fc, currentUser, new Date().toISOString());
+      setIsProcessing({ active: true, text: 'Registrando firma...' });
+      try {
+          const { error } = await supabase.from('fc10').update({ id: actualizado.id, data: actualizado }).eq('id', actualizado.id);
+          if (error) throw error;
+
+          setFc10List(prev => prev.map(f => (f.id === actualizado.id ? actualizado : f)));
+
+          // El bien cambia de estado solo al cerrar el ciclo (o al devolver).
+          const bien = bienes.find(b => b.id === actualizado.bienId);
+          if (bien) {
+              const isDevuelto = !!actualizado.devolucionFecha;
+              const bienActualizado = {
+                  ...bien,
+                  hasFC10: isDevuelto ? false : habilitaFC10EnBien(actualizado),
+                  estadoConservacion: actualizado.estadoConservacion || bien.estadoConservacion,
+                  funcionario: isDevuelto ? '' : (actualizado.funcionarioNombre || bien.funcionario)
+              };
+              await supabase.from('bens').update(conSello({ data: bienActualizado })).eq('id', bien.id);
+              setBienes(prev => prev.map(b => (b.id === bien.id ? bienActualizado : b)));
+          }
+
+          await registrarAuditoria({
+              usuario: currentUser?.username || 'Usuario',
+              dependencia: dependenciaActual,
+              accion: 'FIRMA_FC10',
+              entidad: 'FC10',
+              entidadId: actualizado.id,
+              detalles: {
+                  puesto: pendiente.puesto,
+                  firmante: pendiente.nombre,
+                  estadoResultante: actualizado.estadoFirma,
+                  bienId: actualizado.bienId
+              }
+          });
+
+          const cerrado = actualizado.estadoFirma === ESTADOS_FC10.CERRADO;
+          notify(
+              cerrado
+                  ? 'Acta cerrada. El bien ya cuenta con FC-10.'
+                  : `Firma registrada (${pendiente.puesto}). Ahora falta: ${ESTADO_INFO[actualizado.estadoFirma].descripcion}`,
+              'success'
+          );
+          return true;
+      } catch (e) {
+          console.error(e);
+          notify('No se pudo registrar la firma.', 'error');
+          return false;
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+      }
   };
 
   const submitResolucionBaja = async (e) => {
@@ -997,7 +1092,7 @@ export function useFcModals({
     openResolucionModal, openFC10Modal, openFC11Modal, openFC04Modal,
     handleAddFC04Item, handleRemoveFC04Item, handleFC04ItemChange,
     handleScanSuccess,
-    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10,
+    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10, registrarFirmaFC10,
     submitResolucionBaja, confirmDeleteAction
   };
 }

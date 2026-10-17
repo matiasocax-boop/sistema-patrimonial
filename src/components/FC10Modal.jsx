@@ -191,6 +191,13 @@ const valorOrgExplicito = (campo) => {
         doc: fc10Editing?.funcionarioDoc || '',
         cargo: fc10Editing?.funcionarioCargo || ''
     });
+    // Segunda firma: el jefe inmediato. Mismo treatment que el funcionario
+    // (autocompletado contra el padrón) para no escribirlo a mano.
+    const [jefeData, setJefeData] = useState({
+        nombre: fc10Editing?.jefeInmediatoNombre || '',
+        doc: fc10Editing?.jefeInmediatoDoc || '',
+        cargo: fc10Editing?.jefeInmediatoCargo || ''
+    });
     // Guardia anti-doble-clic: los botones Siguiente/Confirmar ocupan el mismo
     // lugar; sin esto un doble clic salta del paso 2 al guardado sin ver el 3.
     // bloqueoRef es síncrono (el state tarda un render en aplicarse y no frena
@@ -294,6 +301,24 @@ const valorOrgExplicito = (campo) => {
             setFuncData({ nombre: e.target.value.trim(), doc: match.doc || '', cargo: match.cargo || '' });
         }
     };
+    // Autocompletado del jefe inmediato, con la misma tolerancia del funcionario.
+    const handleJefeNameChange = (e) => {
+        const val = e.target.value;
+        if (!val.trim()) { setJefeData({ nombre: val, doc: '', cargo: '' }); return; }
+        const match = resolverFuncionario(val);
+        setJefeData({
+            nombre: val,
+            doc: match?.doc || jefeData.doc,
+            cargo: match?.cargo || jefeData.cargo
+        });
+    };
+    const handleJefeNameBlur = (e) => {
+        const match = resolverFuncionario(e.target.value);
+        if (match && (match.doc || match.cargo)) {
+            setJefeData({ nombre: e.target.value.trim(), doc: match.doc || '', cargo: match.cargo || '' });
+        }
+    };
+
     const matchPadronActual = resolverFuncionario(funcData.nombre);
     const coincidePadron = !!matchPadronActual;
     const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);
@@ -493,6 +518,52 @@ const valorOrgExplicito = (campo) => {
                                             onChange={(e) => setFuncData({...funcData, cargo: e.target.value})}
                                             className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
                                         />
+                                    </div>
+                                </div>
+
+                                {/* Firma 2: el jefe inmediato del funcionario.
+                                    El FC-10 exige dos firmas en este orden: primero
+                                    el funcionario responsable, después su jefe. */}
+                                <div className="mt-7 pt-6 border-t border-zinc-100 dark:border-white/10">
+                                    <div className="flex items-center gap-2.5 mb-4">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800">
+                                            <i className="fa-solid fa-user-tie text-xs"></i>
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-black text-zinc-800 dark:text-white uppercase tracking-wider">Segunda firma · Jefe Inmediato</h4>
+                                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Firma después de que el funcionario haya firmado en Acrobat.</p>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                        <div>
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
+                                            <input 
+                                                list="funcionarios-list-fc10"
+                                                name="jefeInmediatoNombre" 
+                                                required 
+                                                value={jefeData.nombre}
+                                                onChange={(e) => setJefeData({...jefeData, nombre: e.target.value})}
+                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
+                                            <input 
+                                                name="jefeInmediatoDoc" 
+                                                value={jefeData.doc}
+                                                onChange={(e) => setJefeData({...jefeData, doc: e.target.value})}
+                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
+                                            <input 
+                                                name="jefeInmediatoCargo" 
+                                                value={jefeData.cargo}
+                                                onChange={(e) => setJefeData({...jefeData, cargo: e.target.value})}
+                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>

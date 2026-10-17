@@ -149,7 +149,7 @@ export default function DashboardView({
         {/* Sin FC-10 */}
         <button
           onClick={() => { irInventario(() => setFiltroFC10('NO')); }}
-          title="Ver bienes sin FC-10"
+          title="Ver bienes sin FC-10 cerrado"
           className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-amber-200/70 dark:border-amber-400/20 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-amber-500 outline-none transition-all duration-200 cursor-pointer"
         >
           <div className="flex items-center justify-between gap-3 mb-5">
@@ -165,7 +165,9 @@ export default function DashboardView({
             Sin FC-10
           </p>
           <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 mt-2">
-            Pendientes de asignación
+            {stats.fc10Pendientes > 0
+              ? `${stats.fc10Pendientes} en firma · ${Math.max(0, stats.withoutFc10 - stats.fc10Pendientes)} sin acta`
+              : 'Pendientes de asignación'}
           </p>
         </button>
 

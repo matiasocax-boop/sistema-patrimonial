@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { normalizeStr, parseDateInfo, matchBienSearch } from '../utils/helpers';
+import { ESTADOS_FC10, estadoInicialFC10 } from '../utils/fc10Firmas';
 
 // Filtros, búsqueda, paginación y derivados del inventario (extraído de
 // App.jsx, Fase 3 del split). La UI sigue usando los mismos nombres vía
@@ -271,6 +272,14 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
           return acc + valorNum;
       }, 0);
       const withFc10 = depBienes.filter(b => b.hasFC10).length;
+      // Actas en trámite: no cuentan como "con FC-10" (el bien sigue en la
+      // bandeja), pero se exponen aparte para que la bandeja diga qué falta
+      // además de firmar.
+      const fc10Pendientes = (fc10List || []).filter(fc => {
+          if (estadoInicialFC10(fc) === ESTADOS_FC10.CERRADO) return false;
+          const b = bienes.find(x => x.id === fc.bienId);
+          return b && normalizeStr(b.dependencia) === normalizeStr(dependenciaActual);
+      }).length;
       const withQR = depBienes.filter(b => b.hasQR).length;
       const estados = { bueno: depBienes.filter(b => b.estadoConservacion === 'Bueno' || b.estadoConservacion === 'Muy bueno').length, regular: depBienes.filter(b => b.estadoConservacion === 'Regular').length, malo: depBienes.filter(b => b.estadoConservacion === 'Malo' || b.estadoConservacion === 'Inutilizable').length };
       const percFC10 = totalItems === 0 ? 0 : (withFc10 / totalItems) * 100;
@@ -278,8 +287,8 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
       const cuentasCounts = {};
       depBienes.forEach(b => { if (b.cuenta) cuentasCounts[b.cuenta] = (cuentasCounts[b.cuenta] || 0) + 1; });
       const topCuentas = Object.entries(cuentasCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
-      return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas };
-  }, [bienes, dependenciaActual]);
+      return { totalItems, totalValue, withFc10, withoutFc10: totalItems - withFc10, fc10Pendientes, withQR, withoutQR: totalItems - withQR, percFC10, percQR, estados, topCuentas };
+  }, [bienes, dependenciaActual, fc10List]);
 
   // Bandeja de pendientes: conteos operativos para atención directa (mismo universo que stats: activos)
   const pendientes = useMemo(() => {

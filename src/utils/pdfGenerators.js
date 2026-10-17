@@ -225,12 +225,35 @@ export const buildFC10PDFDoc = (fcs, bienesAListar) => {
         doc.text(`Aclaración: ${sanearTextoPDF(fc.funcionarioNombre) || ''}`, leftX, finalY + 11);
         doc.text(`C.I.: ${formatCI(fc.funcionarioDoc) || ''}`, leftX, finalY + 17);
 
+        // Segunda firma: el jefe inmediato. Antes la línea iba vacía; ahora
+        // lleva los datos de quien corresponde y, si la firma ya se registró
+        // en el sistema, la constancia de ese registro.
         const rightX = pageWidth - 100;
         doc.line(rightX, finalY, rightX + 80, finalY);
         doc.setFont("helvetica", "bold");
-        doc.text("Visto Bueno (Jefe Inmediato)", rightX + 40, finalY + 5, { align: 'center' });
+        doc.text("Firma del Jefe Inmediato", rightX + 40, finalY + 5, { align: 'center' });
         doc.setFont("helvetica", "normal");
-        doc.text("Aclaración:", rightX, finalY + 11);
+        doc.text(`Aclaración: ${sanearTextoPDF(fc.jefeInmediatoNombre) || ''}`, rightX, finalY + 11);
+        if (fc.jefeInmediatoDoc) {
+            doc.text(`C.I.: ${formatCI(fc.jefeInmediatoDoc)}`, rightX, finalY + 17);
+        } else if (fc.jefeInmediatoCargo) {
+            doc.text(`Cargo: ${sanearTextoPDF(fc.jefeInmediatoCargo)}`, rightX, finalY + 17);
+        }
+
+        // Constancia del ciclo de firmas (solo si el sistema ya la registro).
+        const partes = [];
+        if (fc.firmas?.firma1?.fecha) {
+            partes.push(`Firma del funcionario registrada el ${formatDateText(fc.firmas.firma1.fecha)}`);
+        }
+        if (fc.firmas?.firma2?.fecha) {
+            partes.push(`Firma del jefe inmediato registrada el ${formatDateText(fc.firmas.firma2.fecha)}`);
+        }
+        if (partes.length > 0) {
+            doc.setFontSize(6.5);
+            doc.setFont("helvetica", "italic");
+            doc.text(partes.join(' · '), leftX, finalY + 25);
+            doc.setFont("helvetica", "normal");
+        }
 
     });
 
