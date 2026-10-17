@@ -385,14 +385,13 @@ export default function InventarioView({
       />
 
       {/* Estado */}
-      <select 
-        value={filtroEstado || 'ALL'} 
-        onChange={(e) => setFiltroEstado(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="ALL">Estado: Todos</option>
-        {ESTADOS_CONSERVACION.map(e => <option key={e} value={e}>{e}</option>)}
-      </select>
+      <FiltroCombo
+        valor={filtroEstado === 'ALL' ? '' : filtroEstado}
+        opciones={ESTADOS_CONSERVACION}
+        onElegir={(v) => { setFiltroEstado(v || 'ALL'); setCurrentPage(1); }}
+        etiquetaTodos="Estado: Todos"
+        titulo="Filtrar por estado de conservación"
+      />
 
     </div>
 
@@ -496,13 +495,14 @@ export default function InventarioView({
               </button>
             ))}
           </div>
-          <select
-            value={ordenActual} onChange={(e) => cambiarOrden(e.target.value)}
-            title="Orden de la tabla"
-            className="h-9 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-2.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary"
-          >
-            {ORDENES.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-          </select>
+          <FiltroCombo
+            valor={ORDENES.find(o => o.id === ordenActual)?.label || ''}
+            opciones={ORDENES.map(o => o.label)}
+            onElegir={(v) => cambiarOrden(ORDENES.find(o => o.label === v)?.id || 'natural')}
+            etiquetaTodos="Orden"
+            titulo="Orden de la tabla"
+            ancho="w-[190px]"
+          />
           <button
             onClick={cambiarDensidad}
             title={compacto ? 'Vista cómoda' : 'Vista compacta'}
