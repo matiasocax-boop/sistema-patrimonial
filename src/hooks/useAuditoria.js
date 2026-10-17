@@ -5,6 +5,7 @@ import { extraerCodigoQR } from '../utils/qr';
 import { buildActaAuditoriaPDF } from '../utils/pdfGenerators';
 import { registrarAuditoria } from '../services/auditService';
 import { estimarUsoDB, alertaUso } from '../services/supabaseFreeTier';
+import { tomarMuestra } from '../utils/muestreo';
 
 // Dominio de auditoría: libro de eventos + conciliación + muestreo
 // (extraído de App.jsx, Fase 6). La vista AuditoriaView recibe los mismos
@@ -332,8 +333,14 @@ export function useAuditoria({
       return;
     }
     const n = Math.max(1, Math.min(parseInt(muestraN, 10) || 10, base.length));
-    const barajada = [...base].sort(() => Math.random() - 0.5);
-    setMuestra(barajada.slice(0, n));
+    // Barajado uniforme (Fisher-Yates). Antes se usaba
+    // `[...base].sort(() => Math.random() - 0.5)`, que no es uniforme: el
+    // comparador de sort debe ser antisimétrico y sort aleatorio no lo es, así
+    // que el resultado queda sesgado hacia el orden original del listado.
+    // Medido: chi-cuadrado de 5400 contra un límite de 20.5, o sea una
+    // muestra concentrada en los primeros bienes. En un acta de muestreo eso
+    // compromete la validez de la auditoría.
+    setMuestra(tomarMuestra(base, n));
     setVerificadosMuestra({});
   };
   const guardarActaMuestreo = async () => {
