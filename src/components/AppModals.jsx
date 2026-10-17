@@ -80,6 +80,7 @@ export default function AppModals({
   fc10Editing,
   saveFC10,
   funcionariosConDatos,
+  estructurasDB,
   isFC11ModalOpen,
   setIsFC11ModalOpen,
   fc11TargetBien,
@@ -429,6 +430,8 @@ export default function AppModals({
                   STYLES={STYLES}
                   formatCurrency={formatCurrency}
                   funcionariosConDatos={funcionariosConDatos}
+                  dependenciaActual={dependenciaActual}
+                  estructurasDB={estructurasDB}
               />
           )}
           {isFC11ModalOpen && (

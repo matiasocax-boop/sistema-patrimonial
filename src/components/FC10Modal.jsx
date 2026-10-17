@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
-import { buscarFC10Catalogo } from '../constants/fc10Catalogo';
+import CampoCatalogo from './CampoCatalogo';
+import { FC10_ORGANOS, FC10_UNIDADES, opcionesCatalogoFC10, organoDeUnidad } from '../constants/fc10Catalogo';
 
-export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos }) {
+export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos, dependenciaActual, estructurasDB }) {
     const esNuevoFC = !fc10Editing;
     const { borrador: borradorFC, hayBorrador: hayBorradorFC, guardarBorrador: guardarBorradorFC, limpiarBorrador: limpiarBorradorFC } = useDraft('borrador_fc10_nuevo', esNuevoFC);
     const [restauradoFC, setRestauradoFC] = useState(null);
@@ -23,6 +24,161 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     const [step, setStep] = useState(1); 
     const savedOrg = JSON.parse(localStorage.getItem('unp_last_org_data') || '{}');
     const safeFuncionarios = funcionariosConDatos || [];
+
+    // ---- Paso 1: estructura organizacional (en cascada) --------------------
+    // Unidad jerárquica (órgano) → Repartición → Dependencia → Área. Cada nivel
+    // sugiere solo lo que cuelga de lo elegido arriba; el código patrimonial se
+    // completa al elegir del catálogo y se puede corregir a mano.
+    const memoriaOrg = useMemo(() => estructurasDB || [], [estructurasDB]);
+
+    // "Rectorado" no figura textual en el organigrama (que dice
+    // "Rectorado / Despacho del Rector"), así que también se acepta el prefijo.
+    const organoDesdeNombre = (nombre) => {
+        if (!nombre) return '';
+        const exacto = organoDeUnidad(nombre);
+        if (exacto) return exacto;
+        const q = normalizeStr(nombre);
+        const hit = FC10_ORGANOS.find(o => normalizeStr(o.nombre).startsWith(q));
+        return hit ? hit.nombre : '';
+    };
+
+    // Dependencia de trabajo "Rectorado" → la Unidad Jerárquica del FC-10 va
+    // siempre como "Rectorado" con código 03 (Res. C.S.U. N° 76/2024).
+    // Ojo: normalizeStr devuelve MAYÚSCULAS y sin tildes.
+    const UNIDAD_RECTORADO = 'Rectorado';
+    const UNIDAD_RECTORADO_N = normalizeStr(UNIDAD_RECTORADO);
+    const COD_RECTORADO = '03';
+    const esRectorado = normalizeStr(dependenciaActual || '').includes('RECTOR');
+
+    // Valores escritos de verdad (borrador en curso o registro en edición). El
+// "último uso" (savedOrg) es solo memoria y no pisa la regla del Rectorado.
+const valorOrgExplicito = (campo) => {
+        const b = restauradoFC && restauradoFC[campo];
+        if (b !== undefined && b !== null && String(b).trim() !== '') return String(b);
+        const ed = fc10Editing && fc10Editing[campo];
+        if (ed !== undefined && ed !== null && String(ed).trim() !== '') return String(ed);
+        return '';
+    };
+
+    const unidadInicial = () => {
+        const v = valorOrgExplicito('unidad');
+        const esOrganoOCentro = normalizeStr(v) === UNIDAD_RECTORADO_N
+            || FC10_ORGANOS.some(o => normalizeStr(o.nombre) === normalizeStr(v));
+        if (v && esOrganoOCentro) return v;
+        if (esRectorado) return UNIDAD_RECTORADO;
+        return organoDesdeNombre(valorOrgBase('unidad'));
+    };
+    const unidadCodInicial = () => {
+        const c = valorOrgExplicito('unidadCod');
+        if (c) return c;
+        if (esRectorado) return COD_RECTORADO;
+        return valorOrgBase('unidadCod');
+    };
+
+    const valorOrgBase = (campo) => {
+        const b = restauradoFC && restauradoFC[campo];
+        if (b !== undefined && b !== null && String(b).trim() !== '') return String(b);
+        const ed = fc10Editing && fc10Editing[campo];
+        if (ed !== undefined && ed !== null && String(ed).trim() !== '') return String(ed);
+        const sv = savedOrg && savedOrg[campo];
+        if (sv !== undefined && sv !== null && String(sv).trim() !== '') return String(sv);
+        return '';
+    };
+
+    const [org, setOrg] = useState(unidadInicial);
+    const [orgCod, setOrgCod] = useState(unidadCodInicial);
+    const [reparticion, setReparticion] = useState(() => valorOrgBase('reparticion'));
+    const [reparticionCod, setReparticionCod] = useState(() => valorOrgBase('reparticionCod'));
+    const [dependencia, setDependencia] = useState(() => valorOrgBase('dependenciaOrg'));
+    const [dependenciaCod, setDependenciaCod] = useState(() => valorOrgBase('dependenciaCod'));
+    const [area, setArea] = useState(() => valorOrgBase('area'));
+    const [areaCod, setAreaCod] = useState(() => valorOrgBase('areaCod'));
+
+    // Al continuar un borrador se vuelve a leer todo el bloque (los campos del
+    // formulario ya no usan defaultValue, son controlados).
+    const orgMontadoRef = useRef(false);
+    useEffect(() => {
+        if (!orgMontadoRef.current) { orgMontadoRef.current = true; return; }
+        setOrg(unidadInicial());
+        setOrgCod(unidadCodInicial());
+        setReparticion(valorOrgBase('reparticion'));
+        setReparticionCod(valorOrgBase('reparticionCod'));
+        setDependencia(valorOrgBase('dependenciaOrg'));
+        setDependenciaCod(valorOrgBase('dependenciaCod'));
+        setArea(valorOrgBase('area'));
+        setAreaCod(valorOrgBase('areaCod'));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formKeyFC]);
+
+    // Al cambiar un nivel se limpian los que cuelgan de él (cascada).
+    // nivel: 1 = unidad jerárquica, 2 = repartición, 3 = dependencia.
+    const vaciarDebajo = (nivel) => {
+        if (nivel <= 1) { setReparticion(''); setReparticionCod(''); }
+        if (nivel <= 2) { setDependencia(''); setDependenciaCod(''); }
+        if (nivel <= 3) { setArea(''); setAreaCod(''); }
+    };
+
+    const cambiaUnidad = (nombre) => {
+        if (nombre === org) return;
+        setOrg(nombre);
+        setOrgCod('');
+        vaciarDebajo(1);
+    };
+    const cambiaReparticion = (nombre) => {
+        if (nombre === reparticion) return;
+        setReparticion(nombre);
+        setReparticionCod('');
+        vaciarDebajo(2);
+    };
+    const cambiaDependencia = (nombre) => {
+        if (nombre === dependencia) return;
+        setDependencia(nombre);
+        setDependenciaCod('');
+        vaciarDebajo(3);
+    };
+    const cambiaArea = (nombre) => {
+        if (nombre === area) return;
+        setArea(nombre);
+        setAreaCod('');
+    };
+
+    // Al elegir del catálogo se completa el código y, si el órgano aún no está
+    // cargado, se deduce del nivel elegido.
+    const conOrgano = (opcion) => {
+        if (org) return;
+        const o = organoDesdeNombre(opcion.organo);
+        if (!o) return;
+        setOrg(o);
+        setOrgCod(FC10_UNIDADES.find(x => x.nombre === o)?.codigo || '');
+    };
+
+    const usarUltimaAsignacion = () => {
+        const s = savedOrg || {};
+        if (!s.unidad && !s.reparticion) return;
+        setOrg(organoDesdeNombre(s.unidad) || (esRectorado ? UNIDAD_RECTORADO : '') || s.unidad);
+        setOrgCod(esRectorado && normalizeStr(s.unidad || '') === UNIDAD_RECTORADO_N ? COD_RECTORADO : (s.unidadCod || ''));
+        setReparticion(s.reparticion || ''); setReparticionCod(s.reparticionCod || '');
+        setDependencia(s.dependenciaOrg || ''); setDependenciaCod(s.dependenciaCod || '');
+        setArea(s.area || ''); setAreaCod(s.areaCod || '');
+    };
+
+    const opcionesUnidad = useMemo(() => opcionesCatalogoFC10({ nivel: 'unidad', memoria: memoriaOrg }), [memoriaOrg]);
+    const opcionesReparticion = useMemo(
+        () => opcionesCatalogoFC10({ nivel: 'reparticion', organo: org, memoria: memoriaOrg }),
+        [org, memoriaOrg]
+    );
+    const opcionesDependencia = useMemo(
+        () => opcionesCatalogoFC10({ nivel: 'dependencia', organo: org, padre: reparticion, memoria: memoriaOrg }),
+        [org, reparticion, memoriaOrg]
+    );
+    const opcionesArea = useMemo(
+        () => opcionesCatalogoFC10({ nivel: 'area', organo: org, padre: dependencia || reparticion, memoria: memoriaOrg }),
+        [org, dependencia, reparticion, memoriaOrg]
+    );
+
+    // "Rectorado" no es un órgano del organigrama: con esa unidad la cascada no
+    // filtra por órgano (se ofrecen todas las reparticiones).
+    const cascadaPorOrgano = FC10_ORGANOS.some(o => normalizeStr(o.nombre) === normalizeStr(org));
 
     // Estado controlado para asegurar el autocompletado y validación
     const [funcData, setFuncData] = useState({
@@ -137,17 +293,6 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     const coincidePadron = !!matchPadronActual;
     const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);
 
-    // Catálogo de repartición/dependencia/área para autocompletar código.
-    const [reparticionBusqueda, setReparticionBusqueda] = useState('');
-    const [dependenciaBusqueda, setDependenciaBusqueda] = useState('');
-    const [areaBusqueda, setAreaBusqueda] = useState('');
-    const [reparticionSel, setReparticionSel] = useState(null);
-    const [dependenciaSel, setDependenciaSel] = useState(null);
-    const [areaSel, setAreaSel] = useState(null);
-    const filasReparticion = buscarFC10Catalogo(reparticionBusqueda).slice(0, 12);
-    const filasDependencia = buscarFC10Catalogo(dependenciaBusqueda).slice(0, 12);
-    const filasArea = buscarFC10Catalogo(areaBusqueda).slice(0, 12);
-
     return (
         <div className={STYLES.modalOverlay}>
             <div className={STYLES.modalContent + " max-w-4xl"}>
@@ -208,118 +353,97 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
                                     <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 flex items-center justify-center border border-indigo-100 dark:border-indigo-800"><i className="fa-solid fa-sitemap"></i></div>
                                     Paso 1: Dependencia Organizacional
                                 </h3>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Entidad</label>
-                                        <input name="entidad" value="UNIVERSIDAD NACIONAL DE PILAR" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                <div className="space-y-5">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Entidad</label>
+                                            <input name="entidad" value="UNIVERSIDAD NACIONAL DE PILAR" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Entidad</label>
+                                            <input name="entidadCod" value="28" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Entidad</label>
-                                        <input name="entidadCod" value="28" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
-                                    </div>
-                                    <div></div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Unidad Jerárquica</label>
-                                        <input name="unidad" required defaultValue={defectoFC('unidad', (fc10Editing?.unidad || savedOrg.unidad || (dependenciaActual === 'Rectorado' ? 'Rectorado' : '')))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Unidad</label>
-                                        <input name="unidadCod" required defaultValue={defectoFC('unidadCod', (fc10Editing?.unidadCod || savedOrg.unidadCod || (dependenciaActual === 'Rectorado' ? '03' : '')))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Repartición</label>
-                                        <input
-                                            name="reparticion" required
-                                            value={reparticionBusqueda}
-                                            onChange={(e) => { setReparticionBusqueda(e.target.value); setReparticionSel(null); }}
-                                            onFocus={() => setReparticionBusqueda(reparticionBusqueda)}
-                                            placeholder="Escribe para buscar (nombre o código)…"
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
-                                        />
-                                        {reparticionBusqueda && !reparticionSel && filasReparticion.length > 0 && (
-                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
-                                                {filasReparticion.map((r, i) => (
-                                                    <button
-                                                        key={r.nombre + i} type="button"
-                                                        onClick={() => { setReparticionBusqueda(r.nombre); setReparticionSel(r); }}
-                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
-                                                    >
-                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
-                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {reparticionSel && (
-                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {reparticionSel.codigo}</p>
+
+                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-indigo-50/60 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/60 px-4 py-3">
+                                        <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 leading-snug">
+                                            <i className="fa-solid fa-circle-info mr-1.5"></i>
+                                            Cargá la cadena de arriba hacia abajo: las sugerencias de repartición, dependencia y área se filtran según lo que ya elegiste.
+                                        </p>
+                                        {savedOrg && savedOrg.reparticion && (
+                                            <button type="button" onClick={usarUltimaAsignacion} className="inline-flex items-center gap-2 h-8 px-3.5 rounded-xl text-[11px] font-black bg-white dark:bg-white/10 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all active:scale-95 cursor-pointer shrink-0">
+                                                <i className="fa-solid fa-clock-rotate-left text-[10px]"></i>
+                                                Reusar última asignación
+                                            </button>
                                         )}
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Repart.</label>
-                                        <input name="reparticionCod" required value={reparticionSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia (Organizacional)</label>
-                                        <input
-                                            name="dependenciaOrg" required
-                                            value={dependenciaBusqueda}
-                                            onChange={(e) => { setDependenciaBusqueda(e.target.value); setDependenciaSel(null); }}
-                                            placeholder="Escribe para buscar (nombre o código)…"
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
-                                        />
-                                        {dependenciaBusqueda && !dependenciaSel && filasDependencia.length > 0 && (
-                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
-                                                {filasDependencia.map((r, i) => (
-                                                    <button
-                                                        key={r.nombre + i} type="button"
-                                                        onClick={() => { setDependenciaBusqueda(r.nombre); setDependenciaSel(r); }}
-                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
-                                                    >
-                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
-                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {dependenciaSel && (
-                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {dependenciaSel.codigo}</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Depend.</label>
-                                        <input name="dependenciaCod" required value={dependenciaSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área</label>
-                                        <input
-                                            name="area" required
-                                            value={areaBusqueda}
-                                            onChange={(e) => { setAreaBusqueda(e.target.value); setAreaSel(null); }}
-                                            placeholder="Escribe para buscar (nombre o código)…"
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
-                                        />
-                                        {areaBusqueda && !areaSel && filasArea.length > 0 && (
-                                            <div className="mt-1.5 max-h-44 overflow-y-auto rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl">
-                                                {filasArea.map((r, i) => (
-                                                    <button
-                                                        key={r.nombre + i} type="button"
-                                                        onClick={() => { setAreaBusqueda(r.nombre); setAreaSel(r); }}
-                                                        className="w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left hover:bg-brand-primary/10 dark:hover:bg-brand-primary/20 transition-colors cursor-pointer"
-                                                    >
-                                                        <span className="text-[13px] font-bold text-zinc-700 dark:text-zinc-200 truncate">{r.nombre}</span>
-                                                        <span className="shrink-0 text-[10px] tabular-nums font-black text-zinc-400">cod. {r.codigo}</span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                        {areaSel && (
-                                            <p className="mt-1.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Código patrimonial: {areaSel.codigo}</p>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Área</label>
-                                        <input name="areaCod" required value={areaSel?.codigo || ''} readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
-                                    </div>
+
+                                    <CampoCatalogo
+                                        etiqueta="Unidad Jerárquica (Órgano)"
+                                        name="unidad"
+                                        required
+                                        nombre={org}
+                                        codigo={orgCod}
+                                        codigoName="unidadCod"
+                                        etiquetaCodigo="Cod. Unidad"
+                                        onEscribirNombre={cambiaUnidad}
+                                        onCambiarCodigo={setOrgCod}
+                                        opciones={opcionesUnidad}
+                                        placeholder="Ej.: Rectorado"
+                                        nota="Órganos del organigrama (Res. C.S.U. N° 76/2024)."
+                                        STYLES={STYLES}
+                                    />
+
+                                    <CampoCatalogo
+                                        etiqueta="Repartición"
+                                        name="reparticion"
+                                        required
+                                        nombre={reparticion}
+                                        codigo={reparticionCod}
+                                        codigoName="reparticionCod"
+                                        etiquetaCodigo="Cod. Repart."
+                                        onEscribirNombre={cambiaReparticion}
+                                        onCambiarCodigo={setReparticionCod}
+                                        onElegirOpcion={conOrgano}
+                                        opciones={opcionesReparticion}
+                                        placeholder={org ? 'Buscar repartición (nombre o código)…' : 'Elegí primero la unidad jerárquica…'}
+                                        nota={cascadaPorOrgano ? 'Direcciones y secretarías del órgano.' : 'Sin filtro por órgano: se listan todas las reparticiones.'}
+                                        STYLES={STYLES}
+                                    />
+
+                                    <CampoCatalogo
+                                        etiqueta="Dependencia (Organizacional)"
+                                        name="dependenciaOrg"
+                                        required
+                                        nombre={dependencia}
+                                        codigo={dependenciaCod}
+                                        codigoName="dependenciaCod"
+                                        etiquetaCodigo="Cod. Depend."
+                                        onEscribirNombre={cambiaDependencia}
+                                        onCambiarCodigo={setDependenciaCod}
+                                        onElegirOpcion={conOrgano}
+                                        opciones={opcionesDependencia}
+                                        placeholder={reparticion ? 'Buscar en la repartición elegida…' : 'Elegí primero la repartición…'}
+                                        nota={reparticion ? `Cuelga de ${reparticion}.` : 'Define primero la repartición.'}
+                                        STYLES={STYLES}
+                                    />
+
+                                    <CampoCatalogo
+                                        etiqueta="Área"
+                                        name="area"
+                                        required
+                                        nombre={area}
+                                        codigo={areaCod}
+                                        codigoName="areaCod"
+                                        etiquetaCodigo="Cod. Área"
+                                        onEscribirNombre={cambiaArea}
+                                        onCambiarCodigo={setAreaCod}
+                                        onElegirOpcion={conOrgano}
+                                        opciones={opcionesArea}
+                                        placeholder={dependencia || reparticion ? 'Buscar el área o unidad final…' : 'Elegí antes la dependencia…'}
+                                        nota={dependencia || reparticion ? `Cuelga de ${dependencia || reparticion}.` : 'Define antes la dependencia.'}
+                                        STYLES={STYLES}
+                                    />
                                 </div>
                             </div>
                         </div>

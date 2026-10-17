@@ -376,15 +376,13 @@ export default function InventarioView({
       />
 
       {/* FC-10 */}
-      <select 
-        value={filtroFC10 || 'ALL'} 
-        onChange={(e) => setFiltroFC10(e.target.value)}
-        className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 cursor-pointer transition-all focus-visible:ring-2"
-      >
-        <option value="ALL">FC-10: Todos</option>
-        <option value="YES">Con FC-10</option>
-        <option value="NO">Sin FC-10</option>
-      </select>
+      <FiltroCombo
+        valor={filtroFC10 === 'ALL' ? '' : (filtroFC10 === 'YES' ? 'Con FC-10' : 'Sin FC-10')}
+        opciones={['Con FC-10', 'Sin FC-10']}
+        onElegir={(v) => { setFiltroFC10(v === 'Con FC-10' ? 'YES' : v === 'Sin FC-10' ? 'NO' : 'ALL'); setCurrentPage(1); }}
+        etiquetaTodos="FC-10: Todos"
+        titulo="Filtrar por FC-10"
+      />
 
       {/* Estado */}
       <select 
