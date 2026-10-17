@@ -331,23 +331,23 @@ const valorOrgExplicito = (campo) => {
 
     return (
         <div className={STYLES.modalOverlay}>
-            <div className={STYLES.modalContent + " max-w-4xl"}>
+            <div className={`${STYLES.modalContent} max-w-3xl`}>
                 
-                <div className="px-8 py-6 border-b border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10 flex justify-between items-center gap-4">
+                <div className="px-5 sm:px-6 py-4 border-b border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card shrink-0 z-10 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white shrink-0">
-                            <i className="fa-solid fa-file-signature text-lg"></i>
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/10 text-zinc-900 dark:text-white">
+                            <i className="fa-solid fa-file-signature text-sm"></i>
                         </div>
                         <div>
-                            <h2 className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">
+                            <h2 className="text-sm font-bold tracking-tight text-zinc-900 dark:text-white truncate">
                                 {fc10Editing ? 'Gestionar FC-10 (Asignación/Devolución)' : 'Nueva Asignación FC-10'}
                             </h2>
-                            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">Delegación y custodia legal de bienes institucionales</p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">Delegación y custodia legal de bienes institucionales</p>
                         </div>
                     </div>
 
                     <button type="button" title="Cerrar" aria-label="Cerrar" onClick={() => setIsFC10ModalOpen(false)} className="flex h-9 w-9 items-center justify-center rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-colors cursor-pointer shrink-0">
-                        <i className="fa-solid fa-xmark text-base"></i>
+                        <i className="fa-solid fa-xmark text-sm"></i>
                     </button>
                 </div>
                 
@@ -361,23 +361,47 @@ const valorOrgExplicito = (campo) => {
                 )}<form key={formKeyFC} onSubmit={async (e) => { e.preventDefault(); if (step !== 3) return; if (Date.now() - bloqueoRef.current < 1000) return; if (enviandoRef.current) return; if (!puedeGuardar) return; enviandoRef.current = true; try { const ok = await saveFC10(e); if (ok) limpiarBorradorFC(); } finally { enviandoRef.current = false; } }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} onKeyDown={handleKeyDown} className="flex flex-col h-full overflow-hidden bg-zinc-50/30 dark:bg-darkbg-main/50">
                     <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
                         
-                        <div className="flex gap-2">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className={`h-2 flex-1 rounded-full transition-all duration-500 ${step >= i ? 'bg-zinc-900 dark:bg-white' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
+                        <nav aria-label="Pasos del alta del FC-10" className="flex items-center gap-2">
+                            {[
+                                { n: 1, label: 'Dependencia' },
+                                { n: 2, label: 'Responsables' },
+                                { n: 3, label: 'Entrega' }
+                            ].map((s, i, arr) => (
+                                <React.Fragment key={s.n}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black transition-all duration-300 ${
+                                            step > s.n
+                                                ? 'bg-emerald-500 text-white'
+                                                : step === s.n
+                                                    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 ring-4 ring-zinc-900/10 dark:ring-white/10'
+                                                    : 'bg-zinc-200 dark:bg-darkbg-border text-zinc-400 dark:text-zinc-600'
+                                        }`}>
+                                            {step > s.n ? <i className="fa-solid fa-check text-[10px]"></i> : s.n}
+                                        </span>
+                                        <span className={`hidden sm:block text-xs font-bold whitespace-nowrap transition-colors ${
+                                            step >= s.n ? 'text-zinc-900 dark:text-white' : 'text-zinc-400 dark:text-zinc-600'
+                                        }`}>
+                                            {s.label}
+                                        </span>
+                                    </div>
+                                    {i < arr.length - 1 && (
+                                        <div className={`h-px flex-1 min-w-4 transition-colors duration-300 ${step > s.n ? 'bg-emerald-400/60' : 'bg-zinc-200 dark:bg-darkbg-border'}`}></div>
+                                    )}
+                                </React.Fragment>
                             ))}
-                        </div>
+                        </nav>
 
-                        <div className="bg-white dark:bg-darkbg-card border border-zinc-200/60 dark:border-darkbg-border rounded-[20px] p-5 flex flex-col sm:flex-row justify-between sm:items-center gap-4 shadow-sm relative overflow-hidden">
-                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-primary"></div>
-                            <div className="pl-3">
-                                <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1.5">Bien a asignar</p>
-                                <p className="font-black text-zinc-900 dark:text-zinc-100 text-sm">
-                                    {fc10TargetBien.rotulo} <span className="font-medium text-zinc-500 dark:text-zinc-400 ml-1">- {fc10TargetBien.descripcion}</span>
-                                </p>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card px-4 py-3">
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Bien</p>
+                                <p className="font-mono text-xs font-bold text-zinc-900 dark:text-white">{fc10TargetBien.rotulo}</p>
                             </div>
-                            <div className="sm:text-right pl-3 sm:pl-0">
-                                <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest mb-1.5">Valor Patrimonial</p>
-                                <p className="font-black text-emerald-600 dark:text-emerald-400 text-sm tabular-nums">Gs. {formatCurrency(fc10TargetBien.valorUnitario)}</p>
+                            <p className="min-w-0 flex-[2] text-xs text-zinc-600 dark:text-zinc-300 truncate" title={fc10TargetBien.descripcion}>
+                                {fc10TargetBien.descripcion}
+                            </p>
+                            <div className="text-right shrink-0 ml-auto">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">Valor</p>
+                                <p className="font-bold text-emerald-600 dark:text-emerald-400 text-xs tabular-nums">Gs. {formatCurrency(fc10TargetBien.valorUnitario)}</p>
                             </div>
                         </div>
 
@@ -479,104 +503,130 @@ const valorOrgExplicito = (campo) => {
                             </div>
                         </div>
 
-                        <div id="step-2" className={step === 2 ? "block animate-fade-in" : "hidden"}>
-                            <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
-                                <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-[24px]"></div>
-                                <h3 className="text-sm font-black text-zinc-800 dark:text-white flex items-center gap-3 mb-6 uppercase tracking-wider">
-                                    <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-500 dark:bg-emerald-900/20 flex items-center justify-center border border-emerald-100 dark:border-emerald-800"><i className="fa-solid fa-user-tie"></i></div>
-                                    Paso 2: Funcionario Responsable
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
-                                        <SelectorPersona
-                                            valor={funcData.nombre}
-                                            funcionarios={safeFuncionarios}
-                                            onElegir={(f) => setFuncData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
-                                            placeholder="Buscar en el padrón..."
-                                        />
-                                        {funcData.nombre.trim() !== '' && (
-                                            <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${padronConDatos ? 'text-emerald-600 dark:text-emerald-400' : coincidePadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                                                <i className={`fa-solid ${padronConDatos ? 'fa-circle-check' : coincidePadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[10px]`}></i>
-                                                {padronConDatos ? 'Datos del padrón aplicados' : coincidePadron ? 'En el padrón pero sin CI/cargo — completalos a mano' : 'Nombre libre (no está en el padrón)'}
-                                            </p>
-                                        )}
+<div id="step-2" className={step === 2 ? "block animate-fade-in" : "hidden"}>
+                            <div className="rounded-2xl border border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card overflow-hidden">
+                                <div className="px-5 py-3.5 border-b border-zinc-100 dark:border-white/10">
+                                    <h3 className="text-sm font-bold text-zinc-900 dark:text-white">Responsables de la firma</h3>
+                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                        El acta cierra con dos firmas, en este orden. Buscá en el padrón: se completan CI y cargo solos.
+                                    </p>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-zinc-100 dark:divide-white/10">
+                                    {/* Firma 1: funcionario responsable */}
+                                    <div className="p-5">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black">1</span>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Funcionario responsable</p>
+                                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Recibe el bien y firma primero</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Nombre y Apellido</label>
+                                                <SelectorPersona
+                                                    valor={funcData.nombre}
+                                                    funcionarios={safeFuncionarios}
+                                                    onElegir={(f) => setFuncData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
+                                                    placeholder="Buscar en el padron..."
+                                                />
+                                                {funcData.nombre.trim() !== '' && (
+                                                    <p className={`mt-1.5 flex items-center gap-1.5 text-[10px] font-bold ${padronConDatos ? 'text-emerald-600 dark:text-emerald-400' : coincidePadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                                        <i className={`fa-solid ${padronConDatos ? 'fa-circle-check' : coincidePadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[9px]`}></i>
+                                                        {padronConDatos ? 'Datos del padron aplicados' : coincidePadron ? 'En el padron sin CI/cargo' : 'No esta en el padron'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cédula</label>
+                                                    <input
+                                                        name="funcionarioDoc"
+                                                        value={funcData.doc}
+                                                        onChange={(e) => setFuncData({...funcData, doc: e.target.value})}
+                                                        className={STYLES.input}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cargo</label>
+                                                    <input
+                                                        name="funcionarioCargo"
+                                                        value={funcData.cargo}
+                                                        onChange={(e) => setFuncData({...funcData, cargo: e.target.value})}
+                                                        className={STYLES.input}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
-                                        <input 
-                                            name="funcionarioDoc" 
-                                            required 
-                                            value={funcData.doc}
-                                            onChange={(e) => setFuncData({...funcData, doc: e.target.value})}
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
-                                        />
+
+                                    {/* Flecha del flujo: solo en mobile, donde van apilados */}
+                                    <div className="md:hidden flex items-center gap-2 px-5 py-2 bg-zinc-50 dark:bg-white/[0.02] border-y border-zinc-100 dark:border-white/10">
+                                        <i className="fa-solid fa-arrow-down text-[10px] text-zinc-300 dark:text-zinc-600"></i>
+                                        <span className="text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">despues firma el jefe inmediato</span>
                                     </div>
-                                    <div>
-                                        <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
-                                        <input 
-                                            name="funcionarioCargo" 
-                                            required 
-                                            value={funcData.cargo}
-                                            onChange={(e) => setFuncData({...funcData, cargo: e.target.value})}
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
-                                        />
+
+                                    {/* Firma 2: jefe inmediato */}
+                                    <div className="p-5">
+                                        <div className="flex items-center gap-2 mb-4">
+                                            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black">2</span>
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-bold text-zinc-900 dark:text-white leading-tight">Jefe inmediato</p>
+                                                <p className="text-[10px] text-zinc-400 dark:text-zinc-500">Firma despues del funcionario</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div>
+                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Nombre y Apellido</label>
+                                                <SelectorPersona
+                                                    valor={jefeData.nombre}
+                                                    funcionarios={safeFuncionarios}
+                                                    onElegir={(f) => setJefeData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
+                                                    placeholder="Buscar en el padron..."
+                                                />
+                                                {jefeData.nombre.trim() !== '' && (
+                                                    <p className={`mt-1.5 flex items-center gap-1.5 text-[10px] font-bold ${jefeConDatos ? 'text-emerald-600 dark:text-emerald-400' : jefeEnPadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                                        <i className={`fa-solid ${jefeConDatos ? 'fa-circle-check' : jefeEnPadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[9px]`}></i>
+                                                        {jefeConDatos ? 'Datos del padron aplicados' : jefeEnPadron ? 'En el padron sin CI/cargo' : 'No esta en el padron'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cédula</label>
+                                                    <input
+                                                        name="jefeInmediatoDoc"
+                                                        value={jefeData.doc}
+                                                        onChange={(e) => setJefeData({...jefeData, doc: e.target.value})}
+                                                        className={STYLES.input}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cargo</label>
+                                                    <input
+                                                        name="jefeInmediatoCargo"
+                                                        value={jefeData.cargo}
+                                                        onChange={(e) => setJefeData({...jefeData, cargo: e.target.value})}
+                                                        className={STYLES.input}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Firma 2: el jefe inmediato del funcionario.
-                                    El FC-10 exige dos firmas en este orden: primero
-                                    el funcionario responsable, después su jefe. */}
-                                <div className="mt-7 pt-6 border-t border-zinc-100 dark:border-white/10">
-                                    <div className="flex items-center gap-2.5 mb-4">
-                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-900/20 border border-sky-100 dark:border-sky-800">
-                                            <i className="fa-solid fa-user-tie text-xs"></i>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-xs font-black text-zinc-800 dark:text-white uppercase tracking-wider">Segunda firma · Jefe Inmediato</h4>
-                                            <p className="text-[11px] text-zinc-400 dark:text-zinc-500">Firma después de que el funcionario haya firmado en Acrobat.</p>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                                        <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
-                                            <SelectorPersona
-                                                valor={jefeData.nombre}
-                                                funcionarios={safeFuncionarios}
-                                                onElegir={(f) => setJefeData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
-                                                placeholder="Buscar el jefe en el padrón..."
-                                            />
-                                            {jefeData.nombre.trim() !== '' && (
-                                                <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${jefeConDatos ? 'text-emerald-600 dark:text-emerald-400' : jefeEnPadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
-                                                    <i className={`fa-solid ${jefeConDatos ? 'fa-circle-check' : jefeEnPadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[10px]`}></i>
-                                                    {jefeConDatos ? 'Datos del padrón aplicados' : jefeEnPadron ? 'En el padrón pero sin CI/cargo — completalos a mano' : 'Nombre libre (no está en el padrón)'}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
-                                            <input 
-                                                name="jefeInmediatoDoc" 
-                                                value={jefeData.doc}
-                                                onChange={(e) => setJefeData({...jefeData, doc: e.target.value})}
-                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cargo Funcional</label>
-                                            <input 
-                                                name="jefeInmediatoCargo" 
-                                                value={jefeData.cargo}
-                                                onChange={(e) => setJefeData({...jefeData, cargo: e.target.value})}
-                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`} 
-                                            />
-                                        </div>
-                                    </div>
+                                {/* Que va a pasar al guardar: conviene que quede claro
+                                    antes de confirmar, no despues. */}
+                                <div className="px-5 py-3 border-t border-zinc-100 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.02] flex items-start gap-2.5">
+                                    <i className="fa-solid fa-circle-info text-zinc-400 text-[11px] mt-0.5 shrink-0"></i>
+                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                        Al guardar, el acta queda <strong className="font-bold text-zinc-700 dark:text-zinc-300">esperando la firma del funcionario</strong>.
+                                        El bien solo se marca con FC-10 cuando ambos firmaron.
+                                    </p>
                                 </div>
                             </div>
                         </div>
-
-                        {/* PASO 3 */}
                         <div id="step-3" className={step === 3 ? "block animate-fade-in" : "hidden"}>
                             <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
                                 <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500 rounded-l-[24px]"></div>
@@ -643,9 +693,11 @@ const valorOrgExplicito = (campo) => {
                             )}
                         </div>
 
-                        <datalist id="funcionarios-list-fc10">
-                            {safeFuncionarios.map((f, i) => <option key={`${f.nombre}-${i}`} value={f.nombre} />)}
-                        </datalist>
+                        {/* Los dos nombres viajan por inputs ocultos: SelectorPersona es un control
+                            propio y no emite un input con name, pero saveFC10 los
+                            lee del FormData. */}
+                        <input type="hidden" name="funcionarioNombre" value={funcData.nombre} readOnly />
+                        <input type="hidden" name="jefeInmediatoNombre" value={jefeData.nombre} readOnly />
                         {/* Los dos nombres viajan por inputs ocultos: SelectorPersona
                             es un control propio y no emite un input con name, pero
                             saveFC10 los lee del FormData. */}
@@ -653,7 +705,8 @@ const valorOrgExplicito = (campo) => {
                         <input type="hidden" name="jefeInmediatoNombre" value={jefeData.nombre} readOnly />
                     </div>
                     
-                    <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10">
+                    <div className="flex items-center justify-between gap-3 px-5 sm:px-6 py-4 border-t border-zinc-200/70 dark:border-white/10 bg-white dark:bg-darkbg-card shrink-0 z-10">
+                        <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500 hidden sm:block">Paso {step} de 3</span>
                         {step === 1 ? (
                             <button type="button" onClick={() => setIsFC10ModalOpen(false)} className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary transition-all active:scale-95 cursor-pointer">Cancelar</button>
                         ) : (

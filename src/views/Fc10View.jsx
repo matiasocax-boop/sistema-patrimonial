@@ -2,14 +2,15 @@ import React, { useState } from 'react';
 import SkeletonLoader from '../components/SkeletonLoader';
 import { PeriodSelector } from '../components/FilterComponents';
 import { formatDateText, formatCI } from '../utils/helpers';
-import { ESTADOS_FC10, ESTADO_INFO, estadoInicialFC10, pendienteDeFirma } from '../utils/fc10Firmas';
+import { ESTADOS_FC10, ESTADO_INFO, estadoInicialFC10, pendienteDeFirma, esFC10Legado } from '../utils/fc10Firmas';
 
 // Vista de actas de responsabilidad FC-10 (extraída de App.jsx, Fase 4).
 export default function Fc10View({
   filteredFC10, fc10Year, setFc10Year, fc10Month, setFc10Month,
   STYLES, setIsConsolidatedFC10ModalOpen, handleExportFC10CSV,
   isLoading, bienes, handleGenerateFC10PDF, openFC10Modal,
-  isAdmin, setItemToDelete, setActiveTab, registrarFirmaFC10, firmandoId
+  isAdmin, setItemToDelete, setActiveTab, registrarFirmaFC10, firmandoId,
+  ponerFC10EnTramite, poniendoEnTramite
 }) {
   // Cuántas hay en cada etapa: el trabajo real que falta por hacer.
   const conteo = { pendientes: 0, cerradas: 0, esperaFuncionario: 0, esperaJefe: 0 };
@@ -149,6 +150,8 @@ export default function Fc10View({
                 const f1 = fc.firmas?.firma1;
                 const f2 = fc.firmas?.firma2;
                 const estaFirmando = firmandoId === fc.id;
+                const esLegada = esFC10Legado(fc);
+                const ponerEnTramite = ponerFC10EnTramite;
                 return (
                   <div key={fc.id} className="bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 shadow-sm hover:shadow-md transition-all flex flex-col relative overflow-hidden group">
                     {/* Franja del estado: permite escanear la grilla de un vistazo */}
@@ -216,8 +219,25 @@ export default function Fc10View({
   ) : null
 )}
 
-{/* Acción: registrar la firma pendiente. El acto de firmar ocurre en
-    Acrobat; esto deja constancia de que ese tramite ya se completo. */}
+{/* Actas anteriores al control de firmas: el sistema las muestra cerradas
+    para no romper nada, pero si quedo alguna a medio camino hay que poder
+    devolverla al circuito. Sin esto esas actas quedan atrapadas. */}
+{!isDevuelto && esLegada && ponerEnTramite && (
+  <div className="mt-4 rounded-xl border border-zinc-300/70 dark:border-white/10 bg-zinc-50 dark:bg-white/[0.03] p-3">
+    <p className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300 leading-snug mb-2.5">
+      Esta acta se creó antes del control de firmas. Si quedó a medio camino, ponela en trámite para registrar las firmas.
+    </p>
+    <button
+      onClick={() => ponerEnTramite(fc)}
+      disabled={poniendoEnTramite === fc.id}
+      className="w-full inline-flex items-center justify-center gap-2 h-9 rounded-lg bg-zinc-800 dark:bg-white text-white dark:text-zinc-900 text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500"
+    >
+      {poniendoEnTramite === fc.id
+        ? <><i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Activando...</>
+        : <><i className="fa-solid fa-arrows-rotate text-[10px]"></i> Poner en trámite</>}
+    </button>
+  </div>
+)}
 {pendiente && registrarFirmaFC10 && (
   <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-3">
     <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 leading-snug mb-2.5">

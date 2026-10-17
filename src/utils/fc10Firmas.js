@@ -96,6 +96,24 @@ export const estadoInicialFC10 = (registro) => {
 /** Estado con el que debe crearse un FC-10 nuevo. */
 export const ESTADO_NUEVO_FC10 = ESTADOS_FC10.ESPERA_FIRMA_1;
 
+/**
+ * ¿Este acta es anterior al control de firmas?
+ * Son las que no tienen `estadoFirma`: se muestran como CERRADAS para no
+ * romper nada, pero el usuario tiene que poder ponerlas en trámite a mano si
+ * alguna quedo a medio camino.
+ */
+export const esFC10Legado = (registro) => !registro?.estadoFirma;
+
+/**
+ * Pone en trámite un acta que quedó fuera del control (no tiene estadoFirma).
+ * Arranca pidiendo la firma del funcionario, que es el orden real del trámite.
+ * No toca las firmas ya registradas ni cierra nada por su cuenta.
+ */
+export const iniciarTramiteFC10 = (registro) => {
+  if (!esFC10Legado(registro)) return registro;
+  return { ...registro, estadoFirma: ESTADO_NUEVO_FC10, firmas: registro?.firmas || {} };
+};
+
 /** ¿El acta está esperando todavía alguna firma? */
 export const estaPendiente = (fc) => {
   const e = estadoInicialFC10(fc);

@@ -7,7 +7,8 @@ import { numeroALetras } from '../utils/numeroLetras';
 import { extraerCodigoQR } from '../utils/qr';
 import {
   ESTADOS_FC10, ESTADO_NUEVO_FC10, estadoInicialFC10, estaPendiente,
-  pendienteDeFirma, registrarFirma, habilitaFC10EnBien, ESTADO_INFO
+  pendienteDeFirma, registrarFirma, habilitaFC10EnBien, ESTADO_INFO,
+  esFC10Legado, iniciarTramiteFC10
 } from '../utils/fc10Firmas';
 import { registrarAuditoria } from '../services/auditService';
 import { enqueueOfflineAction } from '../services/offlineSyncService';
@@ -834,6 +835,56 @@ export function useFcModals({
       }
   };
 
+  /**
+   * Pone en tramite un acta que quedo fuera del control de firmas.
+   *
+   * Las actas creadas antes de este modulo no tienen `estadoFirma` y el
+   * sistema las trata como cerradas (para no romper lo que ya funcionaba).
+   * Si alguna quedo a medio camino, esto la devuelve al circuito: arranca
+   * pidiendo la firma del funcionario y el bien vuelve a la bandeja de
+   * pendientes hasta que cierren las dos firmas.
+   */
+  const ponerFC10EnTramite = async (fc) => {
+      if (!fc || !fc.id) return false;
+      if (!esFC10Legado(fc)) {
+          notify('Esta acta ya está en el circuito de firmas.', 'warning');
+          return false;
+      }
+      const actualizado = iniciarTramiteFC10(fc);
+      setIsProcessing({ active: true, text: 'Activando circuito de firmas...' });
+      try {
+          const { error } = await supabase.from('fc10').update({ id: actualizado.id, data: actualizado }).eq('id', actualizado.id);
+          if (error) throw error;
+          setFc10List(prev => prev.map(f => (f.id === actualizado.id ? actualizado : f)));
+
+          // Al volver a estar en tramite, el bien deja de contar como "con FC-10".
+          const bien = bienes.find(b => b.id === actualizado.bienId);
+          if (bien && !actualizado.devolucionFecha && bien.hasFC10) {
+              const bienActualizado = { ...bien, hasFC10: false };
+              await supabase.from('bens').update(conSello({ data: bienActualizado })).eq('id', bien.id);
+              setBienes(prev => prev.map(b => (b.id === bien.id ? bienActualizado : b)));
+          }
+
+          await registrarAuditoria({
+              usuario: currentUser?.username || 'Usuario',
+              dependencia: dependenciaActual,
+              accion: 'FC10_PUESTA_EN_TRAMITE',
+              entidad: 'FC10',
+              entidadId: actualizado.id,
+              detalles: { bienId: actualizado.bienId, funcionario: actualizado.funcionarioNombre }
+          });
+
+          notify('Acta puesta en trámite. Ahora falta la firma del funcionario.', 'success');
+          return true;
+      } catch (e) {
+          console.error(e);
+          notify('No se pudo poner el acta en trámite.', 'error');
+          return false;
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+      }
+  };
+
   const submitResolucionBaja = async (e) => {
       e.preventDefault();
       const { bien, accion, notifOrigen } = resolucionBaja;
@@ -1092,7 +1143,7 @@ export function useFcModals({
     openResolucionModal, openFC10Modal, openFC11Modal, openFC04Modal,
     handleAddFC04Item, handleRemoveFC04Item, handleFC04ItemChange,
     handleScanSuccess,
-    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10, registrarFirmaFC10,
+    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10, registrarFirmaFC10, ponerFC10EnTramite,
     submitResolucionBaja, confirmDeleteAction
   };
 }

@@ -579,6 +579,8 @@ export default function App() {
   // FC-10 que se está firmando en este momento: solo una tarjeta muestra el
   // spinner, para que un doble clic no dispare dos registros de firma.
   const [firmandoId, setFirmandoId] = useState(null);
+  // Acta que se está poniendo en trámite (mismo bloqueo anti doble clic).
+  const [poniendoEnTramite, setPoniendoEnTramite] = useState(null);
   const marcarBienMutado = (id) => {
     setLastMutatedBienId(id);
     setTimeout(() => setLastMutatedBienId(prev => (prev === id ? null : prev)), 4000);
@@ -694,6 +696,12 @@ export default function App() {
     if (!fc || firmandoId) return;
     setFirmandoId(fc.id);
     try { await registrarFirmaFC10(fc); } finally { setFirmandoId(null); }
+  };
+
+  const ponerEnTramiteConBloqueo = async (fc) => {
+    if (!fc || poniendoEnTramite) return;
+    setPoniendoEnTramite(fc.id);
+    try { await ponerFC10EnTramite(fc); } finally { setPoniendoEnTramite(null); }
   };
 
   const irTabGlobal = (tab, texto) => {
@@ -938,7 +946,7 @@ useEffect(() => {
     handleAddFC04Item, handleRemoveFC04Item, handleFC04ItemChange,
     handleScanSuccess,
     saveBien, saveUsuario, saveFC11, saveFC04, saveFC10,
-    registrarFirmaFC10,
+    registrarFirmaFC10, ponerFC10EnTramite,
     submitResolucionBaja, confirmDeleteAction
   } = useFcModals({
     notify: addToast, setIsProcessing, appLogo,
@@ -1729,7 +1737,7 @@ if (publicBienId) {
 
                 {activeTab === 'fc04' && (<Fc04View filteredFC04={filteredFC04} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} openFC04Modal={openFC04Modal} STYLES={STYLES} isLoading={isLoading} ORIGENES_FC04={ORIGENES_FC04} handleGenerateFC04PDF={handleGenerateFC04PDF} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
 
-                {activeTab === 'fc10' && (<Fc10View filteredFC10={filteredFC10} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleExportFC10CSV={handleExportFC10CSV} isLoading={isLoading} bienes={bienes} handleGenerateFC10PDF={handleGenerateFC10PDF} openFC10Modal={openFC10Modal} isAdmin={isAdmin} setItemToDelete={setItemToDelete} setActiveTab={setActiveTab} registrarFirmaFC10={firmarConBloqueo} firmandoId={firmandoId} />)}
+                {activeTab === 'fc10' && (<Fc10View filteredFC10={filteredFC10} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleExportFC10CSV={handleExportFC10CSV} isLoading={isLoading} bienes={bienes} handleGenerateFC10PDF={handleGenerateFC10PDF} openFC10Modal={openFC10Modal} isAdmin={isAdmin} setItemToDelete={setItemToDelete} setActiveTab={setActiveTab} registrarFirmaFC10={firmarConBloqueo} firmandoId={firmandoId} ponerFC10EnTramite={ponerEnTramiteConBloqueo} poniendoEnTramite={poniendoEnTramite} />)}
                 {activeTab === 'fc11' && (<Fc11View filteredFC11={filteredFC11} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} handleExportFC11CSV={handleExportFC11CSV} isLoading={isLoading} dependenciaActual={dependenciaActual} handleGenerateFC11PDF={handleGenerateFC11PDF} openFC11Modal={openFC11Modal} bienes={bienes} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
                 {activeTab === 'ayuda' && (<AyudaView setTourPaso={setTourPaso} STYLES={STYLES} />)}
             </div>
