@@ -19,11 +19,10 @@ export default function CampoCatalogo({
     opciones = [],
     placeholder,
     STYLES,
-    deshabilitado,
     nota,
 }) {
     const [abierto, setAbierto] = useState(false);
-    const [texto, setTexto] = useState(nombre || ''); 
+    const [texto, setTexto] = useState(nombre || '');
     const [activo, setActivo] = useState(0);
     const cajaRef = useRef(null);
     const listaRef = useRef(null);
@@ -95,19 +94,20 @@ export default function CampoCatalogo({
         if (el) el.scrollIntoView({ block: 'nearest' });
     }, [activo, abierto]);
 
+    const hayCodigo = String(codigo || '').trim() !== '';
+
     return (
         <div className="relative">
-            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5">
                 {etiqueta}{required ? ' *' : ''}
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_120px] gap-3">
-                <div ref={cajaRef} className="relative">
+            <div className="flex items-stretch gap-2">
+                <div ref={cajaRef} className="relative flex-1 min-w-0">
                     <input
                         type="text"
                         name={name}
                         required={required}
                         value={texto}
-                        disabled={deshabilitado}
                         autoComplete="off"
                         role="combobox"
                         aria-expanded={abierto}
@@ -115,12 +115,11 @@ export default function CampoCatalogo({
                         placeholder={placeholder}
                         onChange={(e) => { setTexto(e.target.value); onEscribirNombre(e.target.value); completarCodigo(e.target.value); }}
                         onFocus={() => { setAbierto(true); setActivo(0); }}
-                        onBlur={() => completarCodigo(texto)}
                         onKeyDown={onKeyDown}
-                        className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${faltaCodigo ? 'border-amber-400/80 dark:border-amber-500/50' : ''}`}
+                        className={`${STYLES.input} py-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${faltaCodigo ? 'border-amber-400/80 dark:border-amber-500/50' : ''}`}
                     />
                     {abierto && listado.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full z-40 mt-1.5 max-h-56 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl animate-pop">
+                        <div ref={listaRef} className="absolute left-0 right-0 top-full z-40 mt-1 max-h-60 overflow-y-auto custom-scrollbar rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-2xl py-1 animate-pop">
                             {listado.map((o, i) => (
                                 <button
                                     key={`${o.nombre}-${i}`}
@@ -128,48 +127,49 @@ export default function CampoCatalogo({
                                     data-activo={i === activo}
                                     onMouseEnter={() => setActivo(i)}
                                     onClick={() => elegir(o)}
-                                    className={`w-full flex items-start justify-between gap-3 px-3.5 py-2 text-left transition-colors cursor-pointer ${i === activo ? 'bg-brand-primary/10 dark:bg-brand-primary/20' : 'hover:bg-zinc-50 dark:hover:bg-white/5'}`}
+                                    className={`w-full flex items-center gap-3 px-3.5 py-2 text-left transition-colors cursor-pointer ${i === activo ? 'bg-zinc-100 dark:bg-white/10' : 'hover:bg-zinc-50 dark:hover:bg-white/5'}`}
                                 >
-                                    <span className="min-w-0">
-                                        <span className="block text-[13px] font-bold text-zinc-700 dark:text-zinc-200 leading-tight">{o.nombre}</span>
-                                        {(o.organo || o.aprendida) && (
-                                            <span className="block text-[10px] font-semibold text-zinc-400 dark:text-zinc-500 mt-0.5 truncate">
-                                                {o.aprendida ? 'Usado en tu dependencia' : o.organo}
-                                            </span>
-                                        )}
+                                    <span className={`min-w-0 flex-1 truncate text-[13px] ${o.aprendida ? 'font-medium normal-case text-zinc-500 dark:text-zinc-400' : 'font-semibold text-zinc-700 dark:text-zinc-200'}`} title={o.nombre}>
+                                        {o.nombre}
                                     </span>
-                                    <span className="shrink-0 mt-0.5 text-[10px] tabular-nums font-black text-zinc-400">cod. {o.codigo || '—'}</span>
+                                    {o.aprendida && (
+                                        <span className="shrink-0 text-[9px] font-bold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">usada</span>
+                                    )}
+                                    <span className="shrink-0 font-mono text-[11px] font-bold text-zinc-400 dark:text-zinc-500">
+                                        {o.codigo || '—'}
+                                    </span>
                                 </button>
                             ))}
                         </div>
                     )}
                     {abierto && listado.length === 0 && (
-                        <div className="absolute left-0 right-0 top-full z-40 mt-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl px-3.5 py-3 animate-pop">
-                            <p className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 text-center">
-                                Sin coincidencias en el catálogo — escribí el nombre y cargá el código a mano.
+                        <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl px-3.5 py-2.5 animate-pop">
+                            <p className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                                Sin coincidencias — podés escribirlo y cargar el código.
                             </p>
                         </div>
                     )}
                 </div>
-                <div>
-                    <label className="sr-only">{etiquetaCodigo || `Código de ${etiqueta}`}</label>
+                <label className="sr-only">{etiquetaCodigo || `Código de ${etiqueta}`}</label>
+                <div className="relative w-[92px] shrink-0">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-600">cód.</span>
                     <input
                         type="text"
                         name={codigoName}
                         required={required}
                         value={codigo || ''}
-                        disabled={deshabilitado}
-                        placeholder="Código"
+                        placeholder="—"
                         onChange={(e) => onCambiarCodigo(e.target.value)}
-                        className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary tabular-nums ${faltaCodigo ? 'border-amber-400/80 dark:border-amber-500/50' : 'bg-zinc-100/60 dark:bg-darkbg-main text-zinc-600 dark:text-zinc-300'}`}
+                        className={`${STYLES.input} py-2.5 pl-10 text-center font-mono text-[13px] font-bold tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${hayCodigo
+                            ? 'bg-emerald-50/60 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-900/40'
+                            : `bg-zinc-50 dark:bg-darkbg-main text-zinc-400 ${faltaCodigo ? 'border-amber-400/80 dark:border-amber-500/50' : ''}`}`}
                     />
                 </div>
             </div>
-            {faltaCodigo && (
-                <p className="mt-1.5 text-[11px] font-bold text-amber-600 dark:text-amber-400">Sin código en el catálogo — escribilo a mano.</p>
-            )}
-            {!faltaCodigo && nota && (
-                <p className="mt-1.5 text-[11px] font-semibold text-zinc-400 dark:text-zinc-500">{nota}</p>
+            {(faltaCodigo || nota) && (
+                <p className={`mt-1 text-[11px] font-medium ${faltaCodigo ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                    {faltaCodigo ? 'Cargá el código patrimonial.' : nota}
+                </p>
             )}
         </div>
     );

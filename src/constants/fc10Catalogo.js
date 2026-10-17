@@ -231,23 +231,16 @@ export function opcionesCatalogoFC10({
   nivel = 'reparticion', organo = '', padre = '', texto = '', memoria = [], limite = 40,
 } = {}) {
   const q = normalizeStr(texto).trim();
-  const mapa = new Map();
 
+  // 1) Lo que esta dependencia ya usó (tabla `estructuras`), solo para marcarlo
+  //    como conocido y agregar las unidades que no están en el catálogo oficial.
+  const aprendidas = new Map();
   (memoria || [])
     .filter(e => e && e.nombre && TIPO_DE_MEMORIA[e.tipoEstructura] === nivel)
-    .forEach(e => {
-      const nombre = String(e.nombre).trim();
-      if (!nombre) return;
-      mapa.set(normalizeStr(nombre), {
-        nombre,
-        codigo: e.codigo ? String(e.codigo).trim() : '',
-        organo: e.organo || '',
-        padre: '',
-        nivel,
-        aprendida: true,
-      });
-    });
+    .forEach(e => aprendidas.set(normalizeStr(String(e.nombre).trim()), String(e.codigo || '').trim()));
 
+  // 2) Catálogo oficial dentro del contexto elegido.
+  const mapa = new Map();
   TODAS_LAS_UNIDADES
     .filter(u => u.nivel === nivel)
     // "Rectorado" es la unidad de trabajo de varias dependencias pero no es un
@@ -264,8 +257,24 @@ export function opcionesCatalogoFC10({
     })
     .forEach(u => {
       const clave = normalizeStr(u.nombre);
-      if (!mapa.has(clave)) mapa.set(clave, { ...u, aprendida: false });
+      if (!mapa.has(clave)) {
+        // El código del catálogo manda: lo aprendido puede venir de un alta vieja.
+        mapa.set(clave, { ...u, aprendida: aprendidas.has(clave) });
+      }
     });
+
+  // 3) Unidades propias de la dependencia que no están en el catálogo.
+  aprendidas.forEach((codigo, clave) => {
+    if (mapa.has(clave)) return;
+    mapa.set(clave, {
+      nombre: [...memoria].find(e => normalizeStr(String(e.nombre).trim()) === clave)?.nombre || clave,
+      codigo,
+      organo: '',
+      padre: '',
+      nivel,
+      aprendida: true,
+    });
+  });
 
   const lista = [...mapa.values()];
   const filtrada = q

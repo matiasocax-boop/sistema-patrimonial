@@ -176,10 +176,6 @@ const valorOrgExplicito = (campo) => {
         [org, dependencia, reparticion, memoriaOrg]
     );
 
-    // "Rectorado" no es un órgano del organigrama: con esa unidad la cascada no
-    // filtra por órgano (se ofrecen todas las reparticiones).
-    const cascadaPorOrgano = FC10_ORGANOS.some(o => normalizeStr(o.nombre) === normalizeStr(org));
-
     // Estado controlado para asegurar el autocompletado y validación
     const [funcData, setFuncData] = useState({
         nombre: fc10Editing?.funcionarioNombre || fc10TargetBien?.funcionario || '',
@@ -353,44 +349,42 @@ const valorOrgExplicito = (campo) => {
                                     <div className="h-8 w-8 rounded-xl bg-indigo-50 text-indigo-500 dark:bg-indigo-900/20 flex items-center justify-center border border-indigo-100 dark:border-indigo-800"><i className="fa-solid fa-sitemap"></i></div>
                                     Paso 1: Dependencia Organizacional
                                 </h3>
-                                <div className="space-y-5">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                                        <div className="sm:col-span-2">
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Entidad</label>
-                                            <input name="entidad" value="UNIVERSIDAD NACIONAL DE PILAR" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_92px] gap-2">
+                                        <div>
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Entidad</label>
+                                            <input name="entidad" value="UNIVERSIDAD NACIONAL DE PILAR" readOnly className={`${STYLES.input} py-2.5 bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                         </div>
                                         <div>
-                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cod. Entidad</label>
-                                            <input name="entidadCod" value="28" readOnly className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
+                                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1.5">Cód.</label>
+                                            <input name="entidadCod" value="28" readOnly className={`${STYLES.input} py-2.5 text-center font-mono text-[13px] font-bold tabular-nums bg-zinc-100 dark:bg-darkbg-main text-zinc-500 cursor-not-allowed`} />
                                         </div>
                                     </div>
 
-                                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-indigo-50/60 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/60 px-4 py-3">
-                                        <p className="text-[11px] font-bold text-indigo-700 dark:text-indigo-300 leading-snug">
-                                            <i className="fa-solid fa-circle-info mr-1.5"></i>
-                                            Cargá la cadena de arriba hacia abajo: las sugerencias de repartición, dependencia y área se filtran según lo que ya elegiste.
+                                    <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+                                        <p className="text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                                            Elegí de arriba hacia abajo: cada lista se filtra según lo anterior.
                                         </p>
                                         {savedOrg && savedOrg.reparticion && (
-                                            <button type="button" onClick={usarUltimaAsignacion} className="inline-flex items-center gap-2 h-8 px-3.5 rounded-xl text-[11px] font-black bg-white dark:bg-white/10 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all active:scale-95 cursor-pointer shrink-0">
+                                            <button type="button" onClick={usarUltimaAsignacion} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-[11px] font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0">
                                                 <i className="fa-solid fa-clock-rotate-left text-[10px]"></i>
-                                                Reusar última asignación
+                                                Reusar última
                                             </button>
                                         )}
                                     </div>
 
                                     <CampoCatalogo
-                                        etiqueta="Unidad Jerárquica (Órgano)"
+                                        etiqueta="Unidad jerárquica"
                                         name="unidad"
                                         required
                                         nombre={org}
                                         codigo={orgCod}
                                         codigoName="unidadCod"
-                                        etiquetaCodigo="Cod. Unidad"
+                                        etiquetaCodigo="Código de la unidad jerárquica"
                                         onEscribirNombre={cambiaUnidad}
                                         onCambiarCodigo={setOrgCod}
                                         opciones={opcionesUnidad}
-                                        placeholder="Ej.: Rectorado"
-                                        nota="Órganos del organigrama (Res. C.S.U. N° 76/2024)."
+                                        placeholder="Órgano o Rectorado"
                                         STYLES={STYLES}
                                     />
 
@@ -401,30 +395,28 @@ const valorOrgExplicito = (campo) => {
                                         nombre={reparticion}
                                         codigo={reparticionCod}
                                         codigoName="reparticionCod"
-                                        etiquetaCodigo="Cod. Repart."
+                                        etiquetaCodigo="Código de la repartición"
                                         onEscribirNombre={cambiaReparticion}
                                         onCambiarCodigo={setReparticionCod}
                                         onElegirOpcion={conOrgano}
                                         opciones={opcionesReparticion}
-                                        placeholder={org ? 'Buscar repartición (nombre o código)…' : 'Elegí primero la unidad jerárquica…'}
-                                        nota={cascadaPorOrgano ? 'Direcciones y secretarías del órgano.' : 'Sin filtro por órgano: se listan todas las reparticiones.'}
+                                        placeholder={org ? 'Nombre o código' : 'Elegí la unidad jerárquica primero'}
                                         STYLES={STYLES}
                                     />
 
                                     <CampoCatalogo
-                                        etiqueta="Dependencia (Organizacional)"
+                                        etiqueta="Dependencia organizacional"
                                         name="dependenciaOrg"
                                         required
                                         nombre={dependencia}
                                         codigo={dependenciaCod}
                                         codigoName="dependenciaCod"
-                                        etiquetaCodigo="Cod. Depend."
+                                        etiquetaCodigo="Código de la dependencia"
                                         onEscribirNombre={cambiaDependencia}
                                         onCambiarCodigo={setDependenciaCod}
                                         onElegirOpcion={conOrgano}
                                         opciones={opcionesDependencia}
-                                        placeholder={reparticion ? 'Buscar en la repartición elegida…' : 'Elegí primero la repartición…'}
-                                        nota={reparticion ? `Cuelga de ${reparticion}.` : 'Define primero la repartición.'}
+                                        placeholder={reparticion ? 'Nombre o código' : 'Elegí la repartición primero'}
                                         STYLES={STYLES}
                                     />
 
@@ -435,20 +427,18 @@ const valorOrgExplicito = (campo) => {
                                         nombre={area}
                                         codigo={areaCod}
                                         codigoName="areaCod"
-                                        etiquetaCodigo="Cod. Área"
+                                        etiquetaCodigo="Código del área"
                                         onEscribirNombre={cambiaArea}
                                         onCambiarCodigo={setAreaCod}
                                         onElegirOpcion={conOrgano}
                                         opciones={opcionesArea}
-                                        placeholder={dependencia || reparticion ? 'Buscar el área o unidad final…' : 'Elegí antes la dependencia…'}
-                                        nota={dependencia || reparticion ? `Cuelga de ${dependencia || reparticion}.` : 'Define antes la dependencia.'}
+                                        placeholder={dependencia || reparticion ? 'Nombre o código' : 'Elegí la dependencia primero'}
                                         STYLES={STYLES}
                                     />
                                 </div>
                             </div>
                         </div>
 
-                        {/* PASO 2 */}
                         <div id="step-2" className={step === 2 ? "block animate-fade-in" : "hidden"}>
                             <div className="bg-white dark:bg-darkbg-card p-7 rounded-[24px] border border-zinc-200/60 dark:border-darkbg-border shadow-sm relative group/section">
                                 <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-500 rounded-l-[24px]"></div>
