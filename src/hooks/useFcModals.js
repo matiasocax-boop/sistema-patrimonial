@@ -7,7 +7,7 @@ import { numeroALetras } from '../utils/numeroLetras';
 import { extraerCodigoQR } from '../utils/qr';
 import {
   ESTADOS_FC10, ESTADO_NUEVO_FC10, estadoInicialFC10, estaPendiente,
-  pendienteDeFirma, registrarFirma, habilitaFC10EnBien, ESTADO_INFO,
+  pendienteDeFirma, registrarFirma, registrarAmbasFirmas, habilitaFC10EnBien, ESTADO_INFO,
   esFC10Legado, iniciarTramiteFC10
 } from '../utils/fc10Firmas';
 import { registrarAuditoria } from '../services/auditService';
@@ -768,6 +768,71 @@ export function useFcModals({
    *
    * Al cerrar el ciclo recién ahí se marca el bien con hasFC10: true.
    */
+  // Persiste un FC-10 actualizado y arrastra el bien solo si el estado del
+  // acta lo amerita. Compartido por el registro de una firma y el de las dos.
+  const persistirFC10 = async (actualizado) => {
+      const { error } = await supabase.from('fc10').update({ id: actualizado.id, data: actualizado }).eq('id', actualizado.id);
+      if (error) throw error;
+
+      setFc10List(prev => prev.map(f => (f.id === actualizado.id ? actualizado : f)));
+
+      // El bien cambia de estado solo al cerrar el ciclo (o al devolver).
+      const bien = bienes.find(b => b.id === actualizado.bienId);
+      if (bien) {
+          const isDevuelto = !!actualizado.devolucionFecha;
+          const bienActualizado = {
+              ...bien,
+              hasFC10: isDevuelto ? false : habilitaFC10EnBien(actualizado),
+              estadoConservacion: actualizado.estadoConservacion || bien.estadoConservacion,
+              funcionario: isDevuelto ? '' : (actualizado.funcionarioNombre || bien.funcionario)
+          };
+          await supabase.from('bens').update(conSello({ data: bienActualizado })).eq('id', bien.id);
+          setBienes(prev => prev.map(b => (b.id === bien.id ? bienActualizado : b)));
+      }
+  };
+
+  /**
+   * Registra las DOS firmas de una vez.
+   *
+   * Es el caso normal: el PDF sale, lo firma el funcionario, sigue al jefe
+   * inmediato y vuelve con las dos firmas puestas. Quien lleva el tramite no
+   * ve las firmas por separado, asi que exigir dos clics obligaba a dejar el
+   * acta en un estado Mentiroso en el medio.
+   */
+  const registrarAmbasFirmasFC10 = async (fc) => {
+      if (!fc || !fc.id) return false;
+      if (estadoInicialFC10(fc) === ESTADOS_FC10.CERRADO) {
+          notify('Esta acta ya está cerrada con ambas firmas.', 'warning');
+          return false;
+      }
+      const actualizado = registrarAmbasFirmas(fc, currentUser, new Date().toISOString());
+      setIsProcessing({ active: true, text: 'Cerrando el ciclo de firmas...' });
+      try {
+          await persistirFC10(actualizado);
+          await registrarAuditoria({
+              usuario: currentUser?.username || 'Usuario',
+              dependencia: dependenciaActual,
+              accion: 'FIRMA_FC10',
+              entidad: 'FC10',
+              entidadId: actualizado.id,
+              detalles: {
+                  puesto: 'Ambas firmas',
+                  firmantes: [actualizado.funcionarioNombre, actualizado.jefeInmediatoNombre].filter(Boolean),
+                  estadoResultante: actualizado.estadoFirma,
+                  bienId: actualizado.bienId
+              }
+          });
+          notify('Acta cerrada con ambas firmas. El bien ya cuenta con FC-10.', 'success');
+          return true;
+      } catch (e) {
+          console.error(e);
+          notify('No se pudieron registrar las firmas.', 'error');
+          return false;
+      } finally {
+          setIsProcessing({ active: false, text: '' });
+      }
+  };
+
   const registrarFirmaFC10 = async (fc) => {
       if (!fc || !fc.id) return false;
       const estadoActual = estadoInicialFC10(fc);
@@ -785,24 +850,7 @@ export function useFcModals({
       const actualizado = registrarFirma(fc, currentUser, new Date().toISOString());
       setIsProcessing({ active: true, text: 'Registrando firma...' });
       try {
-          const { error } = await supabase.from('fc10').update({ id: actualizado.id, data: actualizado }).eq('id', actualizado.id);
-          if (error) throw error;
-
-          setFc10List(prev => prev.map(f => (f.id === actualizado.id ? actualizado : f)));
-
-          // El bien cambia de estado solo al cerrar el ciclo (o al devolver).
-          const bien = bienes.find(b => b.id === actualizado.bienId);
-          if (bien) {
-              const isDevuelto = !!actualizado.devolucionFecha;
-              const bienActualizado = {
-                  ...bien,
-                  hasFC10: isDevuelto ? false : habilitaFC10EnBien(actualizado),
-                  estadoConservacion: actualizado.estadoConservacion || bien.estadoConservacion,
-                  funcionario: isDevuelto ? '' : (actualizado.funcionarioNombre || bien.funcionario)
-              };
-              await supabase.from('bens').update(conSello({ data: bienActualizado })).eq('id', bien.id);
-              setBienes(prev => prev.map(b => (b.id === bien.id ? bienActualizado : b)));
-          }
+          await persistirFC10(actualizado);
 
           await registrarAuditoria({
               usuario: currentUser?.username || 'Usuario',
@@ -1143,7 +1191,7 @@ export function useFcModals({
     openResolucionModal, openFC10Modal, openFC11Modal, openFC04Modal,
     handleAddFC04Item, handleRemoveFC04Item, handleFC04ItemChange,
     handleScanSuccess,
-    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10, registrarFirmaFC10, ponerFC10EnTramite,
+    saveBien, saveUsuario, saveFC11, saveFC04, saveFC10, registrarFirmaFC10, registrarAmbasFirmasFC10, ponerFC10EnTramite,
     submitResolucionBaja, confirmDeleteAction
   };
 }

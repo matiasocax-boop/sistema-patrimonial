@@ -9,7 +9,7 @@ export default function Fc10View({
   filteredFC10, fc10Year, setFc10Year, fc10Month, setFc10Month,
   STYLES, setIsConsolidatedFC10ModalOpen, handleExportFC10CSV,
   isLoading, bienes, handleGenerateFC10PDF, openFC10Modal,
-  isAdmin, setItemToDelete, setActiveTab, registrarFirmaFC10, firmandoId,
+  isAdmin, setItemToDelete, setActiveTab, registrarFirmaFC10, registrarAmbasFirmas, firmandoId,
   ponerFC10EnTramite, poniendoEnTramite
 }) {
   // Cuántas hay en cada etapa: el trabajo real que falta por hacer.
@@ -238,25 +238,37 @@ export default function Fc10View({
     </button>
   </div>
 )}
-{pendiente && registrarFirmaFC10 && (
-  <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-3">
-    <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 leading-snug mb-2.5">
-      {pendiente.nombre
-        ? <>Ya firmó <strong>{pendiente.nombre}</strong> en Acrobat? Registralo para avanzar el trámite.</>
-        : <>Registrá la firma de <strong>{pendiente.puesto}</strong> para avanzar el trámite.</>}
-    </p>
-    <button
-      onClick={() => registrarFirmaFC10(fc)}
-      disabled={estaFirmando}
-      title={`Registrar la firma ${pendiente.orden} de ${pendiente.nombre || pendiente.puesto}`}
-      className="w-full inline-flex items-center justify-center gap-2 h-9 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-    >
-      {estaFirmando ? (
-        <><i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Registrando...</>
-      ) : (
-        <><i className="fa-solid fa-signature text-[10px]"></i> Firmar {pendiente.puesto}</>
-      )}
-    </button>
+{pendiente && (registrarFirmaFC10 || registrarAmbasFirmas) && (
+  <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-3 space-y-2">
+    {registrarAmbasFirmas && (
+      <>
+        <p className="text-[11px] font-semibold text-amber-900 dark:text-amber-200 leading-snug">
+          ¿El PDF ya volvió con las <strong>dos firmas</strong>?
+        </p>
+        <button
+          onClick={() => registrarAmbasFirmas(fc)}
+          disabled={estaFirmando}
+          title="Registrar las dos firmas y cerrar el ciclo de una vez"
+          className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+        >
+          {estaFirmando
+            ? <><i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Cerrando...</>
+            : <><i className="fa-solid fa-circle-check text-[11px]"></i> Ya firmaron ambos</>}
+        </button>
+        <p className="text-[10px] text-amber-700/80 dark:text-amber-400/70 text-center">o registralas de a poco:</p>
+      </>
+    )}
+    {registrarFirmaFC10 && (
+      <button
+        onClick={() => registrarFirmaFC10(fc)}
+        disabled={estaFirmando}
+        title={`Registrar solo la firma ${pendiente.orden} de ${pendiente.nombre || pendiente.puesto}`}
+        className="w-full inline-flex items-center justify-center gap-2 h-8 rounded-lg text-amber-800 dark:text-amber-300 hover:bg-amber-500/15 text-[10px] font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+      >
+        <i className="fa-solid fa-signature text-[10px]"></i>
+        Solo {pendiente.puesto}
+      </button>
+    )}
   </div>
 )}
 

@@ -193,6 +193,49 @@ export const registrarFirma = (registro, usuario, fecha) => {
 };
 
 /**
+ * Registra las DOS firmas de una sola vez y deja el acta cerrada.
+ *
+ * Por que existe: en el circuito real el PDF sale, lo firma el funcionario,
+ * sigue al jefe inmediato y vuelve con las dos firmas puestas. Quien lleva el
+ * trámite no ve las firmas por separado: recibe el documento ya completo.
+ * Forzar dos clics ("firma 1", después "firma 2") obligaba a mentir en el
+ * estado intermedio.
+ *
+ * La fecha de ambas es la misma porque las dos se registran juntas.
+ */
+export const registrarAmbasFirmas = (registro, usuario, fecha) => {
+  const estado = estadoInicialFC10(registro);
+  if (estado === ESTADOS_FC10.CERRADO) return registro;
+
+  const ahora = fecha || new Date().toISOString();
+  const previas = registro.firmas || {};
+  // Una firma ya registrada no se toca: su fecha es la real del tramite. Si se
+  // pisara, un acta firmada en dos momentos distintos perdería la trazabilidad
+  // de cuando se firmo cada parte.
+  const firma1 = previas.firma1 || {
+    nombre: registro.funcionarioNombre || '',
+    cargo: registro.funcionarioCargo || '',
+    registradoPor: usuario?.username || '',
+    registradoPorNombre: usuario?.nombre || '',
+    fecha: ahora
+  };
+  const firma2 = previas.firma2 || {
+    nombre: registro.jefeInmediatoNombre || '',
+    cargo: registro.jefeInmediatoCargo || '',
+    registradoPor: usuario?.username || '',
+    registradoPorNombre: usuario?.nombre || '',
+    fecha: ahora
+  };
+
+  return {
+    ...registro,
+    estadoFirma: ESTADOS_FC10.CERRADO,
+    firmas: { ...previas, firma1, firma2 },
+    fechaCierre: ahora
+  };
+};
+
+/**
  * ¿Este FC-10 habilita marcar el bien como "con FC-10"?
  * Es la única fuente de verdad para `hasFC10`.
  */

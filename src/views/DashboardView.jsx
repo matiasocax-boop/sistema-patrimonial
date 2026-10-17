@@ -11,7 +11,7 @@ export default function DashboardView({
   setBienEditing, setIsBienModalOpen, fileInputRef, handleExportInventarioCSV,
   setIsBulkQR, setQrTargetBien, setIsQRModalOpen, openFC03Modal,
   setFc10Year, setFc10Month,
-  fc10List, bienes
+  fc10List, bienes, registrarAmbasFirmas, firmandoId
 }) {
   // Actas que esperan una firma, con el dato de a quién le toca. Es la bandeja
   // de trabajo del circuito: sin esto, saber que hay algo pendiente obligaba
@@ -241,32 +241,41 @@ export default function DashboardView({
             </button>
           </div>
 
-          {/* Lista compacta: qué falta en cada acta. */}
+          {/* Lista compacta: qué falta en cada acta. Cada fila trae la acción directa
+              para no obligar a entrar al módulo a buscarla. */}
           <div className="divide-y divide-zinc-100 dark:divide-white/5">
             {actasPorFirmar.slice(0, 5).map(({ fc, bien, pendiente }) => (
-              <button
-                key={fc.id}
-                onClick={() => setActiveTab('fc10')}
-                className="w-full flex items-center gap-3 px-5 sm:px-6 py-3 text-left hover:bg-amber-500/[0.04] transition-colors cursor-pointer"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                  <i className="fa-solid fa-pen text-[10px]"></i>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-xs font-bold text-zinc-900 dark:text-white truncate">
-                    {pendiente.nombre || pendiente.puesto}
-                    <span className="font-semibold text-zinc-400 dark:text-zinc-500"> · {pendiente.puesto}</span>
+              <div key={fc.id} className="flex items-center gap-3 px-5 sm:px-6 py-3 hover:bg-amber-500/[0.04] transition-colors">
+                <button
+                  onClick={() => setActiveTab('fc10')}
+                  className="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                >
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    <i className="fa-solid fa-file-signature text-[10px]"></i>
                   </span>
-                  <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
-                    {bien?.rotulo || 'S/R'} · {bien?.descripcion || fc.funcionarioNombre || ''}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-bold text-zinc-900 dark:text-white truncate">
+                      {bien?.rotulo || 'S/R'}
+                      <span className="font-semibold text-zinc-400 dark:text-zinc-500"> · {pendiente.nombre || pendiente.puesto}</span>
+                    </span>
+                    <span className="block text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                      Falta la firma {pendiente.orden}: {pendiente.puesto}
+                    </span>
                   </span>
-                </span>
-                <span className="shrink-0 hidden sm:inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
-                  <i className={`fa-solid ${pendiente.orden === 1 ? 'fa-user-tie' : 'fa-user-check'}`}></i>
-                  Firma {pendiente.orden}
-                </span>
-                <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300 dark:text-zinc-600 shrink-0"></i>
-              </button>
+                </button>
+                {registrarAmbasFirmas && (
+                  <button
+                    onClick={() => registrarAmbasFirmas(fc)}
+                    disabled={firmandoId === fc.id}
+                    title="Registrar las dos firmas y cerrar el ciclo"
+                    className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60"
+                  >
+                    {firmandoId === fc.id
+                      ? <i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i>
+                      : <><i className="fa-solid fa-circle-check text-[10px]"></i> Firmaron ambos</>}
+                  </button>
+                )}
+              </div>
             ))}
             {actasPorFirmar.length > 5 && (
               <button
