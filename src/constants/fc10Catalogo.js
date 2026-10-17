@@ -91,6 +91,8 @@ export const FC10_REPARTICIONES = [
   { nombre: "Evaluación y Seguimiento del P.E / P.O.A", codigo: "10", nivel: "Tecnologías de la Información y Planificación" },
 ];
 
+import { normalizeStr } from '../utils/helpers';
+
 export function buscarFC10Catalogo(texto) {
   const q = normalizeStr(texto);
   if (!q) return FC10_REPARTICIONES;
