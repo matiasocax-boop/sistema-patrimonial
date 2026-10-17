@@ -77,7 +77,6 @@ export default function InventarioView({
   vistaInv,
   cambiarVistaInv,
   lastMutatedBienId,
-  onDuplicar,
   onBajaMasiva,
   onQRLoteSeleccion,
   STYLES
@@ -584,7 +583,6 @@ export default function InventarioView({
                               <button onClick={() => { setQrTargetBien(item); setIsBulkQR(false); setIsQRModalOpen(true); }} title="QR" aria-label="QR" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-qrcode text-xs"></i></button>
                               <button onClick={() => openFC10Modal(item)} title="Asignación FC-10" aria-label="Asignación FC-10" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-file-signature text-xs"></i></button>
                               <button onClick={() => { setBienEditing(item); setIsBienModalOpen(true); }} title="Editar" aria-label="Editar" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-pen-to-square text-xs"></i></button>
-                              <button onClick={() => onDuplicar && onDuplicar(item)} title="Duplicar registro" aria-label="Duplicar registro" className="flex h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"><i className="fa-solid fa-copy text-xs"></i></button>
                             </div>
                           </div>
                         ))}
@@ -604,12 +602,12 @@ export default function InventarioView({
 
                                                   <thead className="bg-zinc-50/50 dark:bg-zinc-900/50 border-b border-zinc-200/50 dark:border-zinc-800/50">
                           <tr className="text-[10px] sm:text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">
-                            <th className="py-4 pl-4 sm:pl-5 pr-1 w-[36px]">
+                            <th className="py-4 pl-4 sm:pl-5 pr-1 w-[40px] align-middle">
                               <input
                                 type="checkbox" title="Seleccionar página" aria-label="Seleccionar página"
                                 checked={itemsPaginados.length > 0 && itemsPaginados.every(i => seleccionados.includes(i.id))}
                                 onChange={(e) => { if (e.target.checked) { itemsPaginados.forEach(i => { if (!seleccionados.includes(i.id)) toggleSeleccion(i.id); }); } else { itemsPaginados.forEach(i => { if (seleccionados.includes(i.id)) toggleSeleccion(i.id); }); } }}
-                                className="h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer"
+                                className="h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer align-middle"
                               />
                             </th>
                             <th className="py-4 pr-4 w-[38%]">
@@ -639,8 +637,8 @@ export default function InventarioView({
                               <tr key={item.id} className={`hover:bg-zinc-50/50 dark:hover:bg-white/[0.02] transition-colors group ${lastMutatedBienId === item.id ? 'row-flash' : ''}`}>
 
                                 {/* Selección */}
-                                <td className={`pl-4 sm:pl-5 pr-1 align-top ${compacto ? 'py-2' : 'py-4'}`}>
-                                  <input type="checkbox" checked={seleccionados.includes(item.id)} onChange={() => toggleSeleccion(item.id)} title="Seleccionar" aria-label={`Seleccionar ${item.rotulo}`} className="mt-1.5 h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer" />
+                                <td className={`pl-4 sm:pl-5 pr-1 align-middle ${compacto ? 'py-2' : 'py-4'}`}>
+                                  <input type="checkbox" checked={seleccionados.includes(item.id)} onChange={() => toggleSeleccion(item.id)} title="Seleccionar" aria-label={`Seleccionar ${item.rotulo}`} className="h-4 w-4 rounded border-zinc-300 text-brand-primary cursor-pointer align-middle" />
                                 </td>
                                 {/* Columna 1: Identificación */}
                                 <td className={`pr-4 align-top ${compacto ? 'py-2' : 'py-4'}`} >
@@ -758,15 +756,6 @@ export default function InventarioView({
                                       title="Traslado FC-11" aria-label="Traslado FC-11"
                                     >
                                       <i className="fa-solid fa-truck-fast text-xs"></i>
-                                    </button>
-
-                                    {/* Duplicar registro */}
-                                    <button 
-                                      onClick={() => onDuplicar && onDuplicar(item)}
-                                      className="h-9 w-9 items-center justify-center text-zinc-600 dark:text-zinc-400 bg-zinc-100 dark:bg-white/5 hover:bg-zinc-200 dark:hover:bg-white/10 rounded-xl transition-all active:scale-90 cursor-pointer hidden sm:inline-flex"
-                                      title="Duplicar registro (alta similar)" aria-label="Duplicar registro"
-                                    >
-                                      <i className="fa-solid fa-copy text-xs"></i>
                                     </button>
 
                                     {/* Editar Bien */}

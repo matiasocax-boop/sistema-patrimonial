@@ -20,6 +20,7 @@ import {
     formatDateText, getEstadoAbbr, normalizeStr, matchSearchWords, matchBienSearch, getPlaceholderLogo,
     convertirImagenABase64, getLogoPorDependencia, comprimirImagen, colorPorDependencia 
 } from './utils/helpers';
+import { useIdioma } from './utils/i18n';
 import { generateSimpleQR, generateProfessionalLabelPNG, buildFC10PDFDoc, buildActaAuditoriaPDF } from './utils/pdfGenerators';
 import { conSello, debeResyncTotal, fusionarBienes, ahoraISO } from './services/syncBienes';
 import { mapearFilasBienes } from './utils/csvBienes';
@@ -536,18 +537,6 @@ export default function App() {
     setLastMutatedBienId(id);
     setTimeout(() => setLastMutatedBienId(prev => (prev === id ? null : prev)), 4000);
   };
-  // Duplicar bien: abre el formulario precargado (rótulo vacío) como alta nueva.
-  const duplicarBien = (item) => {
-    if (!item) return;
-    const copia = { ...item };
-    delete copia.id;
-    copia.rotulo = '';
-    copia.hasFC10 = false;
-    copia.hasQR = false;
-    copia.fotos = [];
-    setBienEditing(copia);
-    setIsBienModalOpen(true);
-  };
   // QR en lote de la selección del inventario.
   const qrLoteSeleccion = () => {
     const lista = filteredBienes.filter(b => seleccionados.includes(b.id));
@@ -666,7 +655,7 @@ export default function App() {
       { tab: 'dashboard', selector: '[data-tour="dash-stats"]', titulo: 'Métricas accionables', texto: 'Cada tarjeta filtra el inventario al hacer clic: activos, con QR, sin FC-10 y pendientes de QR.' },
       { tab: 'dashboard', selector: '[data-tour="dash-pendientes"]', titulo: 'Atención requerida', texto: 'Tu lista de trabajo: lo que falta por etiquetar, asignar, ubicar o regularizar, con acceso directo.' },
       { tab: 'inventario', selector: '[data-tour="inv-search"]', titulo: 'Búsqueda robusta', texto: 'Ignora tildes y entiende varias palabras. Atajos: "/" enfoca aquí y Ctrl+K abre la búsqueda global.' },
-      { tab: 'inventario', selector: '[data-tour="inv-table"]', titulo: 'Acciones por fila', texto: 'Desde cada bien: ficha 360 con trazabilidad, QR, acta FC-10, traslado, edición y duplicado.' },
+      { tab: 'inventario', selector: '[data-tour="inv-table"]', titulo: 'Acciones por fila', texto: 'Desde cada bien: ficha 360 con trazabilidad, QR, acta FC-10, traslado y edición.' },
       { tab: null, selector: '[data-tour="scan"]', titulo: 'Escáner QR', texto: 'Con la cámara del celular o una lectora USB localizas cualquier bien al instante.' },
     ];
     if (isAdmin) {
@@ -1047,6 +1036,8 @@ useEffect(() => {
 
   // Exportación favorita: recuerda el último formato para repetirlo en 1 clic.
   const [ultimaExportacion, setUltimaExportacion] = useState(() => { try { return JSON.parse(localStorage.getItem('ultima_exportacion') || 'null'); } catch { return null; } });
+  // Idioma global (fuerza re-render al cambiar ES/GN).
+  const { t: ti } = useIdioma();
   const guardarUltimaExport = (formato) => {
     const v = { formato, ts: Date.now() };
     setUltimaExportacion(v);
@@ -1246,17 +1237,17 @@ useEffect(() => {
 
   const renderPagination = () => (
     <div className="flex flex-wrap gap-2 justify-between items-center px-4 sm:px-6 py-4 border-t border-zinc-200 dark:border-darkbg-border shrink-0 bg-white dark:bg-darkbg-card">
-      <span className="text-sm text-zinc-500 font-medium">Mostrando <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPorPagina + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPorPagina, filteredBienes.length)}</span> de {filteredBienes.length}</span>
+      <span className="text-sm text-zinc-500 font-medium">{ti('inv.mostrando')} <span className="font-bold text-zinc-900 dark:text-white">{(currentPage - 1) * itemsPorPagina + (filteredBienes.length > 0 ? 1 : 0)} - {Math.min(currentPage * itemsPorPagina, filteredBienes.length)}</span> {ti('inv.de')} {filteredBienes.length}</span>
       <div className="flex items-center gap-2">
         <select
           value={itemsPorPagina} onChange={(e) => cambiarPaginaTam(parseInt(e.target.value, 10))}
-          title="Registros por página"
+          title={ti('inv.por_pagina')}
           className="rounded-xl bg-white dark:bg-darkbg-main px-2.5 h-9 text-xs font-bold text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-darkbg-border outline-none cursor-pointer"
         >
-          {[10, 20, 50].map(n => <option key={n} value={n}>{n} / pág.</option>)}
+          {[10, 20, 50].map(n => <option key={n} value={n}>{n} {ti('inv.por_pagina')}</option>)}
         </select>
-        <button disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Anterior</button>
-        <button disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">Siguiente</button>
+        <button disabled={currentPage <= 1} onClick={() => setCurrentPage(prev => prev - 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">{ti('inv.anterior')}</button>
+        <button disabled={currentPage >= totalPages || totalPages === 0} onClick={() => setCurrentPage(prev => prev + 1)} className="rounded-xl bg-white dark:bg-darkbg-main px-4 py-2 text-xs font-bold text-zinc-700 dark:text-zinc-300 shadow-2xs border border-zinc-200 dark:border-darkbg-border hover:bg-zinc-50 dark:hover:bg-darkbg-hover disabled:opacity-50 transition-all cursor-pointer">{ti('inv.siguiente')}</button>
       </div>
     </div>
   );
@@ -1489,7 +1480,7 @@ if (publicBienId) {
 
   return (
     <div className={`${darkMode ? 'dark' : ''} flex h-dvh overflow-hidden bg-zinc-50 dark:bg-darkbg-main transition-colors duration-300 text-base`} style={{ '--dep-accent': colorPorDependencia(dependenciaActual) }}>
-      <a href="#contenido" className="skip-link px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-bold shadow-xl">Saltar al contenido</a>
+      <a href="#contenido" className="skip-link px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[13px] font-bold shadow-xl">{ti('app.saltar')}</a>
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputRef} onChange={handleFileUpload} />
       <input type="file" accept=".csv" className="hidden" style={{ display: 'none' }} ref={fileInputFuncionariosRef} onChange={handleFileUploadFuncionarios} />
       
@@ -1498,13 +1489,13 @@ if (publicBienId) {
         {!isOnline && (
           <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-amber-500/90 text-white backdrop-blur-md border border-amber-400/30 transition-all animate-slide-up">
             <i className="fa-solid fa-wifi-slash text-base"></i>
-            <span className="flex-1">Sin conexión (Modo Local){colaOffline > 0 ? ` · ${colaOffline} pendiente${colaOffline === 1 ? '' : 's'}` : ''}</span>
+            <span className="flex-1">{ti('off.sin_conexion')}{colaOffline > 0 ? ` · ${colaOffline} ${colaOffline === 1 ? ti('off.pendiente') : ti('off.pendientes')}` : ''}</span>
           </div>
         )}
         {isOnline && colaOffline > 0 && (
           <div className="pointer-events-auto flex items-center gap-3 px-4 py-3 min-w-[280px] max-w-[calc(100vw-3rem)] rounded-2xl shadow-xl text-xs font-black bg-sky-600/90 text-white backdrop-blur-md border border-sky-400/30 transition-all animate-slide-up">
             <i className="fa-solid fa-cloud-arrow-up text-base"></i>
-            <span className="flex-1">Sincronizando {colaOffline} pendiente{colaOffline === 1 ? '' : 's'}...</span>
+            <span className="flex-1">{ti('off.sinc')} {colaOffline} {colaOffline === 1 ? ti('off.pendiente') : ti('off.pendientes')}...</span>
           </div>
         )}
 
@@ -1565,7 +1556,7 @@ if (publicBienId) {
                 {activeTab === 'dashboard' && (<DashboardView currentUser={currentUser} dependenciaActual={dependenciaActual} saludoBienvenida={saludoBienvenida} stats={stats} pendientes={pendientes} isLoading={isLoading} timeStats={timeStats} clearAllFilters={clearAllFilters} setActiveTab={setActiveTab} setFiltroQR={setFiltroQR} setFiltroFC10={setFiltroFC10} setFiltroPendiente={setFiltroPendiente} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} fileInputRef={fileInputRef} handleExportInventarioCSV={handleExportInventarioCSV} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setFc10Year={setFc10Year} setFc10Month={setFc10Month} />)}
 
                 {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
-                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onDuplicar={duplicarBien} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
+                {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
 
                 {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} />)}
 

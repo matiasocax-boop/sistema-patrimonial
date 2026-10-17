@@ -112,9 +112,9 @@ export default function Header({
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setMenuApariencia(false)}></div>
                           <div className="absolute right-0 z-50 mt-1.5 w-60 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 shadow-xl p-1.5 animate-pop">
-                            <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">Apariencia</p>
+                            <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">{t('hdr.apariencia')}</p>
                             <div className="flex items-center gap-1.5 px-3 py-2">
-                              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex-1">Idioma</span>
+                              <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 flex-1">{t('hdr.idioma')}</span>
                               <div className="flex rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
                                 {['es', 'gn'].map(l => (
                                   <button
