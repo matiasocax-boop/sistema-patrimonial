@@ -85,8 +85,15 @@ export const AUDITORIA_MAX_FILAS = 1000;
 // (ver el return del useEffect), así que no quedan conexiones colgando.
 // ---------------------------------------------------------------------------
 export const REALTIME_BENS_ACTIVO = true;
-export const REALTIME_NOTIF_ACTIVO = false; // el sondeo cada 30 s ya cubre el caso
-export const POLL_NOTIFICACIONES_MS = 60_000; // 60 s en vez de 30 s
+export const REALTIME_NOTIF_ACTIVO = false; // el sondeo ya cubre el caso
+
+// Cadencia del sondeo de notificaciones. El presupuesto del free es de 2 M de
+// filas leidas al mes (plan de 8 h/dia ≈ 1.44 M con 100 filas cada 60 s: dos o
+// tres equipos lo reventaban). Con 25 filas cada 3 minutos son ~30 k por mes
+// por cliente: margen amplio para lo que realmente importa (que le avisen de
+// una solicitud de baja o un anuncio).
+export const POLL_NOTIFICACIONES_MS = 180000; // 3 minutos
+export const POLL_NOTIF_ROWS = 25;
 
 // ---------------------------------------------------------------------------
 // 5. Consulta de bienes: solo columnas necesarias

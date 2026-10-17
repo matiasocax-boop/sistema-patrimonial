@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { normalizeStr, parseDateInfo, matchBienSearch } from '../utils/helpers';
 import { ESTADOS_FC10, estadoInicialFC10 } from '../utils/fc10Firmas';
 
@@ -66,7 +66,13 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
   }, []);
   const limpiarSeleccion = useCallback(() => setSeleccionados([]), []);
   // Al cambiar los filtros o la dependencia, la selección vieja no aplica.
-  useEffect(() => { setSeleccionados([]); }, [dependenciaActual, searchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroSubcuenta, filtroFC10, filtroEstado]);
+// Todas las variables de filtrado van en la lista: faltaban filtroMes,
+// filtroAnalitico1/2, filtroQR y filtroPendiente, así que al marcar un chip de
+// la bandeja (por ejemplo "Sin QR") la barra seguía diciendo "N seleccionados"
+// y la baja masiva daba de baja bienes que ya no se veían en pantalla.
+useEffect(() => {
+    setSeleccionados([]);
+  }, [dependenciaActual, searchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes, filtroSubcuenta, filtroAnalitico1, filtroAnalitico2, filtroFC10, filtroEstado, filtroQR, filtroPendiente]);
   const alternarOrden = useCallback((campo) => {
     setOrden(prev => {
       if (!prev || prev.campo !== campo) return { campo, dir: campo === 'valor' ? 'desc' : 'asc' };
@@ -130,24 +136,26 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
     } catch (e) { return {}; }
   }, []);
 
-  // Aplicar al montar. Se hace una sola vez al cambiar de usuario/dependencia
-  // para no pisar los filtros que la persona está escribiendo en ese momento.
-  const [urlAplicada, setUrlAplicada] = useState(false);
+  // Aplicar los filtros que vengan en la URL, una sola vez al entrar.
+  // Antes esta lógica dependedía de un flag que solo se activaba si la URL ya
+  // traía parámetros: entrando por la vía normal el flag quedaba en false y
+  // el efecto que ESPEJA los filtros hacia la URL nunca corría, así que
+  // "Copiar link" copiaba una URL sin filtros.
+  const refUrlAplicada = useRef(false);
   useEffect(() => {
-    if (urlAplicada) { setUrlAplicada(false); return; }
+    if (refUrlAplicada.current) return;
     const desdeUrl = leerUrl();
     if (Object.keys(desdeUrl).length === 0) return;
-    setUrlAplicada(true);
+    refUrlAplicada.current = true;
     for (const [estado, valor] of Object.entries(desdeUrl)) {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      (SETTERS[estado]?.(valor));
+      SETTERS[estado]?.(valor);
     }
     if (desdeUrl.searchTerm) setSearchInput(desdeUrl.searchTerm);
   }, [dependenciaActual, username, leerUrl]);
 
-  // Espejar los filtros actuales hacia la URL.
+  // Espejar los filtros actuales hacia la URL. Se usa debouncedSearchTerm
+  // (igual que el filtrado real) para no escribir 250 ms tarde el valor viejo.
   useEffect(() => {
-    if (!urlAplicada) return;
     try {
       const p = new URLSearchParams(window.location.search);
       for (const [clave, estado] of Object.entries(URL_KEYS)) {
@@ -161,9 +169,9 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
       window.history.replaceState(null, '', nueva);
     } catch (e) { /* el navegador puede bloquear replaceState; no es crítico */ }
   }, [
-    searchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes,
+    debouncedSearchTerm, filtroFuncionario, filtroUbicacion, filtroAnio, filtroMes,
     filtroSubcuenta, filtroAnalitico1, filtroAnalitico2,
-    filtroQR, filtroFC10, filtroEstado, filtroPendiente, urlAplicada
+    filtroQR, filtroFC10, filtroEstado, filtroPendiente
   ]);
 
   // "Copiar link" de la vista actual.
@@ -387,7 +395,13 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
 
   const paginatedBienes = useMemo(() => { const start = (currentPage - 1) * itemsPorPagina; return filteredBienes.slice(start, start + itemsPorPagina); }, [filteredBienes, currentPage, itemsPorPagina]);
   const itemsPaginados = paginatedBienes;
-  const totalPages = Math.ceil(filteredBienes.length / itemsPorPagina);
+  const totalPages = Math.max(1, Math.ceil(filteredBienes.length / itemsPorPagina));
+  // Si un filtro deja menos resultados que la página actual, quedás viendo un
+  // "no se encontraron bienes" con bienes que sí existen, y el contador dice
+  // "41 - 3 de 3". Se vuelve a la última página válida.
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
 
   return {
     searchInput, setSearchInput, searchTerm, setSearchTerm, debouncedSearchTerm,

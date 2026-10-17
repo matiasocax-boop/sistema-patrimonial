@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
-import { POLL_NOTIFICACIONES_MS, REALTIME_BENS_ACTIVO, REALTIME_NOTIF_ACTIVO } from '../services/supabaseFreeTier';
+import { POLL_NOTIFICACIONES_MS, REALTIME_BENS_ACTIVO, REALTIME_NOTIF_ACTIVO, POLL_NOTIF_ROWS } from '../services/supabaseFreeTier';
 import localforage from 'localforage';
 import { debeResyncTotal, fusionarBienes, ahoraISO } from '../services/syncBienes';
 import { normalizeStr } from '../utils/helpers';
@@ -166,14 +166,25 @@ export function useRealtimeSync({
           setBienes(lista);
         }
 
-        const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([ 
+        // fc11 no tiene columna 'dependencia': guarda remitente y destinataria. Antes
+        // se pedía la tabla COMPLETA (sin filtro) y se filtraba en el cliente,
+        // lo que arrastraba los traslados de todas las dependencias — cada fila
+        // incluye un snapshot completo del bien — y los mostraba la Ficha 360.
+        const escDep = dependenciaActual.replace(/[,()]/g, '');
+        const [resFc10, resFc11, resFc04, resEstructuras, resAuditoria, resUsuarios, resFuncionarios] = await Promise.all([
             supabase.from('fc10').select('id, data').eq('data->>dependencia', dependenciaActual),
-            supabase.from('fc11').select('id, data'), 
+            supabase.from('fc11').select('id, data')
+                .or(`data->>dependenciaRemitente.eq.${escDep},data->>dependenciaDestinataria.eq.${escDep}`),
             supabase.from('fc04').select('id, data').eq('data->>dependencia', dependenciaActual),
-            supabase.from('estructuras').select('id, data'), 
+            supabase.from('estructuras').select('id, data'),
             queryNotificacionesAcotadas(),
             supabase.from('usuarios').select('username, nombre, cargo, dependencia'),
-            supabase.from('funcionarios').select('*')
+            // Solo las columnas que se usan y solo la dependencia actual: el
+            // padrón completo con select('*') era la consulta más pesada del
+            // arranque y ya no se filtraba hasta el cliente.
+            supabase.from('funcionarios')
+                .select('id, cedula, nombre, cargo, ubicacion, dependencia')
+                .eq('dependencia', dependenciaActual)
         ]);
 
         const parseDirect = (resData) => {
@@ -374,19 +385,29 @@ export function useRealtimeSync({
       }
   };
 
-  // Sondeo liviano: últimas 100 relevantes, fusionadas sin recargar todo
+  // Sondeo liviano: solo lo que todavía no se vio, fusionado sin recargar todo.
+  //
+  // El plan free da 2 M de filas leidas al mes. A 100 filas cada 60 s eran
+  // ~1,44 M por cliente de 8 h/dia: con dos o tres equipos el SOLO sondeo ya
+  // reventaba la cuota. Ahora son 25 filas cada 3 minutos, se saltea con la
+  // pestaña oculta y se detiene si el documento no está visible.
   const sondearNotificaciones = async () => {
       try {
+          if (typeof document !== 'undefined' && document.hidden) return;
           const u = String(currentUser?.username || '').replace(/[,()]/g, '');
           const filtros = u
             ? `data->>usuarioDestino.eq.${u},data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`
             : `data->>usuarioDestino.eq.TODOS,data->>estado.eq.PENDIENTE`;
-          const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').or(filtros).order('updated_at', { ascending: false }).limit(100);
+          const { data, error } = await supabase.from('notificaciones').select('id, data, updated_at').or(filtros).order('updated_at', { ascending: false }).limit(POLL_NOTIF_ROWS);
           if (error || !data) return;
           const frescas = data.map(parseNotifRow);
           setNotificaciones(prev => {
               const mapa = new Map(prev.map(n => [n.id, n]));
-              frescas.forEach(n => mapa.set(n.id, n));
+              // Fusiona por id, pero el estado local gana: el marcado de "leído"
+              // es optimista y una respuesta vieja del servidor lo pisaba,
+              // haciendo reaparecer el aviso con el contador arriba.
+              const vistaPrevia = new Set(prev.filter(n => n.leido).map(n => n.id));
+              frescas.forEach(n => mapa.set(n.id, vistaPrevia.has(n.id) ? { ...n, leido: true } : n));
               return [...mapa.values()];
           });
       } catch (e) {}
@@ -455,12 +476,12 @@ export function useRealtimeSync({
     };
   }, [fetchData]);
 
-  useEffect(() => {
-      if (isAuthenticated) {
-          fetchData(false);
-          cargarNotificaciones();
-      }
-  }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
+  // NOTA: este hook ya carga los datos en el efecto de arranque de arriba
+  // (mismas dependencias: isAuthenticated, fetchData, dependenciaActual,
+  // isAdmin). Antes había un segundo efecto igual acá que ejecutaba la misma
+  // descarga otra vez en cada login y en cada cambio de dependencia: el doble
+  // de peticiones, el doble de filas leídas del plan free y dos escrituras
+  // competing sobre la misma caché de IndexedDB.
 
   return {
     isOnline, colaOffline, notificaciones, setNotificaciones,

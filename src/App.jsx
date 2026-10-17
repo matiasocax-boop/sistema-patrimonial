@@ -444,19 +444,31 @@ export default function App() {
           const nuevo = nombre.trim();
           const renombrar = async (lista, tabla, campo, setLista, esJSON) => {
             const afectados = lista.filter(r => normalizeStr(r[campo] || '') === normalizeStr(anterior.nombre));
+            // `bens` se sincroniza por delta (updated_at). Sin el sello, los
+            // demás equipos no detectan el renombre: su próxima sincronización
+            // consulta el nombre viejo, no trae filas y termina mostrando el
+            // inventario vacío. Además se verifican los errores: supabase-js
+            // resuelve con { error } y no lanza, así que un fallo pasaba
+            // desapercibido mientras el toast decía "registros migrados".
+            const usarSello = tabla === 'bens' && esJSON;
+            let fallos = 0;
             for (let i = 0; i < afectados.length; i += 10) {
               const chunk = afectados.slice(i, i + 10);
-              await Promise.all(chunk.map(r => {
-                const payload = esJSON ? { data: { ...r, [campo]: nuevo } } : { [campo]: nuevo };
+              const res = await Promise.all(chunk.map(r => {
+                const datos = { ...r, [campo]: nuevo };
+                const payload = esJSON
+                  ? (usarSello ? conSello({ data: datos }) : { data: datos })
+                  : { [campo]: nuevo };
                 const q = supabase.from(tabla).update(payload);
                 return (r.id ? q.eq('id', r.id) : q.eq('username', r.username));
               }));
+              fallos += res.filter(x => x && x.error).length;
             }
-            if (afectados.length > 0) {
+            if (afectados.length > 0 && fallos === 0) {
               const ids = new Set(afectados.map(r => r.id || r.username));
               setLista(prev => prev.map(r => ((ids.has(r.id) || ids.has(r.username)) ? { ...r, [campo]: nuevo } : r)));
             }
-            return afectados.length;
+            return fallos > 0 ? -fallos : afectados.length;
           };
           const n1 = await renombrar(bienes, 'bens', 'dependencia', setBienes, true);
           const n2 = await renombrar(funcionariosPadron, 'funcionarios', 'dependencia', setFuncionariosPadron, false);
@@ -468,7 +480,13 @@ export default function App() {
             setDependenciaActual(nuevo);
             clearAllFilters();
           }
-          addToast(`Dependencia actualizada (${n1 + n2 + n3 + n4 + n5 + n6} registros migrados).`, 'success');
+          const nFallos = [n1, n2, n3, n4, n5, n6].reduce((s, n) => s + (n < 0 ? -n : 0), 0);
+          const nOk = [n1, n2, n3, n4, n5, n6].reduce((s, n) => s + (n > 0 ? n : 0), 0);
+          if (nFallos > 0) {
+            addToast(`Dependencia renombrada, pero ${nFallos} registros no se pudieron migrar. Revisá los datos de esa dependencia.`, 'error');
+          } else {
+            addToast(`Dependencia actualizada (${nOk} registros migrados).`, 'success');
+          }
         }
         setDependenciasList(prev => prev.map(d => (d.id === id ? { ...d, nombre: nombre.trim(), activa } : d)).sort((a, b) => String(a.nombre).localeCompare(String(b.nombre))));
       }
@@ -596,10 +614,17 @@ export default function App() {
     if (!ids || ids.length === 0) return;
     setIsProcessing({ active: true, text: `Procesando ${ids.length} bienes...` });
     try {
+      // supabase-js NO lanza en errores de Postgres/RLS: resuelve con { error }.
+      // Sin comprobación, la baja anunciaba éxito y además dejaba una entrada
+      // de auditoría de "bienes dados de baja" que nunca ocurrieron.
       if (isAdmin) {
-        for (const b of bienes.filter(x => ids.includes(x.id))) {
-          await supabase.from('bens').update(conSello({ data: { ...b, estadoConservacion: 'De Baja' } })).eq('id', b.id);
+        const objetivo = bienes.filter(x => ids.includes(x.id));
+        let fallos = 0;
+        for (const b of objetivo) {
+          const r = await supabase.from('bens').update(conSello({ data: { ...b, estadoConservacion: 'De Baja' } })).eq('id', b.id);
+          if (r.error) fallos++;
         }
+        if (fallos > 0) throw new Error(`${fallos} de ${objetivo.length} bienes no se pudieron actualizar`);
         setBienes(prev => prev.map(b => (ids.includes(b.id) ? { ...b, estadoConservacion: 'De Baja' } : b)));
         await registrarAuditoria({
           usuario: currentUser?.username || 'Admin', dependencia: dependenciaActual,
@@ -613,7 +638,8 @@ export default function App() {
           const sid = generateId();
           return { id: sid, data: { id: sid, bienId: id, rotulo: b?.rotulo, descripcion: b?.descripcion, ubicacion: b?.ubicacion, funcionario: b?.funcionario, solicitante: currentUser?.username || 'Usuario', dependencia: dependenciaActual, tipo: 'BAJA_BIEN', estado: 'PENDIENTE', motivo: 'Baja masiva desde inventario', created_at: new Date().toISOString() } };
         });
-        await supabase.from('notificaciones').insert(filas);
+        const { error: errSol } = await supabase.from('notificaciones').insert(filas);
+        if (errSol) throw errSol;
         setNotificaciones(prev => [...filas.map(f => ({ id: f.id, ...f.data })), ...prev]);
         addToast(`${ids.length} solicitudes de baja enviadas.`, 'success');
       }
@@ -1256,14 +1282,20 @@ useEffect(() => {
       // Actualizamos inmediatamente el estado local para que no desaparezca ni parpadee
       setBienes(prev => prev.map(b => b.id === bien.id ? updatedBien : b)); 
       
-      try { 
-          await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
-          
-          const cacheActual = await localforage.getItem('bienes_cache') || [];
-          const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
-          await localforage.setItem('bienes_cache', nuevoCache);
+      try {
+          // La caché va con sufijo de dependencia: 'bienes_cache' a secas era
+          // una clave que nadie leía, así que el cambio de QR no llegaba a la
+          // caché real y un delta posterior podía resucitar el estado viejo.
+          const { error: errQR } = await supabase.from('bens').update(conSello({ data: updatedBien })).eq('id', updatedBien.id);
+          // supabase-js no lanza: resuelve con { error }.
+          if (errQR) throw errQR;
 
-          addToast(`Estado QR actualizado`, "success"); 
+          const claveCache = `bienes_cache_${dependenciaActual}`;
+          const cacheActual = await localforage.getItem(claveCache) || [];
+          const nuevoCache = cacheActual.map(b => b.id === bien.id ? updatedBien : b);
+          await localforage.setItem(claveCache, nuevoCache);
+
+          addToast(`Estado QR actualizado`, "success");
       } catch (error) { 
           // Si falla, revertimos el cambio en pantalla
           setBienes(prev => prev.map(b => b.id === bien.id ? bien : b));
@@ -1321,7 +1353,12 @@ useEffect(() => {
         if (newBienes.length > 0) {
           try {
             const payload = newBienes.map(b => conSello({ id: b.id, data: b }));
-            await supabase.from('bens').insert(payload);
+            const { error: errInsert } = await supabase.from('bens').insert(payload);
+            // supabase-js NO lanza en error de Postgres/RLS: resuelve con
+            // { error }. Sin esta comprobación el usuario veía "¡Éxito!" con
+            // los bienes sin guardar, y recién al recargar aparecían los
+            // bienes fantasma.
+            if (errInsert) throw errInsert;
             // Actualización local dirigida (evita recargar todo el inventario)
             setBienes(prev => [...newBienes, ...prev.filter(b => !newBienes.some(n => n.id === b.id))]);
             try {
@@ -1330,7 +1367,7 @@ useEffect(() => {
             } catch (e) {}
             addToast(`¡Éxito! Se guardaron ${newBienes.length} bienes nuevos.${duplicatesSkipped > 0 ? ` Se omitieron ${duplicatesSkipped} duplicados.` : ''}`, "success");
           } catch (error) {
-            addToast("Error al guardar registros en la base de datos.", "error", { action: { label: 'Reintentar', onClick: () => { if (ultimoArchivoBienesRef.current) executeProcessBienesCSV(ultimoArchivoBienesRef.current); } } });
+            addToast(`No se pudieron guardar los bienes: ${error?.message || 'error de la base de datos'}.`, "error", { action: { label: 'Reintentar', onClick: () => { if (ultimoArchivoBienesRef.current) executeProcessBienesCSV(ultimoArchivoBienesRef.current); } } });
           }
         } else {
           addToast(`No se importó ningún bien. Se omitieron ${duplicatesSkipped} duplicados.`, "warning");
@@ -1363,24 +1400,75 @@ useEffect(() => {
 
 
 
+  // handleScanSuccess se recrea en cada render. El lector de QR se inicializa
+  // solo con [isScannerOpen] (agregarlo reiniciaría la cámara en cada render),
+  // así que se guarda en un ref para que el callback vea siempre la versión
+  // actual: si no, el escaneo usaría datos viejos (modo conteo, dependencias).
+  const scanSuccessRef = useRef(handleScanSuccess);
+  useEffect(() => { scanSuccessRef.current = handleScanSuccess; });
+
   // Extracción de código QR: helper puro en utils/qr (Fase 1).
-  // Modo conteo: el escáner alimenta la conciliación física en vez de abrir el bien
+  // Modo conteo: el escáner alimenta la conciliación física en vez de abrir el bien.
+  //
+  // El cleanup importa: html5-qrcode mantiene el elemento #reader registrado
+  // aunque se lo detenga. Sin stop()+clear() al cerrar, el segundo ciclo de
+  // apertura chocaba con la instancia previa y la cámara no arrancaba (el
+  // error era "no se pudo acceder a la cámara" con los permisos correctos).
+  // También se limpia el timer: si el usuario cerraba antes de los 300 ms, la
+  // cámara arrancaba igual sobre un nodo ya desmontado.
   useEffect(() => {
-      if (isScannerOpen) {
-          setTimeout(() => {
-              if (window.Html5Qrcode) {
-                  const html5QrCode = new window.Html5Qrcode("reader");
-                  window.html5QrCode = html5QrCode;
-                  
-                  html5QrCode.start(
-                      { facingMode: "environment" },
-                      { fps: 10, qrbox: { width: 250, height: 250 } },
-                      (decodedText) => { html5QrCode.stop().then(() => { handleScanSuccess(decodedText); }).catch(() => { handleScanSuccess(decodedText); }); },
-                      (errorMessage) => {}
-                  ).catch(err => { addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error"); setIsScannerOpen(false); });
+      if (!isScannerOpen) return;
+      let instancia = null;
+      const timer = setTimeout(() => {
+          if (!window.Html5Qrcode) {
+              addToast("El lector de QR no está disponible.", "error");
+              setIsScannerOpen(false);
+              return;
+          }
+          try {
+              instancia = new window.Html5Qrcode("reader");
+              window.html5QrCode = instancia;
+          } catch (e) {
+              // Quedó una instancia previa viva: se libera antes de reintentar.
+              try { window.html5QrCode?.clear(); } catch (e2) {}
+              try {
+                  instancia = new window.Html5Qrcode("reader");
+                  window.html5QrCode = instancia;
+              } catch (e3) {
+                  addToast("No se pudo iniciar el lector de QR.", "error");
+                  setIsScannerOpen(false);
+                  return;
               }
-          }, 300);
-      }
+          }
+
+          instancia.start(
+              { facingMode: "environment" },
+              { fps: 10, qrbox: { width: 250, height: 250 } },
+              (decodedText) => {
+                  const seguir = () => scanSuccessRef.current(decodedText);
+                  if (instancia && instancia.isScanning) instancia.stop().then(seguir).catch(seguir);
+                  else seguir();
+              },
+              () => {}
+          ).catch(() => {
+              addToast("No se pudo acceder a la cámara. Verifique los permisos.", "error");
+              setIsScannerOpen(false);
+          });
+      }, 300);
+
+      return () => {
+          clearTimeout(timer);
+          const inst = instancia || window.html5QrCode;
+          if (inst) {
+              try { if (inst.isScanning) inst.stop(); } catch (e) {}
+              try { inst.clear(); } catch (e) {}
+          }
+          if (window.html5QrCode === inst) window.html5QrCode = null;
+      };
+      // handleScanSuccess queda fuera a propósito: se recrea en cada render y
+      // incluirlo reiniciaría la cámara continuamente. El ref de abajo
+      // mantiene la lógica siempre al día sin reiniciar nada.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScannerOpen]);
 
 

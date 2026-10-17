@@ -419,36 +419,59 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
     setIsProcessing({ active: true, text: "Generando respaldo integral del sistema..." });
 
     try {
-      const [allBienes, allFc10, allFc11, allFc04, allEstructuras, allUsuarios, allFuncionarios, allNotif, allAudit] = await Promise.all([
-        supabase.from("bens").select("*"),
-        supabase.from("fc10").select("*"),
-        supabase.from("fc11").select("*"),
-        supabase.from("fc04").select("*"),
-        supabase.from("estructuras").select("*"),
-        supabase.from("usuarios").select("username, nombre, cargo, dependencia"),
-        supabase.from("funcionarios").select("*"),
-        supabase.from("notificaciones").select("*"),
-        supabase.from("auditoria").select("*")
+      // Descarga paginada: PostgREST corta cada select en 1000 filas
+      // (db-max-rows). Sin esto el respaldo se guardaba truncado en silencio y
+      // el usuario lo leía como "copia completa". Ahora recorre cada tabla por
+      // bloques y aborta si alguna falla, para que un respaldo incompleto sea
+      // visible en vez de silencioso.
+      const drenar = async (tabla, columnas = "*") => {
+        const LOTE = 1000;
+        const filas = [];
+        let desde = 0;
+        for (;;) {
+          const { data, error } = await supabase
+            .from(tabla)
+            .select(columnas)
+            .range(desde, desde + LOTE - 1);
+          if (error) throw new Error(`${tabla}: ${error.message}`);
+          filas.push(...(data || []));
+          if (!data || data.length < LOTE) break;
+          desde += LOTE;
+        }
+        return filas;
+      };
+
+      const [bienesDb, fc10Db, fc11Db, fc04Db, estructurasDb, usuariosDb, funcionariosDb, notifDb, auditDb] = await Promise.all([
+        drenar("bens"),
+        drenar("fc10"),
+        drenar("fc11"),
+        drenar("fc04"),
+        drenar("estructuras"),
+        drenar("usuarios", "username, nombre, cargo, dependencia"),
+        drenar("funcionarios"),
+        drenar("notificaciones"),
+        drenar("auditoria")
       ]);
 
       const backupData = {
         metadata: {
-          version: "2.0",
+          version: "2.1",
           sistema: "Sistema de Gestión Patrimonial UNP",
           fechaGeneracion: new Date().toISOString(),
           generadoPor: currentUser?.username || "Admin",
-          totalBienes: allBienes.data?.length || 0,
-          totalFuncionarios: allFuncionarios.data?.length || 0
+          totalBienes: bienesDb.length,
+          totalFuncionarios: funcionariosDb.length,
+          warning: "Este archivo contiene datos personales de funcionarios (cedulas) y detalles de bienes patrimoniales. Tratarlo como informacion sensible."
         },
-        bienes: allBienes.data || [],
-        fc10: allFc10.data || [],
-        fc11: allFc11.data || [],
-        fc04: allFc04.data || [],
-        estructuras: allEstructuras.data || [],
-        usuarios: (allUsuarios.data || []).map(u => ({ username: u.username, nombre: u.nombre, cargo: u.cargo, rol: u.rol })),
-        funcionarios: allFuncionarios.data || [],
-        notificaciones: allNotif.data || [],
-        auditoria: allAudit.data || []
+        bienes: bienesDb,
+        fc10: fc10Db,
+        fc11: fc11Db,
+        fc04: fc04Db,
+        estructuras: estructurasDb,
+        usuarios: usuariosDb.map(u => ({ username: u.username, nombre: u.nombre, cargo: u.cargo, rol: u.rol })),
+        funcionarios: funcionariosDb,
+        notificaciones: notifDb,
+        auditoria: auditDb
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);
@@ -463,7 +486,9 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         a.href = url;
         a.download = `BACKUP_SISTEMA_PATRIMONIAL_UNP_${fechaStr}.json`;
         a.click();
-        URL.revokeObjectURL(url);
+        // Con margen: revocar en el mismo tick puede cancelar la descarga en
+        // Safari (el blob todavía se está leyendo).
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
       }
 
       await registrarAuditoria({
@@ -475,10 +500,12 @@ const handleDownloadSimpleQR = async (bien, returnOnly = false) => {
         detalles: { fecha: fechaStr, generadoPor: currentUser?.username }
       });
 
-      notify("Copia de seguridad del sistema descargada exitosamente.", "success");
+      notify(`Respaldo descargado: ${bienesDb.length} bienes, ${fc10Db.length} FC-10, ${auditDb.length} auditorías.`, "success");
     } catch (err) {
       console.error("Error al generar backup general:", err);
-      notify("Error al generar copia de seguridad del sistema.", "error");
+      // Un respaldo incompleto es peor que no tener respaldo: da falsa
+      // confianza. Se dice qué tabla faltó para que se pueda reintentar.
+      notify(`No se pudo generar el respaldo: ${err?.message || 'error desconocido'}.`, "error");
     } finally {
       setIsProcessing({ active: false, text: "" });
     }

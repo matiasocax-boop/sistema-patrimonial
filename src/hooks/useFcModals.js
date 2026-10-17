@@ -678,18 +678,27 @@ export function useFcModals({
                   newBienes.push({ id: generateId(), dependencia: dependenciaActual, cuenta: item.cuenta || '', subcuenta: item.subcuenta || '', analitico1: item.analitico1 || '', analitico2: item.analitico2 || '', descripcion: item.descripcion || '', rotulo: item.rotulo || '', valorUnitario: String(item.valorUnitario).replace(/\./g, ''), fechaAdquisicion: item.fechaAdquisicion || '', vidaUtil: item.vidaUtil || '', funcionario: '', ubicacion: '', hasFC10: false, hasQR: false, estadoConservacion: 'Muy bueno' }); 
               }
           }
-          if (newBienes.length > 0) { 
+          if (newBienes.length > 0) {
               const payloadNewBienes = newBienes.map(b => conSello({ id: b.id, data: b }));
-              await supabase.from('bens').insert(payloadNewBienes);
-              setBienes(prev => [...newBienes, ...prev]); 
-              notify(`${newBienes.length} bienes inyectados.`, "success"); 
+              // El FC-04 ya se guardó OK (se verificó más arriba). Estas son
+              // las escrituras en cascada sobre los bienes: si fallan, el
+              // expediente queda guardado pero los bienes no, y antes se
+              // anunciaba "bienes inyectados" igual. supabase-js no lanza,
+              // resuelve con { error }.
+              const { error: errInj } = await supabase.from('bens').insert(payloadNewBienes);
+              if (errInj) throw errInj;
+              setBienes(prev => [...newBienes, ...prev]);
+              notify(`${newBienes.length} bienes inyectados.`, "success");
           }
-          if (updatedBienes.length > 0) { 
+          if (updatedBienes.length > 0) {
+              let errBajas = null;
               for (const b of updatedBienes) {
-                  await supabase.from('bens').update(conSello({ data: b })).eq('id', b.id);
+                  const r = await supabase.from('bens').update(conSello({ data: b })).eq('id', b.id);
+                  if (r.error && !errBajas) errBajas = r.error;
               }
-              setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old)); 
-              notify(`${updatedBienes.length} bajas registradas.`, "success"); 
+              if (errBajas) throw errBajas;
+              setBienes(prev => prev.map(old => updatedBienes.find(upd => upd.id === old.id) || old));
+              notify(`${updatedBienes.length} bajas registradas.`, "success");
           }
       }
       if (fc04Editing) setFc04List(prev => prev.map(item => item.id === fc04Data.id ? fc04Data : item)); else setFc04List(prev => [fc04Data, ...prev]); setIsFC04ModalOpen(false);

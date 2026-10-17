@@ -105,17 +105,26 @@ export function useAuditoria({
       } catch (e) {
         setKpisAud({ total: 0, altas: 0, mods: 0, bajas: 0 });
       }
-      // Acciones distintas para el filtro
+      // Acciones distintas para el filtro. Acotado y del mismo alcance que el
+      // listado: antes traía 1000 acciones de TODAS las dependencias, así que
+      // el desplegable ofrecía acciones que al filtrar no daban resultados, y
+      // gastaba 1000 filas leídas en cada tecla del buscador.
       try {
-        const { data: ad } = await supabase.from('auditoria').select('accion').limit(1000);
+        let qAcc = supabase.from('auditoria').select('accion').limit(200);
+        if (alcanceAud === 'dep') qAcc = qAcc.eq('dependencia', dependenciaActual);
+        const { data: ad } = await qAcc;
         setAccionesUnicasAud([...new Set((ad || []).map(r => String(r.accion || 'OTROS')))].sort());
       } catch (e) {}
     } catch (e) {}
     finally { setIsLoadingAud(false); }
   };
+  // dependenciaActual faltaba en las dependencias: al cambiar de dependencia la
+  // vista de auditoría no volvía a consultar y seguía mostrando el libro de
+  // eventos de la dependencia anterior. En una pantalla de auditoría eso es un
+  // fallo de integridad directo.
   useEffect(() => {
     if (activeTab === 'auditoria' && isAdmin) fetchAuditoria(1);
-  }, [activeTab, alcanceAud]);
+  }, [activeTab, alcanceAud, dependenciaActual]);
   useEffect(() => {
     if (activeTab !== 'auditoria' || !isAdmin) return;
     const t = setTimeout(() => fetchAuditoria(1), 450);
