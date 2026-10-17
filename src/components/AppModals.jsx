@@ -265,29 +265,32 @@ export default function AppModals({
                 <div className="p-8 space-y-6 bg-white dark:bg-zinc-900">
                     <div className="space-y-2">
                         <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Tipo de Reporte</label>
-                        <div className="relative">
-                            <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.tipoFiltro} onChange={e => {
-                                setFc03Config({...fc03Config, tipoFiltro: e.target.value, filtroValor: ''});
+                        <FiltroCombo
+                            valor={fc03Config.tipoFiltro}
+                            opciones={[
+                                { label: 'General (Toda la Dependencia)', value: 'general' },
+                                { label: 'Por Ubicación Específica', value: 'ubicacion' },
+                                { label: 'Por Funcionario Responsable', value: 'funcionario' },
+                            ]}
+                            onElegir={(v) => {
+                                setFc03Config({ ...fc03Config, tipoFiltro: v, filtroValor: '' });
                                 setFc03FuncionarioTexto('');
                                 setShowFC03FuncDropdown(false);
-                            }}>
-                                <option value="general">General (Toda la Dependencia)</option>
-                                <option value="ubicacion">Por Ubicación Específica</option>
-                                <option value="funcionario">Por Funcionario Responsable</option>
-                            </select>
-                            <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
-                        </div>
+                            }}
+                            etiquetaTodos="General (Toda la Dependencia)"
+                            titulo="Tipo de reporte"
+                        />
                     </div>               
                     {fc03Config.tipoFiltro === 'ubicacion' && (
                         <div className="space-y-2 animate-fade-in">
                             <label className="block text-[11px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Seleccionar Ubicación</label>
-                            <div className="relative">
-                                <select className="block w-full rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950 px-4 py-3.5 text-sm font-bold text-zinc-900 dark:text-white focus:bg-white dark:focus:bg-zinc-900 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 focus:outline-none transition-all cursor-pointer appearance-none" value={fc03Config.filtroValor} onChange={e => setFc03Config({...fc03Config, filtroValor: e.target.value})}>
-                                    <option value="">Seleccione una ubicación...</option>
-                                    {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
-                                </select>
-                                <i className="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-xs text-zinc-400 pointer-events-none"></i>
-                            </div>
+                            <FiltroCombo
+                                valor={fc03Config.filtroValor}
+                                opciones={ubicacionesUnicas}
+                                onElegir={(v) => setFc03Config({ ...fc03Config, filtroValor: v })}
+                                etiquetaTodos="Seleccione una ubicación..."
+                                titulo="Ubicación"
+                            />
                         </div>
                     )}               
                     {fc03Config.tipoFiltro === 'funcionario' && (() => {

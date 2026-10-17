@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDraft, serializarForm } from '../hooks/useDraft';
+import FiltroCombo from './FiltroCombo';
 
 export default function FC11Modal({
     setIsFC11ModalOpen,
@@ -126,10 +127,14 @@ export default function FC11Modal({
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Dependencia Destinataria</label>
-                                        <select name="dependenciaDestinataria" required defaultValue={defectoFC('dependenciaDestinataria', (fc11Editing?.dependenciaDestinataria || ''))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
-                                            <option value="" disabled>Seleccione destino...</option>
-                                            {todasDependencias.map(d => <option key={d} value={d}>{d}</option>)}
-                                        </select>
+                                        <FiltroCombo
+                                            name="dependenciaDestinataria"
+                                            required
+                                            valor={defectoFC('dependenciaDestinataria', (fc11Editing?.dependenciaDestinataria || ''))}
+                                            opciones={todasDependencias}
+                                            etiquetaTodos="Seleccione destino..."
+                                            titulo="Dependencia destinataria"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Área Destinataria</label>
@@ -151,22 +156,25 @@ export default function FC11Modal({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Motivo del Traslado</label>
-                                        <select name="motivo" required defaultValue={defectoFC('motivo', (fc11Editing?.motivo || 'Traspaso'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
-                                            <option value="Traspaso">Traspaso</option>
-                                            <option value="Préstamo">Préstamo</option>
-                                            <option value="Inservible">Inservible</option>
-                                            <option value="Faltante">Faltante</option>
-                                        </select>
+                                        <FiltroCombo
+                                            name="motivo"
+                                            required
+                                            valor={defectoFC('motivo', (fc11Editing?.motivo || 'Traspaso'))}
+                                            opciones={['Traspaso', 'Préstamo', 'Inservible', 'Faltante']}
+                                            etiquetaTodos="Motivo"
+                                            titulo="Motivo del traslado"
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación Actual</label>
-                                        <select name="estadoConservacion" required defaultValue={defectoFC('estadoConservacion', (fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'))} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary cursor-pointer`}>
-                                            <option value="Muy bueno">Muy bueno</option>
-                                            <option value="Bueno">Bueno</option>
-                                            <option value="Regular">Regular</option>
-                                            <option value="Malo">Malo</option>
-                                            <option value="Inutilizable">Inutilizable</option>
-                                        </select>
+                                        <FiltroCombo
+                                            name="estadoConservacion"
+                                            required
+                                            valor={defectoFC('estadoConservacion', (fc11Editing?.estadoConservacion || fc11TargetBien.estadoConservacion || 'Bueno'))}
+                                            opciones={['Muy bueno', 'Bueno', 'Regular', 'Malo', 'Inutilizable']}
+                                            etiquetaTodos="Estado"
+                                            titulo="Estado de conservación"
+                                        />
                                     </div>
                                     <div className="md:col-span-2">
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Observaciones</label>

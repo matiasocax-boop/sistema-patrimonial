@@ -1,4 +1,5 @@
 import { normalizeStr } from '../utils/helpers';
+import FiltroCombo from '../components/FiltroCombo';
 
 // Vista de auditoría -solo admin- (extraída de App.jsx, Fase 5).
 export default function AuditoriaView({
@@ -142,14 +143,14 @@ export default function AuditoriaView({
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Escanea o escribe rótulos y compara contra el inventario activo del alcance elegido.</p>
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <select
-              value={conteoUbicacion} onChange={(e) => setConteoUbicacion(e.target.value)}
-              title="Alcance de la conciliación"
-              className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary max-w-[220px] truncate"
-            >
-              <option value="">Toda la dependencia ({bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja').length})</option>
-              {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+            <FiltroCombo
+              valor={conteoUbicacion}
+              opciones={ubicacionesUnicas}
+              onElegir={setConteoUbicacion}
+              etiquetaTodos={`Toda la dependencia (${bienes.filter(b => normalizeStr(b.dependencia) === normalizeStr(dependenciaActual) && b.estadoConservacion !== 'De Baja').length})`}
+              titulo="Alcance de la conciliación"
+              ancho="max-w-[240px]"
+            />
           </div>
           <div className="relative mb-4">
             <i className="fa-solid fa-barcode absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none"></i>
@@ -217,14 +218,14 @@ export default function AuditoriaView({
               title="Cantidad a muestrear"
               className="w-20 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-sm font-bold tabular-nums text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10"
             />
-            <select
-              value={muestraUbicacion} onChange={(e) => setMuestraUbicacion(e.target.value)}
-              title="Alcance del muestreo"
-              className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary max-w-[220px] truncate"
-            >
-              <option value="">Toda la dependencia</option>
-              {ubicacionesUnicas.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
+            <FiltroCombo
+              valor={muestraUbicacion}
+              opciones={ubicacionesUnicas}
+              onElegir={setMuestraUbicacion}
+              etiquetaTodos="Toda la dependencia"
+              titulo="Alcance del muestreo"
+              ancho="max-w-[240px]"
+            />
             <button onClick={generarMuestra} className="h-10 px-4 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none">
               Generar muestra
             </button>
@@ -292,13 +293,14 @@ export default function AuditoriaView({
               className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 pl-10 pr-3 text-[13px] font-medium text-zinc-900 dark:text-white placeholder:text-zinc-400 outline-none focus:border-zinc-900 dark:focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/5 dark:focus:ring-white/10 w-full sm:w-56"
             />
           </div>
-          <select
-            value={filtroAccionAud} onChange={(e) => setFiltroAccionAud(e.target.value)}
-            className="rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 dark:bg-white/5 h-10 px-3 text-[13px] font-semibold text-zinc-600 dark:text-zinc-300 outline-none cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary"
-          >
-            <option value="">Acción: Todas</option>
-            {accionesUnicasAud.map(a => <option key={a} value={a}>{a}</option>)}
-          </select>
+          <FiltroCombo
+            valor={filtroAccionAud}
+            opciones={accionesUnicasAud}
+            onElegir={setFiltroAccionAud}
+            etiquetaTodos="Acción: Todas"
+            titulo="Filtrar por acción"
+            ancho="max-w-[200px]"
+          />
         </div>
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse min-w-[720px]">

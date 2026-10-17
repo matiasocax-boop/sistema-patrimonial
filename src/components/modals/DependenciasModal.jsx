@@ -1,3 +1,4 @@
+import FiltroCombo from '../FiltroCombo';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { normalizeStr } from '../../utils/helpers';
 
@@ -212,14 +213,14 @@ export default function DependenciasModal({
                 <h3 className="text-base font-bold text-zinc-900 dark:text-white">{detSel.nombre}</h3>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 tabular-nums">{detSel.bienes} bienes · {detSel.funcionarios} funcionarios con este nombre (posible error de carga).</p>
                 <div className="flex flex-wrap items-center gap-2 mt-4">
-                  <select
-                    defaultValue=""
-                    onChange={(e) => { if (e.target.value) onFusionar(detSel.nombre, e.target.value); }}
-                    className="h-10 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-950 px-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer max-w-full"
-                  >
-                    <option value="">Fusionar en...</option>
-                    {dependencias.map(o => <option key={o.id} value={o.nombre}>{o.nombre}</option>)}
-                  </select>
+                  <FiltroCombo
+                    valor=""
+                    opciones={dependencias.map(o => ({ label: o.nombre, value: o.nombre }))}
+                    onElegir={(v) => { if (v) onFusionar(detSel.nombre, v); }}
+                    etiquetaTodos="Fusionar en..."
+                    titulo="Fusionar en una dependencia"
+                    ancho="max-w-[280px]"
+                  />
                   <button
                     onClick={() => onSave(null, detSel.nombre)}
                     title="Agregar como dependencia oficial"

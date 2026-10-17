@@ -54,7 +54,11 @@ export function useAuditoria({
         const { data, error } = await supabase.from('auditoria').select('id,accion').lt('fecha', corte).limit(500);
         if (error || !data || data.length === 0) break;
         const ids = data.filter(r => !ACCIONES_SENSIBLES.test(String(r.accion || ''))).map(r => r.id);
-        if (ids.length > 0) await supabase.from('auditoria').delete().in('id', ids);
+        // Si el lote entero es de acciones sensibles (rastro legal) no se borra
+        // nada: seguir iterando devolvería las mismas 500 filas para siempre.
+        if (ids.length === 0) break;
+        const { error: errDel } = await supabase.from('auditoria').delete().in('id', ids);
+        if (errDel) break;
         if (data.length < 500) break;
       }
     } catch (e) {}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDraft, serializarForm } from '../hooks/useDraft';
+import FiltroCombo from './FiltroCombo';
 
 const LABEL = "block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2";
 const INPUT_FOCUS = " focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary";
@@ -49,9 +50,9 @@ export default function FC04Modal({ setIsFC04ModalOpen, fc04Editing, saveFC04, f
                 <form key={formKeyFC} onSubmit={async (e) => { const ok = await saveFC04(e); if (ok) limpiarBorradorFC(); }} onChange={(e) => guardarBorradorFC(serializarForm(e.currentTarget))} className="flex flex-col h-full overflow-hidden">
                     <div className={STYLES.modalBody}>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-2">
-                            <div><label className={LABEL}>Mes</label><select name="mes" required defaultValue={defectoFC('mes', (fc04Editing?.mes || fc10Month))} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 12}, (_, i) => String(i + 1).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}</select></div>
-                            <div><label className={LABEL}>Año</label><select name="anio" required defaultValue={defectoFC('anio', (fc04Editing?.anio || fc10Year))} className={STYLES.input + INPUT_FOCUS + " tabular-nums"}>{Array.from({length: 10}, (_, i) => String(new Date().getFullYear() - 5 + i)).map(y => <option key={y} value={y}>{y}</option>)}</select></div>
-                            <div><label className={LABEL}>Origen del Movimiento</label><select name="origenMovimiento" required defaultValue={defectoFC('origenMovimiento', (fc04Editing?.origenMovimiento))} className={STYLES.input + INPUT_FOCUS}>{safeOrigenes.map(o => <option key={o.id} value={o.id}>{o.id} - {o.nombre}</option>)}</select></div>
+                            <div><label className={LABEL}>Mes</label><FiltroCombo name="mes" required valor={defectoFC('mes', (fc04Editing?.mes || fc10Month))} opciones={Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'))} etiquetaTodos="Mes" titulo="Mes del periodo" compacto /></div>
+                            <div><label className={LABEL}>Año</label><FiltroCombo name="anio" required valor={defectoFC('anio', (fc04Editing?.anio || fc10Year))} opciones={Array.from({ length: 10 }, (_, i) => String(new Date().getFullYear() - 5 + i))} etiquetaTodos="Año" titulo="Año del periodo" compacto /></div>
+                            <div><label className={LABEL}>Origen del Movimiento</label><FiltroCombo name="origenMovimiento" required valor={defectoFC('origenMovimiento', (fc04Editing?.origenMovimiento))} opciones={safeOrigenes.map(o => ({ label: `${o.id} - ${o.nombre}`, value: o.id }))} etiquetaTodos="Origen" titulo="Origen del movimiento" compacto /></div>
                         </div>
 
                         <div className="flex items-center gap-2 mb-6 p-4 rounded-lg bg-zinc-50 border border-zinc-200 dark:bg-darkbg-main dark:border-darkbg-border">

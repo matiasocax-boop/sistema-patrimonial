@@ -6,11 +6,20 @@ import SimpleBar from '../components/SimpleBar';
 export default function DashboardView({
   currentUser, dependenciaActual, saludoBienvenida, stats, pendientes, isLoading,
   timeStats, clearAllFilters, setActiveTab,
-  setFiltroQR, setFiltroFC10, setFiltroPendiente, setFiltroAnio, setFiltroMes,
+  setFiltroQR, setFiltroFC10, setFiltroPendiente, setFiltroAnio, setFiltroMes, setCurrentPage,
   setBienEditing, setIsBienModalOpen, fileInputRef, handleExportInventarioCSV,
   setIsBulkQR, setQrTargetBien, setIsQRModalOpen, openFC03Modal,
   setFc10Year, setFc10Month
 }) {
+  // Atajo del panel hacia Inventario: limpia filtros, aplica el nuevo y vuelve
+  // a la página 1. Sin el reset, si venías en la página 5 la tabla quedaba vacía.
+  const irInventario = (aplicar) => {
+    clearAllFilters();
+    if (aplicar) aplicar();
+    if (setCurrentPage) setCurrentPage(1);
+    setActiveTab('inventario');
+  };
+
   // Widgets visibles del panel (preferencia por usuario).
   const [widgets, setWidgets] = useState(() => {
     try { return { metricas: true, pendientes: true, accesos: true, tendencias: true, ...JSON.parse(localStorage.getItem('dash_widgets') || '{}') }; }
@@ -115,7 +124,7 @@ export default function DashboardView({
 
         {/* Bienes con QR */}
         <button
-          onClick={() => { clearAllFilters(); setFiltroQR('YES'); setActiveTab('inventario'); }}
+          onClick={() => { irInventario(() => setFiltroQR('YES')); }}
           title="Ver bienes con QR"
           className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-zinc-200/70 dark:border-white/10 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-brand-primary outline-none transition-all duration-200 cursor-pointer"
         >
@@ -139,7 +148,7 @@ export default function DashboardView({
 
         {/* Sin FC-10 */}
         <button
-          onClick={() => { clearAllFilters(); setFiltroFC10('NO'); setActiveTab('inventario'); }}
+          onClick={() => { irInventario(() => setFiltroFC10('NO')); }}
           title="Ver bienes sin FC-10"
           className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-amber-200/70 dark:border-amber-400/20 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-amber-500 outline-none transition-all duration-200 cursor-pointer"
         >
@@ -162,7 +171,7 @@ export default function DashboardView({
 
         {/* Pendiente QR */}
         <button
-          onClick={() => { clearAllFilters(); setFiltroQR('NO'); setActiveTab('inventario'); }}
+          onClick={() => { irInventario(() => setFiltroQR('NO')); }}
           title="Ver bienes sin QR"
           className="group relative text-left bg-white dark:bg-white/[0.04] rounded-3xl border border-rose-200/70 dark:border-rose-400/20 p-5 sm:p-6 shadow-sm hover:shadow-md hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-rose-500 outline-none transition-all duration-200 cursor-pointer"
         >
@@ -203,7 +212,7 @@ export default function DashboardView({
               {pendientes.map(p => (
                   <button
                       key={p.id}
-                      onClick={() => { clearAllFilters(); setFiltroPendiente(p.id); setActiveTab('inventario'); }}
+                      onClick={() => { irInventario(() => setFiltroPendiente(p.id)); }}
                       title={`Atender: ${p.label}`}
                       className="group flex items-center gap-3 rounded-2xl border border-zinc-200/70 dark:border-white/10 hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-white/[0.06] px-3.5 py-3 text-left transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-brand-primary outline-none"
                   >
@@ -308,7 +317,7 @@ export default function DashboardView({
                     </div>
                 ) : timeStats.adqByYear.map((item, idx) => {
                     const colors = ["bg-zinc-900 dark:bg-white", "bg-zinc-600 dark:bg-zinc-400", "bg-zinc-400 dark:bg-zinc-600", "bg-zinc-300 dark:bg-zinc-700"];
-                    return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" title={`Filtrar inventario por año ${item.year}`} onClick={() => { clearAllFilters(); setFiltroAnio(item.year); setActiveTab('inventario'); }} />;
+                    return <SimpleBar key={item.year} label={item.year} value={item.count} max={timeStats.adqMax} colorClass={colors[idx] || "bg-zinc-400"} bgClass="bg-zinc-100 dark:bg-white/5" title={`Filtrar inventario por año ${item.year}`} onClick={() => { irInventario(() => setFiltroAnio(item.year)); }} />;
                 })}
               </div>
             </div>

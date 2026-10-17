@@ -22,7 +22,16 @@ export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Edit
     };
     const [isReturning, setIsReturning] = useState(false);
     const [step, setStep] = useState(1); 
-    const savedOrg = JSON.parse(localStorage.getItem('unp_last_org_data') || '{}');
+    // Lectura defensiva: un JSON corrupto en localStorage rompía el render del
+    // modal entero (ErrorBoundary) y se re-parseaba en cada render.
+    const savedOrg = (() => {
+        try {
+            const raw = JSON.parse(localStorage.getItem('unp_last_org_data') || '{}');
+            return raw && typeof raw === 'object' ? raw : {};
+        } catch {
+            return {};
+        }
+    })();
     const safeFuncionarios = funcionariosConDatos || [];
 
     // ---- Paso 1: estructura organizacional (en cascada) --------------------

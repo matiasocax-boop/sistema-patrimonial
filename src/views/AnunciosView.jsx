@@ -100,15 +100,13 @@ export default function AnunciosView({
             </button>
           </div>
           {destino !== 'TODOS' && (
-            <select
-              value={destino} onChange={(e) => setDestino(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 h-10 px-4 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 outline-none cursor-pointer"
-            >
-              <option value="">Elegir usuario...</option>
-              {usuariosOrdenados.map(u => (
-                <option key={u.username} value={u.username}>{u.nombre || u.username} (@{u.username})</option>
-              ))}
-            </select>
+            <FiltroCombo
+              valor={destino}
+              opciones={usuariosOrdenados.map(u => ({ label: `${u.nombre || u.username} (@${u.username})`, value: u.username }))}
+              onElegir={setDestino}
+              etiquetaTodos="Elegir usuario..."
+              titulo="Destinatario del anuncio"
+            />
           )}
         </div>
         <div className="flex justify-end">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useIdioma } from '../utils/i18n';
+import FiltroCombo from './FiltroCombo';
 
 export default function Header({
     setIsSidebarOpen, activeTab, setActiveTab, setIsScannerOpen,
@@ -79,23 +80,25 @@ export default function Header({
                 </button>
 
                 <div className="hidden lg:flex items-center gap-2">
-                    <div className="relative flex items-center">
-                      <i className={`fa-solid ${isAdmin ? 'fa-building-columns' : 'fa-lock'} text-zinc-400 absolute left-3.5 text-xs pointer-events-none`}></i>
-                      <select 
-                         className={`appearance-none text-[13px] font-semibold rounded-xl pl-9 pr-8 h-10 outline-none transition-all max-w-[200px] truncate focus-visible:ring-2 focus-visible:ring-brand-primary ${isAdmin ? 'bg-zinc-100 dark:bg-white/5 border border-transparent hover:border-zinc-200 dark:hover:border-white/10 text-zinc-600 dark:text-zinc-300 cursor-pointer' : 'bg-transparent border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 cursor-not-allowed'}`} 
-                         value={dependenciaActual} 
-                         onChange={(e) => { setDependenciaActual(e.target.value); clearAllFilters(); }}
-                         disabled={!isAdmin}
-                         title={!isAdmin ? "Su cuenta está restringida a esta dependencia" : "Cambiar entorno de trabajo"}
+                    {isAdmin ? (
+                      <FiltroCombo
+                        valor={dependenciaActual}
+                        opciones={todasDependencias}
+                        onElegir={(v) => { if (!v) return; setDependenciaActual(v); clearAllFilters(); }}
+                        etiquetaTodos="Elegí dependencia"
+                        titulo="Cambiar entorno de trabajo"
+                        ancho="max-w-[220px]"
+                        className="font-semibold bg-zinc-100 dark:bg-white/5 border-transparent hover:border-zinc-200 dark:hover:border-white/10"
+                      />
+                    ) : (
+                      <span
+                        title="Su cuenta está restringida a esta dependencia"
+                        className="inline-flex items-center gap-2 h-10 max-w-[220px] px-3.5 rounded-xl bg-transparent border border-zinc-200 dark:border-white/10 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400"
                       >
-                        {!isAdmin ? (
-                            <option value={dependenciaActual}>{dependenciaActual}</option>
-                        ) : (
-                            todasDependencias.map(dep => <option key={dep} value={dep}>{dep}</option>)
-                        )}
-                      </select>
-                      {isAdmin && <i className="fa-solid fa-chevron-down absolute right-4 text-[10px] text-zinc-400 pointer-events-none"></i>}
-                    </div>
+                        <i className="fa-solid fa-lock text-xs"></i>
+                        <span className="truncate">{dependenciaActual}</span>
+                      </span>
+                    )}
                 </div>
 
                 <div className="h-6 w-px bg-zinc-200 dark:bg-white/10 hidden sm:block"></div>

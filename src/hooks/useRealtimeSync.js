@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import localforage from 'localforage';
 import { debeResyncTotal, fusionarBienes, ahoraISO } from '../services/syncBienes';
+import { normalizeStr } from '../utils/helpers';
 import { processOfflineQueue, getOfflineQueueLength } from '../services/offlineSyncService';
 
 // Sincronización de datos: fetch inicial (total + delta), realtime,
@@ -243,7 +244,8 @@ export function useRealtimeSync({
                   if (!row) return;
                   const d = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
                   // El canal trae cambios de TODAS las dependencias: lo ajeno no se mezcla.
-                  if ((d.dependencia || '') !== dependenciaActual) {
+                  // Comparación tolerante (tildes/mayúsculas) como el resto.
+                  if (normalizeStr(d.dependencia || '') !== normalizeStr(dependenciaActual)) {
                       setBienes(prev => prev.filter(b => b.id !== row.id));
                       return;
                   }

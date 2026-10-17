@@ -10,7 +10,10 @@ export function useAuthSession({ notify }) {
   const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('is_logged_in') === 'true');
   const [currentUser, setCurrentUser] = useState(() => { const saved = localStorage.getItem('current_user'); return saved ? JSON.parse(saved) : null; });
 
-  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.role === 'dev' || currentUser?.cargo === 'cargo', [currentUser]);
+  // Admin solo por rol. Antes comparaba además `cargo === 'cargo'`, que no es un
+  // rol sino el nombre del campo: cualquier registro con ese texto quedaba como
+  // administrador.
+  const isAdmin = useMemo(() => currentUser?.role === 'admin' || currentUser?.role === 'dev', [currentUser]);
   // Desarrollador: mismas capacidades que admin, pero nunca bloqueado por mantenimiento
   // y único con acceso al módulo de mantenimiento.
   const esDesarrollador = useMemo(() => currentUser?.role === 'dev', [currentUser]);

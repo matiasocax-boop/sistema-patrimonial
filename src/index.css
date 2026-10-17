@@ -353,12 +353,25 @@ html.font-lg { font-size: 18px; }
   .login-float,
   .login-rise,
   .login-spinner,
-  .anim-rows tbody tr {
+  .anim-rows tbody tr,
+  .animate-ping,
+  .animate-pulse,
+  .animate-spin,
+  .animate-bounce,
+  .animate-breathe {
     animation: none;
     opacity: 1;
   }
   .shimmer-wrap::after {
     display: none;
+  }
+  /* Las transiciones también deben detenerse: la app usa `transition-all`
+     en casi todos los botones y tarjetas, y antes seguían animando. */
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
   html {
     scroll-behavior: auto;

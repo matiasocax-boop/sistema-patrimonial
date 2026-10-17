@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { toInputDateFormat, formatearMiles, normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
+import FiltroCombo from './FiltroCombo';
 
 export default function BienModal({
     setIsBienModalOpen,
@@ -327,9 +328,13 @@ export default function BienModal({
 
                   <div>
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Estado de Conservación</label>
-                    <select name="estadoConservacion" defaultValue={defecto('estadoConservacion', bienEditing?.estadoConservacion || 'Bueno')} className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}>
-                        {ESTADOS_CONSERVACION.map(est => <option key={est} value={est}>{est}</option>)}
-                    </select>
+                    <FiltroCombo
+                      name="estadoConservacion"
+                      valor={defecto('estadoConservacion', bienEditing?.estadoConservacion || 'Bueno')}
+                      opciones={ESTADOS_CONSERVACION}
+                      etiquetaTodos="Estado"
+                      titulo="Estado de conservación"
+                    />
                   </div>
                 </div>
 

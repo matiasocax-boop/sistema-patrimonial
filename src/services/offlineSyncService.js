@@ -1,5 +1,6 @@
 import localforage from 'localforage';
 import { supabase } from '../supabaseClient';
+import { conSello } from './syncBienes';
 
 const QUEUE_KEY = 'pending_offline_actions';
 
@@ -42,11 +43,22 @@ export const processOfflineQueue = async (onSuccessCallback) => {
 
     for (const item of currentQueue) {
       try {
+        // Tipo desconocido: antes caía en `res = { error: null }` y el ítem se
+        // contaba como sincronizado y se borraba de la cola (pérdida silenciosa).
+        const conocido = ['SAVE_BIEN', 'DELETE_BIEN', 'SAVE_FC10'].includes(item.type);
+        if (!conocido) {
+          console.warn('⚠️ Acción offline de tipo desconocido, se conserva en la cola:', item.type);
+          remainingQueue.push(item);
+          continue;
+        }
+
         let res = { error: null };
 
         if (item.type === 'SAVE_BIEN') {
-          // Aseguramos el payload en formato JSONB que usa Supabase
-          const payload = { id: item.payload.id, data: item.payload };
+          // Aseguramos el payload en formato JSONB que usa Supabase.
+          // `conSello` es obligatorio: sin `updated_at` el cambio no entra en el
+          // delta de los demás equipos hasta la resincronización total (24 h).
+          const payload = conSello({ id: item.payload.id, data: item.payload });
           res = await supabase.from('bens').upsert([payload]);
         } else if (item.type === 'DELETE_BIEN') {
           res = await supabase.from('bens').delete().eq('id', item.payload.id);

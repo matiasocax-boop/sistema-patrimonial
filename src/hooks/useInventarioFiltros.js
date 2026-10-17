@@ -40,7 +40,12 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
   const [orden, setOrden] = useState(null);
   // Tamaño de página configurable (10/20/50) + selección múltiple + vista.
   const [itemsPorPagina, setItemsPorPagina] = useState(() => {
-    try { return parseInt(localStorage.getItem('inv_page_size') || '10', 10) || 10; } catch { return 10; }
+    // Solo se aceptan los tamaños soportados: un valor sucio en localStorage
+    // (p. ej. -5) producía slice() negativo y totalPages inválido.
+    try {
+      const n = parseInt(localStorage.getItem('inv_page_size') || '10', 10);
+      return [10, 20, 50].includes(n) ? n : 10;
+    } catch { return 10; }
   });
   const [seleccionados, setSeleccionados] = useState([]);
   const [vistaInv, setVistaInv] = useState(() => {
@@ -90,6 +95,20 @@ export function useInventarioFiltros({ bienes, dependenciaActual, fc10List, user
   });
   const [nombreVista, setNombreVista] = useState('');
   const [mostrarGuardarVista, setMostrarGuardarVista] = useState(false);
+
+  // El hook vive siempre montado en App: antes del login `username` era
+  // undefined (clave `vistas_anon`) y, al entrar otro usuario, se leían y
+  // pisaban las vistas del anterior. Se recarga la lista al cambiar de usuario.
+  useEffect(() => {
+    let vivo = true;
+    try {
+      const raw = JSON.parse(localStorage.getItem(`vistas_${username || 'anon'}`) || '[]');
+      if (vivo) setVistasGuardadas(Array.isArray(raw) ? raw : []);
+    } catch (e) {
+      if (vivo) setVistasGuardadas([]);
+    }
+    return () => { vivo = false; };
+  }, [username]);
   const guardarVistaActual = useCallback(() => {
     const nombre = nombreVista.trim();
     if (!nombre) return;

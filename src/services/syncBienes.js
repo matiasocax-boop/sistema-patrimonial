@@ -9,6 +9,7 @@
 // Las filas viejas sin sello se capturan en la descarga total; a partir de
 // ahí, cualquier edición posterior ya trae sello fresco y entra en el delta.
 
+
 export const RESYNC_MS = 24 * 60 * 60 * 1000;
 
 export const ahoraISO = () => new Date().toISOString();
@@ -31,6 +32,12 @@ const parseData = (data) => {
   }
 };
 
+// Comparación de dependencia tolerante a tildes/mayúsculas (mismo criterio que
+// el resto de la app). Se replica aquí para que este módulo siga sin imports:
+// sus pruebas unitarias lo cargan directo con Node y no resuelven rutas relativas.
+const mismaDependencia = (a, b) => String(a || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase()
+  === String(b || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+
 // Fusiona filas remotas sobre la caché: por id; descarta las que salieron
 // de la dependencia (cambio de dependencia en otro equipo). Devuelve la
 // lista final y el max(updated_at) para avanzar la meta del delta.
@@ -39,7 +46,10 @@ export const fusionarBienes = (cache, filas, dependencia) => {
   let max = null;
   for (const row of filas || []) {
     const d = parseData(row.data);
-    if ((d.dependencia || '') !== dependencia) {
+    // Tolerante a tildes/mayúsculas como el resto de la app: con comparación
+    // exacta un bien guardado como "rectorado" se borraba de la caché al
+    // sincronizar contra la dependencia "Rectorado".
+    if (!mismaDependencia(d.dependencia, dependencia)) {
       mapa.delete(row.id);
       continue;
     }
