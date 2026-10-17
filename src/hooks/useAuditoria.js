@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
 import { normalizeStr, parseDateInfo } from '../utils/helpers';
 import { extraerCodigoQR } from '../utils/qr';
 import { buildActaAuditoriaPDF } from '../utils/pdfGenerators';
 import { registrarAuditoria } from '../services/auditService';
+import { estimarUsoDB, alertaUso } from '../services/supabaseFreeTier';
 
 // Dominio de auditoría: libro de eventos + conciliación + muestreo
 // (extraído de App.jsx, Fase 6). La vista AuditoriaView recibe los mismos
@@ -82,15 +83,28 @@ export function useAuditoria({
         setTotalAud(count || 0);
         setPaginaAud(pag);
       }
-      // KPIs livianos del período (solo 2 columnas)
+      // KPIs del período. Antes se bajaban hasta 2000 filas y se contaban en el
+      // cliente, lo que gastaba lecturas del plan free sin necesidad. Ahora se
+      // piden conteos (head) de cada tipo: vuelve un número por consulta en vez
+      // de cientos de filas.
       try {
         const hace30 = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-        let qk = supabase.from('auditoria').select('accion,fecha').gte('fecha', hace30).limit(2000);
-        if (alcanceAud === 'dep') qk = qk.eq('dependencia', dependenciaActual);
-        const { data: kd } = await qk;
-        const cuenta = (re) => (kd || []).filter(r => re.test(String(r.accion || ''))).length;
-        setKpisAud({ total: (kd || []).length, altas: cuenta(/CREA|ALTA/), mods: cuenta(/MODIF/), bajas: cuenta(/BAJA|ELIMINA/) });
-      } catch (e) {}
+        const contar = async (patron) => {
+          let q = supabase.from('auditoria')
+            .select('id', { count: 'exact', head: true })
+            .gte('fecha', hace30);
+          if (alcanceAud === 'dep') q = q.eq('dependencia', dependenciaActual);
+          if (patron) q = q.ilike('accion', patron);
+          const { count, error } = await q;
+          return (!error && typeof count === 'number') ? count : 0;
+        };
+        const [total, altas, mods, bajas] = await Promise.all([
+          contar(null), contar('%ALTA%'), contar('%MODIF%'), contar('%BAJA%')
+        ]);
+        setKpisAud({ total, altas, mods, bajas });
+      } catch (e) {
+        setKpisAud({ total: 0, altas: 0, mods: 0, bajas: 0 });
+      }
       // Acciones distintas para el filtro
       try {
         const { data: ad } = await supabase.from('auditoria').select('accion').limit(1000);
@@ -324,6 +338,20 @@ export function useAuditoria({
     fetchAuditoria();
   };
 
+  // Consumo estimado de la base, para el panel de "salud de datos". Se calcula
+  // una sola vez al abrir Auditoría (son 10 conteos head, no traen filas).
+  const [usoDb, setUsoDb] = useState(null);
+  const cargarUso = useCallback(async () => {
+    try {
+      const est = await estimarUsoDB(supabase);
+      setUsoDb(est);
+    } catch (e) { setUsoDb(null); }
+  }, []);
+  useEffect(() => {
+    if (activeTab === 'auditoria' && isAdmin) cargarUso();
+  }, [activeTab, isAdmin, cargarUso]);
+  const alertaDb = usoDb ? alertaUso(usoDb) : null;
+
   return {
     auditoriaList, isLoadingAud, searchAud, setSearchAud,
     filtroAccionAud, setFiltroAccionAud,
@@ -333,7 +361,7 @@ export function useAuditoria({
     verificadosMuestra, setVerificadosMuestra,
     paginaAud, totalAud, alcanceAud, setAlcanceAud, kpisAud, accionesUnicasAud,
     fetchAuditoria, actorAud, detalleAudCorto, tonoAccionAud,
-    evolucionValor, maxEvolucion, formatoCortoGs, saludDatos,
+    evolucionValor, maxEvolucion, formatoCortoGs, saludDatos, usoDb, alertaDb,
     resultadoConteo, agregarCodigoConteo,
     descargarActaConteoPDF, descargarActaMuestreoPDF, exportarConteoCSV,
     guardarActaConteo, generarMuestra, guardarActaMuestreo

@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import SkeletonLoader from '../components/SkeletonLoader';
 import { PeriodSelector } from '../components/FilterComponents';
 import { formatDateText, formatCI } from '../utils/helpers';
@@ -11,11 +12,33 @@ export default function Fc10View({
   isAdmin, setItemToDelete, setActiveTab, registrarFirmaFC10, firmandoId
 }) {
   // Cuántas hay en cada etapa: el trabajo real que falta por hacer.
-  const conteo = { pendientes: 0, cerradas: 0 };
+  const conteo = { pendientes: 0, cerradas: 0, esperaFuncionario: 0, esperaJefe: 0 };
   (filteredFC10 || []).forEach(fc => {
-    if (estadoInicialFC10(fc) === ESTADOS_FC10.CERRADO) conteo.cerradas++;
-    else conteo.pendientes++;
+    const e = estadoInicialFC10(fc);
+    if (e === ESTADOS_FC10.CERRADO) { conteo.cerradas++; return; }
+    conteo.pendientes++;
+    if (e === ESTADOS_FC10.ESPERA_FIRMA_1) conteo.esperaFuncionario++;
+    if (e === ESTADOS_FC10.ESPERA_FIRMA_2) conteo.esperaJefe++;
   });
+
+  // Filtro de etapa. Se usa en vez de tocar el estado de cada fila, que es lo
+  // que hacia el sistema anterior y no dejaba ver de un vistazo que falta.
+  const [filtroEtapa, setFiltroEtapa] = useState('todas');
+  const ETAPAS = [
+    { id: 'todas', label: 'Todas', n: filteredFC10.length },
+    { id: 'espera1', label: 'Falta funcionario', n: conteo.esperaFuncionario, activo: conteo.esperaFuncionario > 0 },
+    { id: 'espera2', label: 'Falta jefe', n: conteo.esperaJefe, activo: conteo.esperaJefe > 0 },
+    { id: 'cerradas', label: 'Cerradas', n: conteo.cerradas }
+  ];
+  const coincideEtapa = (fc) => {
+    if (filtroEtapa === 'todas') return true;
+    const e = estadoInicialFC10(fc);
+    if (filtroEtapa === 'cerradas') return e === ESTADOS_FC10.CERRADO;
+    if (filtroEtapa === 'espera1') return e === ESTADOS_FC10.ESPERA_FIRMA_1;
+    if (filtroEtapa === 'espera2') return e === ESTADOS_FC10.ESPERA_FIRMA_2;
+    return true;
+  };
+  const listaVisible = (filteredFC10 || []).filter(coincideEtapa);
 
   return (
     <div className="animate-fade-in flex flex-col flex-1 space-y-6">
@@ -44,6 +67,25 @@ export default function Fc10View({
             </div>
           </div>
 
+          {/* Filtro por etapa del trámite: acá se ve qué falta firmar y se
+              llega directo, sin recorrer todas las tarjetas. */}
+          <div className="flex flex-wrap items-center gap-1.5 -mb-1">
+            {ETAPAS.map(et => (
+              <button
+                key={et.id}
+                onClick={() => setFiltroEtapa(et.id)}
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-xl text-[11px] font-bold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
+                  filtroEtapa === et.id
+                    ? 'bg-zinc-900 dark:bg-white text-white dark:text-zinc-900'
+                    : 'bg-zinc-100 dark:bg-white/5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/10'
+                }`}
+              >
+                {et.label}
+                <span className={`tabular-nums ${filtroEtapa === et.id ? 'opacity-80' : 'text-zinc-400 dark:text-zinc-500'}`}>{et.n}</span>
+              </button>
+            ))}
+          </div>
+
           {/* CONTENEDOR DE CONTROLES SUPERIOR */}
           <div className="flex flex-wrap gap-2 items-center">
             <PeriodSelector selectedYear={fc10Year} setSelectedYear={setFc10Year} selectedMonth={fc10Month} setSelectedMonth={setFc10Month} />
@@ -59,25 +101,46 @@ export default function Fc10View({
         <div className="bg-white dark:bg-darkbg-card p-6 sm:p-8 rounded-2xl border border-zinc-200/80 dark:border-darkbg-border shadow-2xs min-h-[400px]">
           {isLoading ? (
             <SkeletonLoader />
-          ) : filteredFC10.length === 0 ? (
+          ) : listaVisible.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50/50 dark:bg-darkbg-main/50 rounded-2xl border border-dashed border-zinc-300 dark:border-darkbg-border">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-darkbg-main text-zinc-400 mb-4 shadow-2xs">
-                <i className="fa-solid fa-folder-open text-2xl"></i>
+                <i className={`fa-solid ${filtroEtapa === 'todas' ? 'fa-folder-open' : 'fa-circle-check'} text-2xl`}></i>
               </div>
-              <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin asignaciones en el ciclo</h3>
-              <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen actas FC-10 generadas en el periodo seleccionado.</p>
-              {setActiveTab && (
-                <button
-                  onClick={() => setActiveTab('inventario')}
-                  className="mt-4 inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
-                >
-                  <i className="fa-solid fa-boxes-stacked text-xs"></i> Asignar desde inventario
-                </button>
+              {filtroEtapa === 'todas' ? (
+                <>
+                  <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">Sin asignaciones en el ciclo</h3>
+                  <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">No existen actas FC-10 generadas en el periodo seleccionado.</p>
+                  {setActiveTab && (
+                    <button
+                      onClick={() => setActiveTab('inventario')}
+                      className="mt-4 inline-flex items-center gap-2 h-10 px-5 rounded-xl text-[13px] font-bold bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-all cursor-pointer active:scale-95"
+                    >
+                      <i className="fa-solid fa-boxes-stacked text-xs"></i> Asignar desde inventario
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h3 className="text-base font-black text-zinc-800 dark:text-zinc-200">
+                    Nada en esta etapa
+                  </h3>
+                  <p className="text-xs font-medium text-zinc-400 max-w-xs mt-1">
+                    {ETAPAS.find(e => e.id === filtroEtapa)?.label === 'Cerradas'
+                      ? 'Ningun acta de este periodo tiene las dos firmas registradas.'
+                      : 'Ningun acta espera esta firma en el periodo seleccionado.'}
+                  </p>
+                  <button
+                    onClick={() => setFiltroEtapa('todas')}
+                    className="mt-4 inline-flex items-center gap-2 h-9 px-4 rounded-xl text-[12px] font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <i className="fa-solid fa-arrow-left text-[10px]"></i> Ver todas las actas
+                  </button>
+                </>
               )}
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredFC10.map(fc => {
+              {listaVisible.map(fc => {
                 const bien = bienes.find(b=>b.id === fc.bienId) || {};
                 const isDevuelto = !!fc.devolucionFecha;
                 const estado = estadoInicialFC10(fc);
@@ -121,46 +184,60 @@ export default function Fc10View({
 <h4 className="font-bold text-zinc-900 dark:text-white text-sm tracking-tight truncate" title={fc.funcionarioNombre}>{fc.funcionarioNombre}</h4>
 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 font-medium truncate">{fc.funcionarioCargo}{fc.funcionarioDoc ? ` · CI ${formatCI(fc.funcionarioDoc)}` : ''}</p>
 
-{/* Estado de las dos firmas. La clave del trámite: se ve exactamente a quién
-    le falta firmar y qué falta para cerrar. */}
+{/* Estado de las dos firmas. Solo se muestra si el acta participa de este
+    control. Las actas anteriores al flujo quedan "Cerrado" y, sin historial
+    de firmas, no alcanzan a decir "pendiente": mostrarlas asi se leia como si
+    el ciclo estuviera incompleto cuando ya estaba resuelto. */}
 {!isDevuelto && (
-  <div className="mt-4 space-y-1.5" aria-label="Estado de las firmas">
-    {[
-      { n: 1, puesto: 'Funcionario', nombre: fc.funcionarioNombre, f: f1 },
-      { n: 2, puesto: 'Jefe inmediato', nombre: fc.jefeInmediatoNombre, f: f2 }
-    ].map(({ n, puesto, nombre, f }) => (
-      <div key={n} className="flex items-center gap-2 text-[11px]">
-        <i className={`fa-solid ${f ? 'fa-circle-check text-emerald-500' : 'fa-circle text-zinc-300 dark:text-zinc-600'} text-[11px] shrink-0`}></i>
-        <span className="font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">{puesto}:</span>
-        <span className="truncate text-zinc-500 dark:text-zinc-400">
-          {f ? (
-            <span title={`Registrado por ${f.registradoPorNombre || f.registradoPor} · ${new Date(f.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })}`}>
-              {f.nombre || nombre} · {new Date(f.fecha).toLocaleDateString('es-PY')}
-            </span>
-          ) : (
-            <span className="text-zinc-400 dark:text-zinc-500 italic">pendiente</span>
-          )}
-        </span>
-      </div>
-    ))}
-  </div>
+  (fc.estadoFirma || pendiente) ? (
+    <div className="mt-4 space-y-1.5" aria-label="Estado de las firmas">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500 mb-1.5">
+        Firmas del acta
+      </p>
+      {[
+        { n: 1, puesto: 'Funcionario', nombre: fc.funcionarioNombre, f: f1 },
+        { n: 2, puesto: 'Jefe inmediato', nombre: fc.jefeInmediatoNombre, f: f2 }
+      ].map(({ n, puesto, nombre, f }) => (
+        <div key={n} className="flex items-center gap-2 text-[11px]">
+          <i className={`fa-solid ${f ? 'fa-circle-check text-emerald-500' : 'fa-circle text-zinc-300 dark:text-zinc-600'} text-[11px] shrink-0`}></i>
+          <span className="font-semibold text-zinc-600 dark:text-zinc-300 shrink-0">{puesto}:</span>
+          <span className="truncate text-zinc-500 dark:text-zinc-400">
+            {f ? (
+              <span title={`Registrado por ${f.registradoPorNombre || f.registradoPor} · ${new Date(f.fecha).toLocaleString('es-PY', { dateStyle: 'short', timeStyle: 'short' })}`}>
+                {f.nombre || nombre} · firmado el {new Date(f.fecha).toLocaleDateString('es-PY')}
+              </span>
+            ) : (
+              <span className="text-zinc-400 dark:text-zinc-500 italic">sin firmar</span>
+            )}
+          </span>
+        </div>
+      ))}
+    </div>
+  ) : null
 )}
 
 {/* Acción: registrar la firma pendiente. El acto de firmar ocurre en
-    Acrobat; esto deja constancia de que ese trámite ya se completó. */}
+    Acrobat; esto deja constancia de que ese tramite ya se completo. */}
 {pendiente && registrarFirmaFC10 && (
-  <button
-    onClick={() => registrarFirmaFC10(fc)}
-    disabled={estaFirmando}
-    title={`Registrar la firma de ${pendiente.nombre || pendiente.puesto}`}
-    className="mt-4 w-full inline-flex items-center justify-center gap-2 h-9 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold transition-all active:scale-95 cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
-  >
-    {estaFirmando ? (
-      <><i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Registrando...</>
-    ) : (
-      <><i className="fa-solid fa-signature text-[10px]"></i> Registrar firma {pendiente.orden} · {pendiente.puesto}</>
-    )}
-  </button>
+  <div className="mt-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.07] p-3">
+    <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 leading-snug mb-2.5">
+      {pendiente.nombre
+        ? <>Ya firmó <strong>{pendiente.nombre}</strong> en Acrobat? Registralo para avanzar el trámite.</>
+        : <>Registrá la firma de <strong>{pendiente.puesto}</strong> para avanzar el trámite.</>}
+    </p>
+    <button
+      onClick={() => registrarFirmaFC10(fc)}
+      disabled={estaFirmando}
+      title={`Registrar la firma ${pendiente.orden} de ${pendiente.nombre || pendiente.puesto}`}
+      className="w-full inline-flex items-center justify-center gap-2 h-9 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black uppercase tracking-wider transition-all active:scale-95 cursor-pointer disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
+    >
+      {estaFirmando ? (
+        <><i className="fa-solid fa-circle-notch fa-spin text-[10px]"></i> Registrando...</>
+      ) : (
+        <><i className="fa-solid fa-signature text-[10px]"></i> Firmar {pendiente.puesto}</>
+      )}
+    </button>
+  </div>
 )}
 
 <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-white/10">

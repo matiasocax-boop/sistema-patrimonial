@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { POLL_NOTIFICACIONES_MS, REALTIME_BENS_ACTIVO, REALTIME_NOTIF_ACTIVO } from '../services/supabaseFreeTier';
 import localforage from 'localforage';
 import { debeResyncTotal, fusionarBienes, ahoraISO } from '../services/syncBienes';
 import { normalizeStr } from '../utils/helpers';
@@ -224,11 +225,17 @@ export function useRealtimeSync({
       if (isAuthenticated) {
           fetchData(false); 
           cargarNotificaciones();
-          const notifInterval = setInterval(() => { if (!document.hidden) sondearNotificaciones(); }, 30000);
-          const notifChannel = supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, (payload) => { fusionarNotificacion(payload); }).subscribe();
+          const notifInterval = setInterval(() => { if (!document.hidden) sondearNotificaciones(); }, POLL_NOTIFICACIONES_MS);
+          // Realtime de notificaciones desactivado en favor del sondeo: en el plan
+          // free cada conexión y cada mensaje cuentan, y el sondeo cada 60 s
+          // cubre el caso de uso sin abrir un canal extra.
+          const notifChannel = REALTIME_NOTIF_ACTIVO
+            ? supabase.channel("notif-realtime").on("postgres_changes", { event: "*", schema: "public", table: "notificaciones" }, (payload) => { fusionarNotificacion(payload); }).subscribe()
+            : null;
           // Tiempo real en bienes: lo que cambia en un equipo (ej: foto desde el celular)
-          // se refleja solo en los demás, sin refrescar
-          const bensChannel = supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
+          // se refleja solo en los demás, sin refrescar. Este canal sí se mantiene:
+          // es el que hace útil la app en campo, y el delta cubre el resto del tráfico.
+          const bensChannel = REALTIME_BENS_ACTIVO ? supabase.channel("bens-realtime").on("postgres_changes", { event: "*", schema: "public", table: "bens" }, (payload) => {
               try {
                   if (payload.eventType === 'DELETE') {
                       if (payload.old?.id) {
@@ -259,11 +266,12 @@ export function useRealtimeSync({
                   });
                   setFichaBien(prev => (prev && prev.id === bien.id ? bien : prev));
               } catch (e) {}
-          }).subscribe();
+          }).subscribe() : null;
           return () => {
               clearInterval(notifInterval);
-              supabase.removeChannel(notifChannel);
-              supabase.removeChannel(bensChannel);
+              // removeChannel(null) es seguro, pero se evita la llamada suelta.
+              if (notifChannel) supabase.removeChannel(notifChannel);
+              if (bensChannel) supabase.removeChannel(bensChannel);
           };
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);

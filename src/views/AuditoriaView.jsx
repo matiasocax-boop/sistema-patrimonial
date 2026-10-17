@@ -5,7 +5,7 @@ import FiltroCombo from '../components/FiltroCombo';
 export default function AuditoriaView({
   fetchAuditoria, isLoadingAud, kpisAud, evolucionValor, maxEvolucion, formatoCortoGs,
   clearAllFilters, setFiltroAnio, setFiltroMes, setActiveTab,
-  saludDatos, setSearchTerm, setSearchInput, setCurrentPage,
+  saludDatos, usoDb, alertaDb, setSearchTerm, setSearchInput, setCurrentPage,
   setSearchFuncionarioInput, setCurrentPaginaFuncionarios,
   conteoUbicacion, setConteoUbicacion, bienes, dependenciaActual,
   ubicacionesUnicas, conteoCodigos, conteoInput, setConteoInput, agregarCodigoConteo,
@@ -96,6 +96,34 @@ export default function AuditoriaView({
               <span className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Solo lectura</span>
           </div>
           <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4">Detecta inconsistencias sin modificar nada. Toca un duplicado para revisarlo.</p>
+
+          {/* Consumo del plan free de Supabase. El número es estimado a partir
+              del conteo de filas por tabla: sirve para saber cuanto margen queda
+              antes de tener que archivar informacion vieja. */}
+          {usoDb && (
+            <div className="mb-4 rounded-2xl border border-zinc-200/70 dark:border-white/10 bg-zinc-50/50 dark:bg-white/[0.02] p-3.5">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5">
+                  <i className="fa-solid fa-database text-[10px]"></i> Consumo de base de datos
+                </span>
+                <span className={`text-[11px] font-black tabular-nums ${alertaDb?.nivel === 'critico' ? 'text-rose-600 dark:text-rose-400' : alertaDb?.nivel === 'aviso' ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  {usoDb.pctUso.toFixed(1)}% de 500 MB
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-zinc-200/60 dark:bg-white/10 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    alertaDb?.nivel === 'critico' ? 'bg-rose-500' : alertaDb?.nivel === 'aviso' ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, Math.max(1.5, usoDb.pctUso))}%` }}
+                ></div>
+              </div>
+              <p className="mt-2 text-[10px] text-zinc-400 dark:text-zinc-500">
+                {usoDb.totalFilas.toLocaleString('es-PY')} filas · ~{(usoDb.bytesEstimados / 1024 / 1024).toFixed(1)} MB estimados
+                {alertaDb ? ` · ${alertaDb.texto}` : ' · Dentro del plan free.'}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-4">
               {saludDatos.map(s => (
                   <div key={s.id} className="rounded-2xl border border-zinc-200/70 dark:border-white/10 px-3 py-3 text-center">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { normalizeStr } from '../utils/helpers';
 import { useDraft, serializarForm } from '../hooks/useDraft';
 import CampoCatalogo from './CampoCatalogo';
+import SelectorPersona from './SelectorPersona';
 import { FC10_ORGANOS, FC10_UNIDADES, opcionesCatalogoFC10, organoDeUnidad } from '../constants/fc10Catalogo';
 
 export default function FC10Modal({ setIsFC10ModalOpen, fc10TargetBien, fc10Editing, saveFC10, STYLES, formatCurrency, funcionariosConDatos, dependenciaActual, estructurasDB }) {
@@ -322,6 +323,11 @@ const valorOrgExplicito = (campo) => {
     const matchPadronActual = resolverFuncionario(funcData.nombre);
     const coincidePadron = !!matchPadronActual;
     const padronConDatos = !!(matchPadronActual?.doc || matchPadronActual?.cargo);
+    // Mismo diagnostico para el jefe inmediato, para que se vea de inmediato si
+    // el nombre elegido existe en el padron y si tiene CI/cargo.
+    const matchJefe = resolverFuncionario(jefeData.nombre);
+    const jefeEnPadron = !!matchJefe;
+    const jefeConDatos = !!(matchJefe?.doc || matchJefe?.cargo);
 
     return (
         <div className={STYLES.modalOverlay}>
@@ -483,14 +489,11 @@ const valorOrgExplicito = (campo) => {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                     <div>
                                         <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
-                                        <input 
-                                            list="funcionarios-list-fc10" 
-                                            name="funcionarioNombre" 
-                                            required 
-                                            value={funcData.nombre}
-                                            onChange={handleNameChange}
-                                            onBlur={handleNameBlur}
-                                            className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                        <SelectorPersona
+                                            valor={funcData.nombre}
+                                            funcionarios={safeFuncionarios}
+                                            onElegir={(f) => setFuncData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
+                                            placeholder="Buscar en el padrón..."
                                         />
                                         {funcData.nombre.trim() !== '' && (
                                             <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${padronConDatos ? 'text-emerald-600 dark:text-emerald-400' : coincidePadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
@@ -537,14 +540,18 @@ const valorOrgExplicito = (campo) => {
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Nombre y Apellido</label>
-                                            <input 
-                                                list="funcionarios-list-fc10"
-                                                name="jefeInmediatoNombre" 
-                                                required 
-                                                value={jefeData.nombre}
-                                                onChange={(e) => setJefeData({...jefeData, nombre: e.target.value})}
-                                                className={`${STYLES.input} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary`}
+                                            <SelectorPersona
+                                                valor={jefeData.nombre}
+                                                funcionarios={safeFuncionarios}
+                                                onElegir={(f) => setJefeData({ nombre: f.nombre, doc: f.doc || '', cargo: f.cargo || '' })}
+                                                placeholder="Buscar el jefe en el padrón..."
                                             />
+                                            {jefeData.nombre.trim() !== '' && (
+                                                <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] font-bold ${jefeConDatos ? 'text-emerald-600 dark:text-emerald-400' : jefeEnPadron ? 'text-amber-600 dark:text-amber-400' : 'text-zinc-400 dark:text-zinc-500'}`}>
+                                                    <i className={`fa-solid ${jefeConDatos ? 'fa-circle-check' : jefeEnPadron ? 'fa-triangle-exclamation' : 'fa-circle-info'} text-[10px]`}></i>
+                                                    {jefeConDatos ? 'Datos del padrón aplicados' : jefeEnPadron ? 'En el padrón pero sin CI/cargo — completalos a mano' : 'Nombre libre (no está en el padrón)'}
+                                                </p>
+                                            )}
                                         </div>
                                         <div>
                                             <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2">Cédula de Identidad</label>
@@ -639,6 +646,11 @@ const valorOrgExplicito = (campo) => {
                         <datalist id="funcionarios-list-fc10">
                             {safeFuncionarios.map((f, i) => <option key={`${f.nombre}-${i}`} value={f.nombre} />)}
                         </datalist>
+                        {/* Los dos nombres viajan por inputs ocultos: SelectorPersona
+                            es un control propio y no emite un input con name, pero
+                            saveFC10 los lee del FormData. */}
+                        <input type="hidden" name="funcionarioNombre" value={funcData.nombre} readOnly />
+                        <input type="hidden" name="jefeInmediatoNombre" value={jefeData.nombre} readOnly />
                     </div>
                     
                     <div className="flex justify-end gap-3 px-8 py-6 border-t border-zinc-100 dark:border-darkbg-border bg-white dark:bg-darkbg-card shrink-0 z-10">
