@@ -1109,13 +1109,47 @@ useEffect(() => {
           });
           addToast(aprobar ? 'Funcionario eliminado y notificado.' : 'Solicitud rechazada y notificada.', 'success');
       } catch (e) {
-          // La solicitud vuelve a quedar pendiente: se puede reintentar. El
-          // estado local tampoco se toca, así la lista sigue mostrando lo real.
           setNotificaciones(prev => prev.map(n => (n.id === snapshot.id ? snapshot : n)));
           addToast(`No se pudo resolver la solicitud: ${e.message || 'error desconocido'}. Sigue pendiente.`, 'error');
       } finally {
           setIsProcessing({ active: false, text: '' });
       }
+  };
+
+  // --- CAMBIO MANUAL DE ESTADO DE FIRMAS FC-10 (solo administrador) ---
+  // Llama al endpoint protegido del backend Express:
+  //   PATCH /api/fc10/:id/firma-estado  (middleware exigirAdmin -> solo admin/dev)
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+  const actualizarEstadoFirma = async (id, { estadoFirma, registradoPor }) => {
+    if (!isAdmin) throw new Error('Solo el administrador puede cambiar el estado de firmas.');
+    try {
+      setIsProcessing({ active: true, text: 'Actualizando estado de firma...' });
+      const token = localStorage.getItem('token') || '';
+      const res = await fetch(`${API_URL}/api/fc10/${encodeURIComponent(id)}/firma-estado`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ estadoFirma, registradoPor: registradoPor || (currentUser?.username || 'admin') })
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error || `Error ${res.status}`);
+      }
+      const data = await res.json();
+
+      // Refrescar lista local para UI inmediata
+      setFc10List(prev => prev.map(fc => (fc.id === id ? { ...fc, estadoFirma, firmaEstadoManual: true } : fc)));
+      window.dispatchEvent(new CustomEvent('fc10-estado-cambiado', { detail: { id, estadoFirma } }));
+      addToast('Estado de firma actualizado.', 'success');
+    } catch (e) {
+      addToast(`No se pudo actualizar el estado de firma: ${e.message}`, 'error');
+      throw e;
+    } finally {
+      setIsProcessing({ active: false, text: '' });
+    }
   };
   // Módulo Anuncios (solo desarrollador): una sola fila por anuncio.
   // Broadcast (TODOS) con leídos por usuario; directo con leído simple.
@@ -1900,7 +1934,7 @@ if (publicBienId) {
                 {activeTab === 'resumen' && (<ResumenView dependenciaActual={dependenciaActual} stats={stats} pendientes={pendientes} fc10List={fc10List} />)}
                 {activeTab === 'inventario' && (<InventarioView hasFilters={hasFilters} filteredBienes={filteredBienes} stats={stats} handleDownloadTemplateCSV={handleDownloadTemplateCSV} fileInputRef={fileInputRef} handleExportInventarioCSV={exportarCSV} handleExportInventarioExcel={exportarExcel} ultimaExportacion={ultimaExportacion} onRepetirExport={repetirUltimaExportacion} setIsBulkQR={setIsBulkQR} setQrTargetBien={setQrTargetBien} setIsQRModalOpen={setIsQRModalOpen} openFC03Modal={openFC03Modal} setBienEditing={setBienEditing} setIsBienModalOpen={setIsBienModalOpen} searchRef={searchRef} searchTerm={searchTerm} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} orden={orden} setOrden={setOrden} filtroFuncionario={filtroFuncionario} setFiltroFuncionario={setFiltroFuncionario} funcionariosUnicos={funcionariosUnicos} filtroUbicacion={filtroUbicacion} setFiltroUbicacion={setFiltroUbicacion} ubicacionesUnicas={ubicacionesUnicas} filtroAnio={filtroAnio} setFiltroAnio={setFiltroAnio} aniosUnicos={aniosUnicos} filtroSubcuenta={filtroSubcuenta} setFiltroSubcuenta={setFiltroSubcuenta} subcuentasUnicas={subcuentasUnicas} filtroAnalitico1={filtroAnalitico1} setFiltroAnalitico1={setFiltroAnalitico1} analiticos1Unicos={analiticos1Unicos} filtroAnalitico2={filtroAnalitico2} setFiltroAnalitico2={setFiltroAnalitico2} analiticos2Unicos={analiticos2Unicos} filtroFC10={filtroFC10} setFiltroFC10={setFiltroFC10} filtroEstado={filtroEstado} setFiltroEstado={setFiltroEstado} vistasGuardadas={vistasGuardadas} aplicarVista={aplicarVista} eliminarVista={eliminarVista} mostrarGuardarVista={mostrarGuardarVista} setMostrarGuardarVista={setMostrarGuardarVista} nombreVista={nombreVista} setNombreVista={setNombreVista} guardarVistaActual={guardarVistaActual} clearAllFilters={clearAllFilters} filtroPendiente={filtroPendiente} setFiltroPendiente={setFiltroPendiente} itemsPaginados={itemsPaginados} fc10VigentePorBien={fc10VigentePorBien} isAdmin={isAdmin} setItemToDelete={setItemToDelete} seleccionados={seleccionados} toggleSeleccion={toggleSeleccion} limpiarSeleccion={limpiarSeleccion} vistaInv={vistaInv} cambiarVistaInv={cambiarVistaInv} lastMutatedBienId={lastMutatedBienId} onBajaMasiva={bajaMasiva} onQRLoteSeleccion={qrLoteSeleccion} onMoverEstado={moverEstadoBien} onCopiarLink={copiarLinkFiltros} onExportarProgramado={() => ejecutarExportacionProgramada(false)} STYLES={STYLES} openFichaBien={openFichaBien} openFC10Modal={openFC10Modal} openFC11Modal={openFC11Modal} renderPagination={renderPagination} />)}
 
-                {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} />)}
+                {activeTab === 'aprobaciones' && isAdmin && (<AprobacionesView solicitudesBaja={solicitudesBaja} dependenciaActual={dependenciaActual} bienes={bienes} resolverSolicitudFuncionario={resolverSolicitudFuncionario} openResolucionModal={openResolucionModal} currentUser={currentUser} />)}
 
                 {activeTab === 'auditoria' && isAdmin && (<AuditoriaView fetchAuditoria={fetchAuditoria} isLoadingAud={isLoadingAud} kpisAud={kpisAud} evolucionValor={evolucionValor} maxEvolucion={maxEvolucion} formatoCortoGs={formatoCortoGs} clearAllFilters={clearAllFilters} setFiltroAnio={setFiltroAnio} setFiltroMes={setFiltroMes} setActiveTab={setActiveTab} saludDatos={saludDatos} usoDb={usoDb} alertaDb={alertaDb} setSearchTerm={setSearchTerm} setSearchInput={setSearchInput} setCurrentPage={setCurrentPage} setSearchFuncionarioInput={setSearchFuncionarioInput} setCurrentPaginaFuncionarios={setCurrentPaginaFuncionarios} conteoUbicacion={conteoUbicacion} setConteoUbicacion={setConteoUbicacion} bienes={bienes} dependenciaActual={dependenciaActual} ubicacionesUnicas={ubicacionesUnicas} conteoCodigos={conteoCodigos} conteoInput={conteoInput} setConteoInput={setConteoInput} agregarCodigoConteo={agregarCodigoConteo} resultadoConteo={resultadoConteo} setScanParaConteo={setScanParaConteo} setIsScannerOpen={setIsScannerOpen} setConteoCodigos={setConteoCodigos} exportarConteoCSV={exportarConteoCSV} descargarActaConteoPDF={descargarActaConteoPDF} guardarActaConteo={guardarActaConteo} muestraN={muestraN} setMuestraN={setMuestraN} muestraUbicacion={muestraUbicacion} setMuestraUbicacion={setMuestraUbicacion} muestra={muestra} verificadosMuestra={verificadosMuestra} setVerificadosMuestra={setVerificadosMuestra} generarMuestra={generarMuestra} guardarActaMuestreo={guardarActaMuestreo} descargarActaMuestreoPDF={descargarActaMuestreoPDF} totalAud={totalAud} paginaAud={paginaAud} alcanceAud={alcanceAud} setAlcanceAud={setAlcanceAud} searchAud={searchAud} setSearchAud={setSearchAud} filtroAccionAud={filtroAccionAud} setFiltroAccionAud={setFiltroAccionAud} accionesUnicasAud={accionesUnicasAud} auditoriaList={auditoriaList} actorAud={actorAud} tonoAccionAud={tonoAccionAud} detalleAudCorto={detalleAudCorto} />)}
                 {activeTab === 'usuarios' && isAdmin && (<UsuariosView usuariosList={usuariosList} setUsuarioEditing={setUsuarioEditing} setIsUsuarioModalOpen={setIsUsuarioModalOpen} esDesarrollador={esDesarrollador} currentUser={currentUser} setItemToDelete={setItemToDelete} STYLES={STYLES} />)}
@@ -1909,7 +1943,7 @@ if (publicBienId) {
 
                 {activeTab === 'fc04' && (<Fc04View filteredFC04={filteredFC04} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} openFC04Modal={openFC04Modal} STYLES={STYLES} isLoading={isLoading} ORIGENES_FC04={ORIGENES_FC04} handleGenerateFC04PDF={handleGenerateFC04PDF} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
 
-                {activeTab === 'fc10' && (<Fc10View filteredFC10={filteredFC10} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleExportFC10CSV={handleExportFC10CSV} isLoading={isLoading} bienes={bienes} handleGenerateFC10PDF={handleGenerateFC10PDF} openFC10Modal={openFC10Modal} isAdmin={isAdmin} setItemToDelete={setItemToDelete} setActiveTab={setActiveTab} registrarFirmaFC10={firmarConBloqueo} registrarAmbasFirmas={firmarAmbasConBloqueo} firmandoId={firmandoId} ponerFC10EnTramite={ponerEnTramiteConBloqueo} poniendoEnTramite={poniendoEnTramite} />)}
+                {activeTab === 'fc10' && (<Fc10View filteredFC10={filteredFC10} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} setIsConsolidatedFC10ModalOpen={setIsConsolidatedFC10ModalOpen} handleExportFC10CSV={handleExportFC10CSV} isLoading={isLoading} bienes={bienes} handleGenerateFC10PDF={handleGenerateFC10PDF} openFC10Modal={openFC10Modal} isAdmin={isAdmin} setItemToDelete={setItemToDelete} setActiveTab={setActiveTab} registrarFirmaFC10={firmarConBloqueo} registrarAmbasFirmas={firmarAmbasConBloqueo} firmandoId={firmandoId} ponerFC10EnTramite={ponerEnTramiteConBloqueo} poniendoEnTramite={poniendoEnTramite} actualizarEstadoFirma={actualizarEstadoFirma} currentUser={currentUser} />)}
                 {activeTab === 'fc11' && (<Fc11View filteredFC11={filteredFC11} fc10Year={fc10Year} setFc10Year={setFc10Year} fc10Month={fc10Month} setFc10Month={setFc10Month} STYLES={STYLES} handleExportFC11CSV={handleExportFC11CSV} isLoading={isLoading} dependenciaActual={dependenciaActual} handleGenerateFC11PDF={handleGenerateFC11PDF} openFC11Modal={openFC11Modal} bienes={bienes} isAdmin={isAdmin} setItemToDelete={setItemToDelete} />)}
                 {activeTab === 'ayuda' && (<AyudaView setTourPaso={setTourPaso} STYLES={STYLES} />)}
             </div>

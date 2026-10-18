@@ -6,17 +6,20 @@ html {
 }
 
 @theme {
+  /* Open Sans es la única tipografía del sistema. */
   --font-sans: "Open Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  /* Open Sans es la única tipografía del sistema: hasta font-mono (rótulos,
-     códigos, CSV) resuelve a Open Sans para no romper la identidad. */
   --font-mono: "Open Sans", ui-sans-serif, system-ui, sans-serif;
+  /* Paleta de marca */
   --color-brand-primary: #1d4ed8;
   --color-brand-hover: #1e40af;
   --color-brand-accent: #60a5fa;
-  --color-darkbg-main: #121212;
-  --color-darkbg-card: #18181b;
-  --color-darkbg-border: #27272a;
-  --color-darkbg-hover: #3f3f46;
+  /* Modo oscuro moderno: grises muy oscuros con tono azuláceo para reducir fatiga visual */
+  --color-darkbg-main: #0b0f19;
+  --color-darkbg-card: #111827;
+  --color-darkbg-border: #1f2937;
+  --color-darkbg-hover: #374151;
+  /* Superficies elevadas en modo oscuro */
+  --color-darkbg-surface: #0f172a;
 }
 body { 
   font-family: 'Open Sans', 'Inter', system-ui, sans-serif; 
@@ -27,7 +30,7 @@ body {
 } 
 
 .dark body { 
-  background-color: #121212; 
+  background-color: #0b0f19; 
 }
 
 /* Personalización de barra de desplazamiento */
@@ -344,17 +347,84 @@ select:focus {
 /* Texto grande (preferencia de apariencia) */
 html.font-lg { font-size: 18px; }
 
-/* Contraste alto: refuerza textos apagados y bordes en oscuro */
-.dark.contrast-more .dark\:text-zinc-400 { color: #e4e4e7 !important; }
-.dark.contrast-more .dark\:text-zinc-500 { color: #d4d4d8 !important; }
-.dark.contrast-more .dark\:text-zinc-300 { color: #fafafa !important; }
-.dark.contrast-more .dark\:border-white\/10 { border-color: rgba(255, 255, 255, 0.28) !important; }
-.dark.contrast-more .dark\:bg-white\/5 { background-color: rgba(255, 255, 255, 0.09) !important; }
+/* ============================================================================
+ * CONTRASTE ALTO GLOBAL
+ * Afecta a TODA la interfaz: sidebar, navbar, modales, footers, tablas,
+ * inputs, botones, tarjetas y cualquier elemento con clases dark:*.
+ * Se activa con la clase .contrast-more en <html> o <body>.
+ * ============================================================================ */
 
-/* Pulido general del modo oscuro: superficies y focos */
-.dark body { background-color: #0c0c0e; }
+/* Textos: reforzar grises apagados en modo oscuro */
+.dark.contrast-more .dark\:text-zinc-950 { color: #ffffff !important; }
+.dark.contrast-more .dark\:text-zinc-900 { color: #ffffff !important; }
+.dark.contrast-more .dark\:text-zinc-800 { color: #f3f4f6 !important; }
+.dark.contrast-more .dark\:text-zinc-700 { color: #e5e7eb !important; }
+.dark.contrast-more .dark\:text-zinc-600 { color: #d1d5db !important; }
+.dark.contrast-more .dark\:text-zinc-500 { color: #9ca3af !important; }
+.dark.contrast-more .dark\:text-zinc-400 { color: #e5e7eb !important; }
+.dark.contrast-more .dark\:text-zinc-300 { color: #f3f4f6 !important; }
+
+/* Bordes: más visibles */
+.dark.contrast-more .dark\:border-white\/10,
+.dark.contrast-more .dark\:border-zinc-800,
+.dark.contrast-more .dark\:border-darkbg-border {
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Fondos de tarjetas y superficies */
+.dark.contrast-more .dark\:bg-white\/5,
+.dark.contrast-more .dark\:bg-darkbg-card,
+.dark.contrast-more .dark\:bg-darkbg-main,
+.dark.contrast-more .dark\:bg-darkbg-surface {
+  background-color: #111827 !important;
+}
+
+/* Sidebar y navbar específicas */
+.dark.contrast-more .dark\:bg-darkbg-card {
+  background-color: #0f172a !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Modales: fondo y bordes */
+.dark.contrast-more .dark\:bg-darkbg-card {
+  background-color: #0f172a !important;
+}
+
+/* Inputs en contraste alto */
+.dark.contrast-more .dark\:bg-darkbg-main input,
+.dark.contrast-more .dark\:bg-darkbg-main textarea,
+.dark.contrast-more .dark\:bg-darkbg-main select {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Footer */
+.dark.contrast-more footer,
+.dark.contrast-more .dark\:bg-darkbg-card footer {
+  background-color: #0b0f19 !important;
+  color: #e5e7eb !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Toasts y notificaciones */
+.dark.contrast-more .dark\:bg-zinc-900,
+.dark.contrast-more .dark\:bg-zinc-950 {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Pulido general del modo oscuro moderno */
+.dark body { background-color: #0b0f19; }
 .dark ::selection { background: rgba(96, 165, 250, 0.35); }
 ::selection { background: rgba(29, 78, 216, 0.18); }
+
+/* Forzar color-scheme en todos los controles de formulario en modo oscuro */
+.dark input, .dark select, .dark textarea,
+.dark.contrast-more input, .dark.contrast-more select, .dark.contrast-more textarea {
+  color-scheme: dark;
+}
 
 /* Acento por dependencia (variable --dep-accent desde App) */
 .dep-accent-bar { background: var(--dep-accent, #1d4ed8); }

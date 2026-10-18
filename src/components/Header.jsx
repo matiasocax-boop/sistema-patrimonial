@@ -22,8 +22,9 @@ export default function Header({
       try { localStorage.setItem('ap_texto_grande', textoGrande ? '1' : '0'); } catch {}
     }, [textoGrande]);
     useEffect(() => {
-      const app = document.querySelector('.dark');
-      if (app) app.classList.toggle('contrast-more', contrasteAlto);
+      // Aplicar contraste alto al elemento raíz para que afecte a TODA la UI
+      // (sidebar, navbar, modales, footers, inputs, etc.).
+      document.documentElement.classList.toggle('contrast-more', contrasteAlto);
       try { localStorage.setItem('ap_contraste', contrasteAlto ? '1' : '0'); } catch {}
     }, [contrasteAlto, darkMode]);
     useEffect(() => {
