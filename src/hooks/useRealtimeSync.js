@@ -28,17 +28,11 @@ export function useRealtimeSync({
 
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Guardas de concurrencia. Van en refs para que sobrevivan a los renders
-  // (si fueran estado, cada render crearía una nueva y la cuenta no serviría).
-  // - guardaGen: invalida cargas viejas cuando el usuario cambia de dependencia.
-  // - guarda:    invalida la carga al desmontar o cerrar sesión.
+  // Guarda de concurrencia en ref para que sobreviva a los renders.
+  // Invalida cargas viejas cuando el usuario cambia de dependencia o desmonta.
   const guardaGenRef = useRef(null);
   if (!guardaGenRef.current) guardaGenRef.current = crearGuardaGeneracion();
   const guardaGen = guardaGenRef.current;
-
-  const guardaRef = useRef(null);
-  if (!guardaRef.current) guardaRef.current = crearGuardaGeneracion();
-  const guarda = guardaRef.current;
 
   // Al cambiar de dependencia, la carga anterior deja de ser válida: aunque su
   // petición ya esté en camino, su resultado corresponde a otra dependencia y no
@@ -48,7 +42,6 @@ export function useRealtimeSync({
     if (depAnteriorRef.current !== dependenciaActual) {
       depAnteriorRef.current = dependenciaActual;
       guardaGen.invalidar();
-      guarda.invalidar();
     }
   }, [dependenciaActual]);
 
@@ -111,7 +104,7 @@ export function useRealtimeSync({
     // lanzaba ReferenceError en cada carga de datos.
     let timeoutId = null;
     try {
-      if (!isSilent && guarda.vigente(turno)) setIsLoading(true);
+      if (!isSilent && guardaGen.vigente(turno)) setIsLoading(true);
 
     // --- 1. VALIDACIÓN DE ROL EN SERVIDOR ---
     if (currentUser?.username) {
@@ -152,7 +145,7 @@ export function useRealtimeSync({
 
     let vencido = false;
     timeoutId = setTimeout(() => { vencido = true; }, 8000);
-    const sigueVigente = () => !vencido && guarda.vigente(turno);
+    const sigueVigente = () => !vencido && guardaGen.vigente(turno);
 
       const fetchPromise = (async () => {
         // --- BIENES: descarga total solo si hace falta, si no delta por updated_at ---
@@ -232,12 +225,7 @@ export function useRealtimeSync({
             supabase.from('estructuras').select('id, data'),
             queryNotificacionesAcotadas(),
             supabase.from('usuarios').select('username, nombre, cargo, dependencia'),
-            // Solo las columnas que se usan y solo la dependencia actual: el
-            // padrón completo con select('*') era la consulta más pesada del
-            // arranque y ya no se filtraba hasta el cliente.
-            supabase.from('funcionarios')
-                .select('id, cedula, nombre, cargo, ubicacion, dependencia')
-                .eq('dependencia', dependenciaActual)
+            supabase.from('funcionarios').select('*')
         ]);
 
         const parseDirect = (resData) => {
@@ -271,15 +259,15 @@ export function useRealtimeSync({
       })();
 
       await fetchPromise;
-      if (vencido && !isSilent && guarda.vigente(turno)) setDbError(true);
+      if (vencido && !isSilent && guardaGen.vigente(turno)) setDbError(true);
 
     } catch (error) { 
         console.error("Error crítico de datos:", error);
-        if (!isSilent && guarda.vigente(turno)) setDbError(true);
+        if (!isSilent && guardaGen.vigente(turno)) setDbError(true);
         
         try {
             const cachedBienes = await localforage.getItem(`bienes_cache_${dependenciaActual}`);
-            if (guarda.vigente(turno) && cachedBienes && cachedBienes.length > 0) {
+            if (guardaGen.vigente(turno) && cachedBienes && cachedBienes.length > 0) {
                 setBienes(cachedBienes);
             }
         } catch (e) {}
@@ -287,7 +275,7 @@ export function useRealtimeSync({
         if (timeoutId) clearTimeout(timeoutId);
         // Solo la carga vigente apaga el spinner: si una vieja termina después,
         // no debe apagar el estado de carga de la que está realmente corriendo.
-        if (guarda.vigente(turno)) setIsLoading(false);
+        if (guardaGen.vigente(turno)) setIsLoading(false);
     }
   }, [dependenciaActual, currentUser, handleLogout, notify, setCurrentUser]);
 
@@ -347,7 +335,6 @@ export function useRealtimeSync({
               // en vuelo: si resolvieran después escribirían datos sobre un
               // componente que ya no tiene sesión.
               guardaGen.invalidar();
-              guarda.invalidar();
           };
       }
   }, [isAuthenticated, fetchData, dependenciaActual, isAdmin]);
